@@ -1,6 +1,7 @@
 # app/config.py
 from pydantic_settings import BaseSettings
 from functools import lru_cache
+from typing import List
 
 class Settings(BaseSettings):
     # Database
@@ -11,12 +12,17 @@ class Settings(BaseSettings):
     ALGORITHM: str = "HS256"
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 60
     
-    # CORS (if needed)
-    CORS_ORIGINS: list[str] = ["http://localhost:3000"]
+    # CORS - will parse comma-separated string
+    CORS_ORIGINS: str = "http://localhost:3000"
     
     # Application
     APP_NAME: str = "Movie Review API"
     DEBUG: bool = False
+    
+    @property
+    def cors_origins_list(self) -> List[str]:
+        """Convert comma-separated CORS_ORIGINS to list"""
+        return [origin.strip() for origin in self.CORS_ORIGINS.split(",")]
     
     class Config:
         env_file = ".env"
