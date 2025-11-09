@@ -1,4 +1,3 @@
-# app/utils/security.py
 from datetime import datetime, timedelta, timezone
 from fastapi import Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer
@@ -8,11 +7,10 @@ from sqlalchemy.orm import Session
 
 from app.database import get_db
 from app.models.user import User
-from app.config import get_settings  # Import here
+from app.config import get_settings
 
 settings = get_settings()
 
-# Password hashing
 pwd_context = CryptContext(schemes=["argon2"], deprecated="auto")
 
 def hash_password(password: str) -> str:

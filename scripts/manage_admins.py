@@ -9,8 +9,6 @@ No code duplication - just imports what you already have!
 
 import sys
 import os
-
-# Add parent directory to path so we can import from app
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '../..')))
 
 from app.database import SessionLocal, Base, engine
