@@ -12,6 +12,7 @@ from pydantic import BaseModel, Field
 
 from app.database import get_db
 from app.models.user import User
+from app.models.movie import Movie
 from app.schemas.movie import MovieOut
 from app.utils.security import get_current_user
 from app.ai.hybrid_recommender import recommend_for_user, find_similar_movies
@@ -59,6 +60,176 @@ class ReviewAnalysisRequest(BaseModel):
 
 
 # ============================================================================
+# Semantic Search Endpoints
+# ============================================================================
+
+@router.get("/search", response_model=List[SearchResultOut])
+def semantic_movie_search(
+    q: str = Query(..., min_length=3, description="Natural language search query"),
+    top_k: int = Query(20, ge=1, le=50),
+    # min_score removed - using adaptive thresholding internally
+    genre: Optional[str] = Query(None, description="Filter by genre"),
+    min_rating: Optional[float] = Query(None, ge=0, le=5, description="Minimum average rating"),
+    db: Session = Depends(get_db)
+):
+    """
+    Semantic search for movies using natural language.
+    """
+    try:
+        # Build filters dict
+        filters = {}
+        if genre:
+            filters["genre"] = genre
+        if min_rating is not None:
+            filters["min_rating"] = min_rating
+        
+        print(f"🔍 Searching for: '{q}' with filters: {filters}")
+        
+        results = semantic_search(
+            db,
+            query=q,
+            top_k=top_k,
+            min_score=0.0,  # Use adaptive threshold
+            filters=filters if filters else None
+        )
+        
+        print(f"📊 Got {len(results)} results from semantic_search()")
+        
+        # Check if results is empty
+        if not results:
+            print("⚠️ No results from semantic search, using fallback...")
+            
+            # Simple keyword search fallback
+            movies = db.query(Movie).filter(
+                Movie.summary.ilike(f"%{q}%") | Movie.title.ilike(f"%{q}%")
+            )
+            
+            if genre:
+                movies = movies.filter(Movie.genre.ilike(f"%{genre}%"))
+            if min_rating:
+                movies = movies.filter(Movie.average_rating >= min_rating)
+            
+            movies = movies.order_by(Movie.average_rating.desc()).limit(top_k).all()
+            
+            print(f"📊 Fallback returned {len(movies)} movies")
+            
+            return [
+                SearchResultOut(
+                    movie=MovieOut.model_validate(movie),
+                    relevance=0.5,
+                    snippet=(movie.summary[:150] + "...") if movie.summary and len(movie.summary) > 150 else (movie.summary or "No summary available")
+                )
+                for movie in movies
+            ]
+        
+        # Convert results to response format
+        output = []
+        for item in results:
+            print(f"🎬 Processing result: {type(item)}, length: {len(item) if isinstance(item, (list, tuple)) else 'N/A'}")
+            
+            if isinstance(item, tuple) and len(item) == 3:
+                movie, score, snippet = item
+            elif isinstance(item, tuple) and len(item) == 2:
+                movie, score = item
+                snippet = movie.summary[:150] + "..." if movie.summary and len(movie.summary) > 150 else (movie.summary or "")
+            else:
+                print(f"⚠️ Unexpected result format: {item}")
+                continue
+            
+            output.append(
+                SearchResultOut(
+                    movie=MovieOut.model_validate(movie),
+                    relevance=round(score, 3),
+                    snippet=snippet
+                )
+            )
+        
+        print(f"✅ Returning {len(output)} results")
+        return output
+    
+    except Exception as e:
+        import traceback
+        print("❌ ERROR in semantic_movie_search:")
+        traceback.print_exc()
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Search error: {str(e)}"
+        )
+
+
+@router.get("/search/by-mood/{mood}", response_model=List[SearchResultOut])
+def search_movies_by_mood(
+    mood: str = Path(..., description="Mood/emotion keyword"),
+    top_k: int = Query(20, ge=1, le=50),
+    db: Session = Depends(get_db)
+):
+    """
+    Find movies matching a specific mood or emotion.
+    """
+    try:
+        print(f"🎭 Searching for mood: '{mood}'")
+        
+        results = search_by_mood(db, mood, top_k)
+        
+        print(f"📊 search_by_mood() returned: {len(results) if results else 0} results")
+        print(f"🔍 Results type: {type(results)}")
+        
+        # 🔥 FIX: Add fallback for empty results
+        if not results:
+            print("⚠️ No results from mood search, using keyword fallback...")
+            
+            # Fallback: search for mood keyword in summaries
+            movies = db.query(Movie).filter(
+                Movie.summary.ilike(f"%{mood}%") | Movie.genre.ilike(f"%{mood}%")
+            ).order_by(Movie.average_rating.desc()).limit(top_k).all()
+            
+            print(f"📊 Fallback returned {len(movies)} movies")
+            
+            return [
+                SearchResultOut(
+                    movie=MovieOut.model_validate(movie),
+                    relevance=0.5,
+                    snippet=(movie.summary[:150] + "...") if movie.summary and len(movie.summary) > 150 else (movie.summary or "No summary available")
+                )
+                for movie in movies
+            ]
+        
+        # Convert results to response format
+        output = []
+        for item in results:
+            print(f"🎬 Processing mood result: {type(item)}")
+            
+            if isinstance(item, tuple) and len(item) == 3:
+                movie, score, snippet = item
+            elif isinstance(item, tuple) and len(item) == 2:
+                movie, score = item
+                snippet = movie.summary[:150] + "..." if movie.summary and len(movie.summary) > 150 else (movie.summary or "")
+            else:
+                print(f"⚠️ Unexpected result format: {item}")
+                continue
+            
+            output.append(
+                SearchResultOut(
+                    movie=MovieOut.model_validate(movie),
+                    relevance=round(score, 3),
+                    snippet=snippet
+                )
+            )
+        
+        print(f"✅ Returning {len(output)} mood results")
+        return output
+    
+    except Exception as e:
+        import traceback
+        print("❌ ERROR in search_movies_by_mood:")
+        traceback.print_exc()
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Mood search error: {str(e)}"
+        )
+
+
+# ============================================================================
 # Recommendation Endpoints
 # ============================================================================
 
@@ -69,18 +240,7 @@ def get_personalized_recommendations(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
-    """
-    Get personalized movie recommendations based on your review history.
-    
-    **Requires authentication.**
-    
-    The recommendation engine analyzes:
-    - Movies you've rated highly
-    - Content similarity (plot, themes, style)
-    - Overall movie quality and popularity
-    
-    Returns movies ranked by relevance to your taste.
-    """
+    """Get personalized movie recommendations based on your review history."""
     try:
         results = recommend_for_user(
             db,
@@ -88,6 +248,26 @@ def get_personalized_recommendations(
             top_k=top_k,
             exclude_watched=exclude_watched
         )
+        
+        if not results:
+            popular_movies = db.query(Movie).order_by(
+                Movie.average_rating.desc()
+            ).limit(top_k).all()
+            
+            return [
+                RecommendationOut(
+                    movie=MovieOut.model_validate(movie),
+                    score=movie.average_rating / 5.0,
+                    explanation={
+                        "content_similarity": 0.0,
+                        "rating_score": movie.average_rating / 5.0,
+                        "popularity_score": 0.0,
+                        "final_score": movie.average_rating / 5.0,
+                        "reason": "Popular movie (no personalization available)"
+                    }
+                )
+                for movie in popular_movies
+            ]
         
         return [
             RecommendationOut(
@@ -99,10 +279,27 @@ def get_personalized_recommendations(
         ]
     
     except Exception as e:
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Error generating recommendations: {str(e)}"
-        )
+        import traceback
+        traceback.print_exc()
+        
+        popular_movies = db.query(Movie).order_by(
+            Movie.average_rating.desc()
+        ).limit(top_k).all()
+        
+        return [
+            RecommendationOut(
+                movie=MovieOut.model_validate(movie),
+                score=movie.average_rating / 5.0,
+                explanation={
+                    "content_similarity": 0.0,
+                    "rating_score": movie.average_rating / 5.0,
+                    "popularity_score": 0.0,
+                    "final_score": movie.average_rating / 5.0,
+                    "reason": f"Popular movie (AI unavailable: {str(e)[:50]})"
+                }
+            )
+            for movie in popular_movies
+        ]
 
 
 @router.get("/recommend/similar/{movie_id}", response_model=List[RecommendationOut])
@@ -111,26 +308,32 @@ def get_similar_movies_endpoint(
     top_k: int = Query(10, ge=1, le=50),
     db: Session = Depends(get_db)
 ):
-    """
-    Find movies similar to a specific movie.
-    
-    **Public endpoint** - no authentication required.
-    
-    Uses content-based filtering to find movies with:
-    - Similar plot themes
-    - Similar tone and style
-    - Similar genre elements
-    
-    Example: Find movies like "Inception"
-    """
+    """Find movies similar to a specific movie."""
     try:
         results = find_similar_movies(db, movie_id, top_k)
         
         if not results:
-            raise HTTPException(
-                status_code=404,
-                detail="Movie not found or no similar movies available"
-            )
+            movie = db.query(Movie).filter(Movie.id == movie_id).first()
+            if not movie:
+                raise HTTPException(status_code=404, detail="Movie not found")
+            
+            similar_by_genre = db.query(Movie).filter(
+                Movie.genre.ilike(f"%{movie.genre}%"),
+                Movie.id != movie_id
+            ).order_by(Movie.average_rating.desc()).limit(top_k).all()
+            
+            return [
+                RecommendationOut(
+                    movie=MovieOut.model_validate(m),
+                    score=0.5,
+                    explanation={
+                        "content_similarity": 0.5,
+                        "method": "genre-based (AI unavailable)",
+                        "reason": f"Similar genre: {m.genre}"
+                    }
+                )
+                for m in similar_by_genre
+            ]
         
         return [
             RecommendationOut(
@@ -154,110 +357,6 @@ def get_similar_movies_endpoint(
 
 
 # ============================================================================
-# Semantic Search Endpoints
-# ============================================================================
-
-@router.get("/search", response_model=List[SearchResultOut])
-def semantic_movie_search(
-    q: str = Query(..., min_length=3, description="Natural language search query"),
-    top_k: int = Query(20, ge=1, le=50),
-    min_score: float = Query(0.0, ge=0, le=1, description="Minimum relevance score"),
-    genre: Optional[str] = Query(None, description="Filter by genre"),
-    min_rating: Optional[float] = Query(None, ge=0, le=5, description="Minimum average rating"),
-    db: Session = Depends(get_db)
-):
-    """
-    Semantic search for movies using natural language.
-    
-    **Public endpoint** - no authentication required.
-    
-    Unlike keyword search, this understands meaning and context.
-    
-    **Examples:**
-    - "space movies with emotional depth"
-    - "dark thrillers about revenge"
-    - "feel-good family comedies"
-    - "philosophical sci-fi"
-    
-    **Filters:**
-    - `genre`: Partial match on genre field
-    - `min_rating`: Only include movies with rating >= this value
-    """
-    try:
-        # Build filters dict
-        filters = {}
-        if genre:
-            filters["genre"] = genre
-        if min_rating is not None:
-            filters["min_rating"] = min_rating
-        
-        results = semantic_search(
-            db,
-            query=q,
-            top_k=top_k,
-            min_score=min_score,
-            filters=filters if filters else None
-        )
-        
-        return [
-            SearchResultOut(
-                movie=MovieOut.model_validate(movie),
-                relevance=round(score, 3),
-                snippet=snippet
-            )
-            for movie, score, snippet in results
-        ]
-    
-    except Exception as e:
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Search error: {str(e)}"
-        )
-
-
-@router.get("/search/by-mood/{mood}", response_model=List[SearchResultOut])
-def search_movies_by_mood(
-    mood: str = Path(..., description="Mood/emotion keyword"),
-    top_k: int = Query(20, ge=1, le=50),
-    db: Session = Depends(get_db)
-):
-    """
-    Find movies matching a specific mood or emotion.
-    
-    **Public endpoint** - no authentication required.
-    
-    **Supported moods:**
-    - `uplifting` - Inspiring, feel-good movies
-    - `dark` - Intense, gritty thrillers
-    - `romantic` - Love stories, heartfelt
-    - `funny` - Comedies, humorous
-    - `scary` - Horror, suspenseful
-    - `sad` - Emotional, tearjerkers
-    - `exciting` - Action-packed, thrilling
-    - `thoughtful` - Philosophical, deep
-    
-    You can also use custom mood keywords.
-    """
-    try:
-        results = search_by_mood(db, mood, top_k)
-        
-        return [
-            SearchResultOut(
-                movie=MovieOut.model_validate(movie),
-                relevance=round(score, 3),
-                snippet=snippet
-            )
-            for movie, score, snippet in results
-        ]
-    
-    except Exception as e:
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Mood search error: {str(e)}"
-        )
-
-
-# ============================================================================
 # Review Analysis Endpoints
 # ============================================================================
 
@@ -266,24 +365,7 @@ def analyze_review_sentiment(
     request: ReviewAnalysisRequest,
     db: Session = Depends(get_db)
 ):
-    """
-    Analyze sentiment and extract insights from review text.
-    
-    **Public endpoint** - no authentication required.
-    
-    Returns:
-    - **Sentiment**: positive, negative, or neutral
-    - **Confidence**: How confident the model is (0-1)
-    - **Summary**: One-sentence summary of the review
-    - **Keywords**: Key themes and topics mentioned
-    
-    **Example request:**
-```json
-    {
-      "text": "This movie was absolutely incredible! The acting was superb and the plot kept me engaged throughout."
-    }
-```
-    """
+    """Analyze sentiment and extract insights from review text."""
     try:
         result = analyze_review(request.text)
         
@@ -306,16 +388,9 @@ def get_movie_review_insights(
     movie_id: int,
     db: Session = Depends(get_db)
 ):
-    """
-    Get aggregate sentiment insights for all reviews of a movie.
-    
-    **Public endpoint** - no authentication required.
-    
-    Returns sentiment breakdown and common themes across all reviews.
-    """
+    """Get aggregate sentiment insights for all reviews of a movie."""
     from app.models.review import Review
     
-    # Get all reviews for this movie
     reviews = db.query(Review).filter(
         Review.movie_id == movie_id,
         Review.comment.isnot(None)
@@ -328,10 +403,7 @@ def get_movie_review_insights(
             "message": "No reviews with text available"
         }
     
-    # Analyze each review
     analyses = [analyze_review(r.comment) for r in reviews if r.comment]
-    
-    # Get statistics
     stats = get_review_statistics(analyses)
     
     return {
@@ -346,15 +418,15 @@ def get_movie_review_insights(
 
 @router.get("/info")
 def get_ai_system_info():
-    """
-    Get information about the AI system configuration.
-    
-    **Public endpoint** - no authentication required.
-    """
+    """Get information about the AI system configuration."""
     import os
     from app.ai.vector_store import get_vector_store
     
-    vector_store = get_vector_store()
+    try:
+        vector_store = get_vector_store()
+        stats = vector_store.stats()
+    except Exception as e:
+        stats = {"error": str(e), "total_vectors": 0}
     
     return {
         "embeddings": {
@@ -364,7 +436,7 @@ def get_ai_system_info():
         },
         "vector_store": {
             "type": "FAISS",
-            **vector_store.stats()
+            **stats
         },
         "review_analysis": {
             "provider": os.getenv("REVIEW_ANALYSIS_PROVIDER", "huggingface")
