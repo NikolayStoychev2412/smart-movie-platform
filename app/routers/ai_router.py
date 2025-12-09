@@ -413,6 +413,56 @@ def get_movie_review_insights(
 
 
 # ============================================================================
+# Watchlist-Based Recommendations (NEW)
+# ============================================================================
+
+@router.get("/recommend/similar-to-planned", response_model=List[RecommendationOut])
+def get_similar_to_planned_movies(
+    top_k: int = Query(10, ge=1, le=50),
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """
+    Get recommendations similar to movies in your PLANNED watchlist.
+    
+    **Requires authentication.**
+    
+    This analyzes movies you've marked as "want to watch" and finds
+    similar movies you might also enjoy.
+    
+    Useful for discovery based on your interests!
+    """
+    try:
+        from app.ai.hybrid_recommender import get_similar_to_planned
+        
+        results = get_similar_to_planned(db, current_user.id, top_k)
+        
+        if not results:
+            return []
+        
+        return [
+            RecommendationOut(
+                movie=MovieOut.model_validate(movie),
+                score=round(score, 3),
+                explanation={
+                    "content_similarity": round(score, 3),
+                    "method": "similar-to-planned",
+                    "reason": reason
+                }
+            )
+            for movie, score, reason in results
+        ]
+    
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Error: {str(e)}"
+        )
+
+
+# ============================================================================
 # System Info
 # ============================================================================
 
