@@ -5,11 +5,12 @@ AI-powered features API endpoints:
 - Semantic search
 - Review sentiment analysis
 """
-from fastapi import APIRouter, Depends, HTTPException, Path, Query, status
+from fastapi import APIRouter, Depends, HTTPException, Path, Query, status,Request
 from sqlalchemy.orm import Session
 from typing import List, Optional
-from pydantic import BaseModel, Field
-
+from pydantic import BaseModel, Field,validator
+from app.utils.rate_limit import rate_limit_dependency
+import bleach
 from app.database import get_db
 from app.models.user import User
 from app.models.movie import Movie
@@ -55,8 +56,33 @@ class ReviewAnalysisOut(BaseModel):
 
 
 class ReviewAnalysisRequest(BaseModel):
-    """Request body for review analysis"""
+    """Request body for review analysis with sanitization"""
     text: str = Field(..., min_length=10, max_length=5000)
+    
+    @validator('text')
+    def sanitize_and_validate_text(cls, v):
+        """Sanitize input and check for prompt injection"""
+        # Remove HTML tags
+        v = bleach.clean(v, tags=[], strip=True)
+        
+        # Check for prompt injection patterns
+        forbidden_patterns = [
+            'ignore previous', 'ignore all previous', 'system:',
+            'assistant:', '<|endoftext|>', 'ChatGPT', 'OpenAI',
+            '###', '[INST]', '</s>', '<s>'
+        ]
+        
+        v_lower = v.lower()
+        for pattern in forbidden_patterns:
+            if pattern.lower() in v_lower:
+                raise ValueError(f'Invalid content detected: potentially malicious pattern')
+        
+        # Limit repeated characters (prevents prompt flooding)
+        import re
+        if re.search(r'(.)\1{20,}', v):
+            raise ValueError('Text contains too many repeated characters')
+        
+        return v.strip()
 
 
 # ============================================================================
@@ -65,12 +91,13 @@ class ReviewAnalysisRequest(BaseModel):
 
 @router.get("/search", response_model=List[SearchResultOut])
 def semantic_movie_search(
+    request: Request,  # ✅ ADD THIS
     q: str = Query(..., min_length=3, description="Natural language search query"),
     top_k: int = Query(20, ge=1, le=50),
-    # min_score removed - using adaptive thresholding internally
     genre: Optional[str] = Query(None, description="Filter by genre"),
     min_rating: Optional[float] = Query(None, ge=0, le=5, description="Minimum average rating"),
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    _: None = Depends(lambda r: rate_limit_dependency(r, max_requests=20, window_seconds=60))  # ✅ ADD THIS
 ):
     """
     Semantic search for movies using natural language.
@@ -235,10 +262,12 @@ def search_movies_by_mood(
 
 @router.get("/recommend/for-me", response_model=List[RecommendationOut])
 def get_personalized_recommendations(
+    request: Request,  # ✅ ADD THIS
     top_k: int = Query(20, ge=1, le=50, description="Number of recommendations"),
     exclude_watched: bool = Query(True, description="Exclude already reviewed movies"),
     current_user: User = Depends(get_current_user),
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    _: None = Depends(lambda r: rate_limit_dependency(r, max_requests=10, window_seconds=60))  # ✅ ADD THIS
 ):
     """Get personalized movie recommendations based on your review history."""
     try:
@@ -362,8 +391,10 @@ def get_similar_movies_endpoint(
 
 @router.post("/analyze-review", response_model=ReviewAnalysisOut)
 def analyze_review_sentiment(
-    request: ReviewAnalysisRequest,
-    db: Session = Depends(get_db)
+    request: Request,  # ✅ ADD THIS
+    review_request: ReviewAnalysisRequest,
+    db: Session = Depends(get_db),
+    _: None = Depends(lambda r: rate_limit_dependency(r, max_requests=30, window_seconds=60))  # ✅ ADD THIS
 ):
     """Analyze sentiment and extract insights from review text."""
     try:

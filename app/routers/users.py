@@ -1,14 +1,20 @@
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status,Request
 from sqlalchemy.orm import Session
 from app.database import get_db
 from app.models.user import User
 from app.schemas.user import UserCreate, UserOut
 from app.utils.security import hash_password, get_current_user, require_admin
+from sqlalchemy.exc import IntegrityError
+from app.utils.audit import log_security_event, SecurityEventType
 
 router = APIRouter(prefix="/users", tags=["Users"])
 
 @router.post("/", response_model=UserOut, status_code=status.HTTP_201_CREATED)
-def create_user(user: UserCreate, db: Session = Depends(get_db)):
+def create_user(
+    user: UserCreate,
+    request: Request,
+    db: Session = Depends(get_db)
+):
     """Register a new user (public endpoint)"""
     # Check if email already exists
     existing_user = db.query(User).filter(User.email == user.email).first()
@@ -18,18 +24,37 @@ def create_user(user: UserCreate, db: Session = Depends(get_db)):
             detail="Email already registered"
         )
     
+    # ✅ FIX: Explicitly set fields, NEVER trust user input for is_admin
     hashed_password = hash_password(user.password)
     db_user = User(
         name=user.name,
         email=user.email,
         hashed_password=hashed_password,
-        is_admin=False  # New users are not admin by default
+        is_admin=False  # ✅ HARDCODED - cannot be overridden
     )
-    db.add(db_user)
-    db.commit()
-    db.refresh(db_user)
+    
+    try:
+        db.add(db_user)
+        db.commit()
+        db.refresh(db_user)
+        
+        # ✅ Log user creation
+        log_security_event(
+            SecurityEventType.USER_CREATED,
+            user_id=db_user.id,
+            user_email=db_user.email,
+            ip_address=request.client.host if request.client else "unknown",
+            details={"name": db_user.name}
+        )
+        
+    except IntegrityError:
+        db.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Email already registered"
+        )
+    
     return db_user
-
 @router.get("/me", response_model=UserOut)
 def get_current_user_profile(current_user: User = Depends(get_current_user)):
     """Get current logged-in user's profile"""
@@ -53,7 +78,8 @@ def get_user(user_id: int, db: Session = Depends(get_db)):
 
 @router.delete("/{user_id}")
 def delete_user(
-    user_id: int, 
+    user_id: int,
+    request: Request,
     current_user: User = Depends(require_admin),
     db: Session = Depends(get_db)
 ):
@@ -69,10 +95,21 @@ def delete_user(
             detail="Cannot delete your own account"
         )
     
+    # ✅ Log before deletion
+    log_security_event(
+        SecurityEventType.USER_DELETED,
+        user_id=current_user.id,
+        user_email=current_user.email,
+        ip_address=request.client.host if request.client else "unknown",
+        details={
+            "deleted_user_id": db_user.id,
+            "deleted_user_email": db_user.email
+        }
+    )
+    
     db.delete(db_user)
     db.commit()
     return {"detail": f"User {user_id} deleted successfully"}
-
 @router.patch("/{user_id}/make-admin")
 def make_user_admin(
     user_id: int,

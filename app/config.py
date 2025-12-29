@@ -17,7 +17,7 @@ class Settings(BaseSettings):
     
     # Application
     APP_NAME: str = "Movie Review API"
-    DEBUG: bool = False
+    DEBUG: bool = True
     
     @property
     def cors_origins_list(self) -> List[str]:

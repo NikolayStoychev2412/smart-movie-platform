@@ -30,7 +30,14 @@ def create_movie(
     db: Session = Depends(get_db)
 ):
     """Create a new movie (admin only)"""
-    db_movie = Movie(**movie.dict())
+    # ✅ FIX: Explicitly set only allowed fields
+    db_movie = Movie(
+        title=movie.title,
+        genre=movie.genre,
+        summary=movie.summary,
+        poster_url=movie.poster_url,
+        average_rating=0.0  # Always start at 0
+    )
     db.add(db_movie)
     db.commit()
     db.refresh(db_movie)
@@ -48,13 +55,19 @@ def update_movie(
     if not db_movie:
         raise HTTPException(status_code=404, detail="Movie not found")
     
-    for key, value in movie.dict(exclude_unset=True).items():
-        setattr(db_movie, key, value)
+    # ✅ FIX: Only update allowed fields explicitly
+    update_data = movie.dict(exclude_unset=True)
+    
+    # Whitelist of allowed fields for update
+    allowed_fields = {'title', 'genre', 'summary', 'poster_url'}
+    
+    for key, value in update_data.items():
+        if key in allowed_fields:
+            setattr(db_movie, key, value)
     
     db.commit()
     db.refresh(db_movie)
     return db_movie
-
 @router.delete("/{movie_id}")
 def delete_movie(
     movie_id: int, 

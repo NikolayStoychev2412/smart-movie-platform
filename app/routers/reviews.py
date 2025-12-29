@@ -1,4 +1,5 @@
 from fastapi import APIRouter, Depends, HTTPException, status
+from psycopg2 import IntegrityError
 from sqlalchemy.orm import Session
 from app.schemas.review import ReviewCreate, ReviewOut
 from app.models.movie import Movie
@@ -23,29 +24,28 @@ def create_review(
     if not movie:
         raise HTTPException(status_code=404, detail="Movie not found")
     
-    # Check if user already reviewed this movie
-    existing_review = db.query(Review).filter(
-        Review.user_id == current_user.id,
-        Review.movie_id == movie_id
-    ).first()
-    if existing_review:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="You have already reviewed this movie"
-        )
-    
-    # Create review using current logged-in user's ID
+    # ✅ FIX: Let database unique constraint handle race condition
     db_review = Review(
         user_id=current_user.id,
         movie_id=movie_id,
         rating=review.rating,
         comment=review.comment
     )
-    db.add(db_review)
-    db.commit()
-    db.refresh(db_review)
+    
+    try:
+        db.add(db_review)
+        db.commit()
+        db.refresh(db_review)
+    except IntegrityError:
+        # ✅ Database constraint prevented duplicate
+        db.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="You have already reviewed this movie"
+        )
 
-    # ✅ Recalculate movie rating after new review
+    # Recalculate movie rating after new review
+    from app.utils.ratings import recalculate_movie_rating
     recalculate_movie_rating(db, movie_id)
 
     return db_review
