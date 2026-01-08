@@ -19,7 +19,7 @@ sys.path.insert(0, str(project_root))
 
 import pandas as pd
 from app.database import SessionLocal
-from app.models import Movie, Review, user  # ✨ FIXED: Import all models
+from app.models import Movie, Review, User  # ✨ FIXED: Import all models
 
 # Setup logging
 logging.basicConfig(
