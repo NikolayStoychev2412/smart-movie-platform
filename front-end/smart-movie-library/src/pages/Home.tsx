@@ -35,27 +35,37 @@ export default function Home() {
   };
 
   // Handle search
-  const handleSearch = async (query: string) => {
-    setSearchQuery(query);
-    setSelectedMood('all');
+  // In Home.tsx, update the handleSearch function:
 
-    if (!query.trim()) {
-      fetchMovies();
-      return;
-    }
+const handleSearch = async (query: string, isSemanticSearch: boolean) => {
+  setSearchQuery(query);
+  setSelectedMood('all');
 
-    try {
-      setIsSearching(true);
-      setError(null);
-      const results = await moviesApi.search(query);
+  if (!query.trim()) {
+    fetchMovies();
+    return;
+  }
+
+  try {
+    setIsSearching(true);
+    setError(null);
+    
+    if (isSemanticSearch) {
+      // AI semantic search
+      const results = await moviesApi.semanticSearch(query);
       setMovies(results.map(r => r.movie));
-    } catch (err) {
-      setError('Search failed. Please try again.');
-      console.error(err);
-    } finally {
-      setIsSearching(false);
+    } else {
+      // Normal title search
+      const results = await moviesApi.getAll(query);
+      setMovies(results);
     }
-  };
+  } catch (err) {
+    setError('Търсенето е неуспешно. Моля, опитайте отново.');
+    console.error(err);
+  } finally {
+    setIsSearching(false);
+  }
+};
 
   // Handle mood filter
   const handleMoodSelect = async (mood: string) => {

@@ -1,10 +1,21 @@
-// src/api/movies.ts
 import api from './client';
-import { type Movie, type SearchResult } from '../types/index';
+import type { Movie, SearchResult } from '../types';
+
+interface RecommendationItem {
+  movie: Movie;
+  score: number;
+  explanation: object;
+}
 
 export const moviesApi = {
-  getAll: async (): Promise<Movie[]> => {
-    const response = await api.get('/movies/');
+  // Get all movies (with optional title search)
+  getAll: async (search?: string, genre?: string): Promise<Movie[]> => {
+    const params = new URLSearchParams();
+    if (search) params.append('search', search);
+    if (genre) params.append('genre', genre);
+    
+    const url = params.toString() ? `/movies/?${params}` : '/movies/';
+    const response = await api.get(url);
     return response.data;
   },
 
@@ -14,8 +25,8 @@ export const moviesApi = {
     return response.data;
   },
 
-  // Semantic search (supports Bulgarian!)
-  search: async (query: string, genre?: string, minRating?: number): Promise<SearchResult[]> => {
+  // Semantic search (AI-powered)
+  semanticSearch: async (query: string, genre?: string, minRating?: number): Promise<SearchResult[]> => {
     const params = new URLSearchParams({ q: query });
     if (genre) params.append('genre', genre);
     if (minRating) params.append('min_rating', minRating.toString());
@@ -33,12 +44,12 @@ export const moviesApi = {
   // Get similar movies
   getSimilar: async (movieId: number): Promise<Movie[]> => {
     const response = await api.get(`/ai/recommend/similar/${movieId}`);
-    return response.data.map((item: { movie: Movie }) => item.movie);
+    return response.data.map((item: RecommendationItem) => item.movie);
   },
 
-  // Get personalized recommendations (requires auth)
+  // Get personalized recommendations
   getRecommendations: async (): Promise<Movie[]> => {
     const response = await api.get('/ai/recommend/for-me');
-    return response.data.map((item: { movie: Movie }) => item.movie);
+    return response.data.map((item: RecommendationItem) => item.movie);
   },
 };
