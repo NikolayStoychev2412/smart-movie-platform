@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Movie } from '../types';
+import { type Movie} from '../types/index';
 import { moviesApi } from '../api/movies';
 import MovieGrid from '../components/MovieGrid';
 import SearchBar from '../components/SearchBar';

@@ -1,5 +1,5 @@
 // src/components/MovieCard.tsx
-import { Movie } from '../types';
+import { type Movie} from '../types/index';
 
 interface MovieCardProps {
   movie: Movie;
