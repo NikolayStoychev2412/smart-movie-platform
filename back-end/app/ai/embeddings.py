@@ -1,6 +1,10 @@
 # app/ai/embeddings.py
 """
-Embedding provider with support for multiple backends.
+Embedding provider with multilingual support.
+
+Uses paraphrase-multilingual-MiniLM-L12-v2 which understands 50+ languages
+including Bulgarian - NO TRANSLATION NEEDED!
+
 Supports: sentence-transformers (local) and OpenAI (cloud)
 """
 import os
@@ -26,6 +30,7 @@ class EmbeddingProvider:
             provider: "sentence-transformers" or "openai"
         """
         self.provider = provider.lower()
+        self.model_name = self._get_model_name()
         self.dimension = self._get_dimension()
         
         if self.provider == "sentence-transformers":
@@ -35,12 +40,26 @@ class EmbeddingProvider:
         else:
             raise ValueError(f"Unknown provider: {provider}")
         
-        logger.info(f"Initialized {self.provider} embedding provider (dim={self.dimension})")
+        logger.info(f"Initialized {self.provider} embedding provider")
+        logger.info(f"  Model: {self.model_name}")
+        logger.info(f"  Dimension: {self.dimension}")
+    
+    def _get_model_name(self) -> str:
+        """Get model name based on provider and env vars"""
+        if self.provider == "sentence-transformers":
+            # Default to multilingual model for Bulgarian support!
+            return os.getenv("ST_MODEL_NAME", "paraphrase-multilingual-MiniLM-L12-v2")
+        elif self.provider == "openai":
+            return "text-embedding-ada-002"
+        return "unknown"
     
     def _get_dimension(self) -> int:
-        """Get embedding dimension for the provider"""
+        """Get embedding dimension for the provider/model"""
         if self.provider == "sentence-transformers":
-            return 384  # all-MiniLM-L6-v2
+            # Both models have 384 dimensions
+            # - all-MiniLM-L6-v2: 384
+            # - paraphrase-multilingual-MiniLM-L12-v2: 384
+            return 384
         elif self.provider == "openai":
             return 1536  # text-embedding-ada-002
         return 384
@@ -51,9 +70,12 @@ class EmbeddingProvider:
         
         if _sentence_transformer_model is None:
             from sentence_transformers import SentenceTransformer
-            model_name = os.getenv("ST_MODEL_NAME", "all-MiniLM-L6-v2")
-            _sentence_transformer_model = SentenceTransformer(model_name)
-            logger.info(f"Loaded sentence-transformer model: {model_name}")
+            _sentence_transformer_model = SentenceTransformer(self.model_name)
+            logger.info(f"Loaded sentence-transformer model: {self.model_name}")
+            
+            # Log language support info
+            if "multilingual" in self.model_name.lower():
+                logger.info("✅ Multilingual model loaded - supports Bulgarian, English, and 48 other languages!")
     
     def _init_openai(self):
         """Initialize OpenAI client"""
@@ -71,8 +93,10 @@ class EmbeddingProvider:
         """
         Get embedding for a single text.
         
+        Works with Bulgarian, English, or any of the 50 supported languages!
+        
         Args:
-            text: Input text to embed
+            text: Input text to embed (any language)
             
         Returns:
             List of floats representing the embedding vector
@@ -94,7 +118,7 @@ class EmbeddingProvider:
         Get embeddings for multiple texts efficiently.
         
         Args:
-            texts: List of texts to embed
+            texts: List of texts to embed (any language)
             
         Returns:
             List of embedding vectors
@@ -138,22 +162,37 @@ class EmbeddingProvider:
         return response.data[0].embedding
 
 
-@lru_cache(maxsize=1)
+# Singleton instance cache
+_embedding_provider: EmbeddingProvider = None
+
+
 def get_embedding_provider() -> EmbeddingProvider:
     """
     Get singleton embedding provider instance.
     Provider is determined by EMBEDDINGS_PROVIDER env var.
     """
-    provider = os.getenv("EMBEDDINGS_PROVIDER", "sentence-transformers")
-    return EmbeddingProvider(provider)
+    global _embedding_provider
+    
+    if _embedding_provider is None:
+        provider = os.getenv("EMBEDDINGS_PROVIDER", "sentence-transformers")
+        _embedding_provider = EmbeddingProvider(provider)
+    
+    return _embedding_provider
 
 
 def get_embedding(text: str) -> List[float]:
     """
     Convenience function to get embedding for a single text.
     
+    Works with any language (Bulgarian, English, etc.)!
+    
     Example:
         >>> embedding = get_embedding("A sci-fi movie about space")
+        >>> len(embedding)
+        384
+        
+        >>> # Bulgarian works too!
+        >>> embedding = get_embedding("Страшен филм за космоса")
         >>> len(embedding)
         384
     """
@@ -166,10 +205,24 @@ def get_embeddings_batch(texts: List[str]) -> List[List[float]]:
     Convenience function to get embeddings for multiple texts.
     
     Example:
-        >>> texts = ["Movie 1 summary", "Movie 2 summary"]
+        >>> texts = ["Movie 1 summary", "Резюме на филм 2"]  # Mixed languages OK!
         >>> embeddings = get_embeddings_batch(texts)
         >>> len(embeddings)
         2
     """
     provider = get_embedding_provider()
     return provider.get_embeddings_batch(texts)
+
+
+def get_model_info() -> dict:
+    """Get information about the current embedding model"""
+    provider = get_embedding_provider()
+    return {
+        "provider": provider.provider,
+        "model_name": provider.model_name,
+        "dimension": provider.dimension,
+        "multilingual": "multilingual" in provider.model_name.lower(),
+        "supported_languages": "50+ languages including Bulgarian, English, Russian, etc." 
+            if "multilingual" in provider.model_name.lower() 
+            else "English primarily"
+    }

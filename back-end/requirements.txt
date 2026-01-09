@@ -1,0 +1,39 @@
+# Core FastAPI
+fastapi==0.109.0
+uvicorn[standard]==0.27.0
+python-multipart==0.0.6
+
+# Database
+sqlalchemy==2.0.25
+psycopg2-binary==2.9.9
+alembic==1.13.1
+
+# Authentication & Security
+python-jose[cryptography]==3.3.0
+passlib[argon2]==1.7.4
+pydantic[email]==2.5.3
+pydantic-settings==2.1.0
+python-dotenv==1.0.0
+bleach==6.1.0
+
+# AI/ML Dependencies
+sentence-transformers==2.3.1
+faiss-cpu==1.7.4  # Use faiss-gpu for GPU support
+transformers==4.37.2
+torch==2.1.2
+numpy==1.26.3
+scikit-learn==1.4.0
+
+
+# Data Processing
+pandas==2.2.0
+
+# Testing (optional but recommended)
+pytest==7.4.4
+pytest-asyncio==0.23.3
+httpx==0.26.0
+
+# Development tools
+black==24.1.1
+flake8==7.0.0
+mypy==1.8.0

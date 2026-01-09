@@ -1,5 +1,6 @@
+# app/routers/reviews.py
 from fastapi import APIRouter, Depends, HTTPException, status
-from psycopg2 import IntegrityError
+from sqlalchemy.exc import IntegrityError  # ✅ FIXED: Correct import
 from sqlalchemy.orm import Session
 from app.schemas.review import ReviewCreate, ReviewOut
 from app.models.movie import Movie
@@ -10,6 +11,7 @@ from app.utils.security import get_current_user
 from app.utils.ratings import recalculate_movie_rating
 
 router = APIRouter(prefix="/reviews", tags=["Reviews"])
+
 
 @router.post("/movies/{movie_id}", response_model=ReviewOut, status_code=status.HTTP_201_CREATED)
 def create_review(
@@ -24,7 +26,7 @@ def create_review(
     if not movie:
         raise HTTPException(status_code=404, detail="Movie not found")
     
-    # ✅ FIX: Let database unique constraint handle race condition
+    # Create review - database constraint handles duplicates
     db_review = Review(
         user_id=current_user.id,
         movie_id=movie_id,
@@ -37,15 +39,13 @@ def create_review(
         db.commit()
         db.refresh(db_review)
     except IntegrityError:
-        # ✅ Database constraint prevented duplicate
         db.rollback()
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="You have already reviewed this movie"
         )
 
-    # Recalculate movie rating after new review
-    from app.utils.ratings import recalculate_movie_rating
+    # Recalculate movie rating
     recalculate_movie_rating(db, movie_id)
 
     return db_review
@@ -78,7 +78,7 @@ def update_review(
     if not review:
         raise HTTPException(status_code=404, detail="Review not found")
     
-    # Check if the current user owns this review
+    # Check ownership
     if review.user_id != current_user.id:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
@@ -91,7 +91,7 @@ def update_review(
     db.commit()
     db.refresh(review)
 
-    # ✅ Recalculate movie rating after review update
+    # Recalculate movie rating
     recalculate_movie_rating(db, review.movie_id)
 
     return review
@@ -108,19 +108,19 @@ def delete_review(
     if not review:
         raise HTTPException(status_code=404, detail="Review not found")
     
-    # Check if user owns the review or is admin
+    # Check ownership or admin
     if review.user_id != current_user.id and not current_user.is_admin:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="You can only delete your own reviews"
         )
     
-    movie_id = review.movie_id  # ✅ Save before deleting
+    movie_id = review.movie_id
 
     db.delete(review)
     db.commit()
 
-    # ✅ Recalculate movie rating after deletion
+    # Recalculate movie rating
     recalculate_movie_rating(db, movie_id)
 
     return {"detail": "Review deleted successfully"}

@@ -13,11 +13,10 @@ settings = get_settings()
 app = FastAPI(
     title=settings.APP_NAME,
     debug=settings.DEBUG,
-    docs_url="/docs", # ✅ Hide docs in production
+    docs_url="/docs",
     redoc_url="/redoc" if settings.DEBUG else None
 )
 
-# Create database tables
 Base.metadata.create_all(bind=engine)
 
 
