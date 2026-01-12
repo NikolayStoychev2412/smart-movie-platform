@@ -97,8 +97,7 @@ async def semantic_movie_search(
     top_k: int = Query(20, ge=1, le=50),
     genre: Optional[str] = Query(None, description="Filter by genre"),
     min_rating: Optional[float] = Query(None, ge=0, le=5),
-    db: Session = Depends(get_db),
-    _rate_limit: None = Depends(lambda req: rate_limit_dependency(req, max_requests=30, window_seconds=60))
+    db: Session = Depends(get_db)
 ):
     """
     Semantic search for movies using natural language.

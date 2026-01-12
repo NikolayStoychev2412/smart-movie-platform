@@ -1,18 +1,32 @@
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status,Query
 from sqlalchemy.orm import Session
 from app.database import get_db
 from app.models.movie import Movie
 from app.models.user import User
 from app.schemas.movie import MovieCreate, MovieOut, MovieUpdate
 from app.utils.security import require_admin
+from typing import Optional
 
 router = APIRouter(prefix="/movies", tags=["Movies"])
 
 # Public endpoints (no authentication required)
 @router.get("/", response_model=list[MovieOut])
-def get_movies(db: Session = Depends(get_db)):
-    """Get all movies (public)"""
-    return db.query(Movie).all()
+def get_movies(
+    db: Session = Depends(get_db),
+    search: Optional[str] = Query(None, description="Search by title"),
+    genre: Optional[str] = Query(None, description="Filter by genre"),
+    limit: int = Query(100, ge=1, le=500)
+):
+    """Get all movies with optional search (public)"""
+    query = db.query(Movie)
+    
+    if search:
+        query = query.filter(Movie.title.ilike(f"%{search}%"))
+    
+    if genre:
+        query = query.filter(Movie.genre.ilike(f"%{genre}%"))
+    
+    return query.order_by(Movie.average_rating.desc()).limit(limit).all()
 
 @router.get("/{movie_id}", response_model=MovieOut)
 def get_movie(movie_id: int, db: Session = Depends(get_db)):
