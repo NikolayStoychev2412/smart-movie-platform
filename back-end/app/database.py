@@ -1,29 +1,150 @@
 # app/database.py
-from sqlalchemy import create_engine
-from sqlalchemy.orm import sessionmaker, declarative_base
+"""
+Database configuration with async support for better performance.
+"""
+import os
+from contextlib import asynccontextmanager
+from typing import AsyncGenerator
 
-# Import from config module
-from app.config import get_settings
+# Load .env file FIRST before anything else
+from dotenv import load_dotenv
+load_dotenv()
 
-settings = get_settings()
+from sqlalchemy import create_engine, event
+from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine, async_sessionmaker
+from sqlalchemy.orm import sessionmaker, Session, declarative_base
+from sqlalchemy.pool import StaticPool
 
-# ✅ Improved connection pool configuration
-engine = create_engine(
-    settings.DATABASE_URL,
-    pool_size=20,           # ✅ Increased from 10
-    max_overflow=30,        # ✅ Increased from 20
-    pool_timeout=30,        # ✅ Add timeout
-    pool_recycle=3600,      # ✅ Recycle connections after 1 hour
-    pool_pre_ping=True,     # ✅ Test connections before use
-    echo=settings.DEBUG     # ✅ Log SQL in debug mode
-)
+# Get database URL from environment
+DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///./movies.db")
 
-SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+print(f"📦 Database URL: {DATABASE_URL[:50]}...")  # Debug print
+
+# Determine if using SQLite or PostgreSQL
+IS_SQLITE = DATABASE_URL.startswith("sqlite")
+
+# Convert URL for async driver
+if IS_SQLITE:
+    ASYNC_DATABASE_URL = DATABASE_URL.replace("sqlite://", "sqlite+aiosqlite://")
+else:
+    # postgresql://... -> postgresql+asyncpg://...
+    ASYNC_DATABASE_URL = DATABASE_URL.replace("postgresql://", "postgresql+asyncpg://")
+
+# Base class for models
 Base = declarative_base()
 
-def get_db():
-    db = SessionLocal()
+
+# =============================================================================
+# SYNC ENGINE (for migrations and background tasks)
+# =============================================================================
+if IS_SQLITE:
+    sync_engine = create_engine(
+        DATABASE_URL,
+        connect_args={"check_same_thread": False},
+        poolclass=StaticPool,
+    )
+else:
+    sync_engine = create_engine(
+        DATABASE_URL,
+        pool_size=5,
+        max_overflow=10,
+        pool_pre_ping=True,
+    )
+
+# Sync session factory
+SyncSessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=sync_engine)
+
+
+# =============================================================================
+# ASYNC ENGINE (for API requests)
+# =============================================================================
+if IS_SQLITE:
+    async_engine = create_async_engine(
+        ASYNC_DATABASE_URL,
+        connect_args={"check_same_thread": False},
+        poolclass=StaticPool,
+    )
+else:
+    async_engine = create_async_engine(
+        ASYNC_DATABASE_URL,
+        pool_size=20,
+        max_overflow=30,
+        pool_pre_ping=True,
+        pool_recycle=3600,
+    )
+
+# Async session factory
+AsyncSessionLocal = async_sessionmaker(
+    bind=async_engine,
+    class_=AsyncSession,
+    expire_on_commit=False,
+    autocommit=False,
+    autoflush=False,
+)
+
+
+# =============================================================================
+# DEPENDENCY INJECTION
+# =============================================================================
+
+def get_db() -> Session:
+    """Sync database session dependency."""
+    db = SyncSessionLocal()
     try:
         yield db
     finally:
         db.close()
+
+
+async def get_async_db() -> AsyncGenerator[AsyncSession, None]:
+    """Async database session dependency."""
+    async with AsyncSessionLocal() as session:
+        try:
+            yield session
+        finally:
+            await session.close()
+
+
+@asynccontextmanager
+async def get_async_session() -> AsyncGenerator[AsyncSession, None]:
+    """Async context manager for database sessions."""
+    async with AsyncSessionLocal() as session:
+        try:
+            yield session
+            await session.commit()
+        except Exception:
+            await session.rollback()
+            raise
+        finally:
+            await session.close()
+
+
+# =============================================================================
+# STARTUP / SHUTDOWN
+# =============================================================================
+
+async def init_db():
+    """Initialize database tables."""
+    async with async_engine.begin() as conn:
+        await conn.run_sync(Base.metadata.create_all)
+
+
+async def close_db():
+    """Close database connections on shutdown."""
+    await async_engine.dispose()
+
+
+# =============================================================================
+# SQLITE OPTIMIZATIONS
+# =============================================================================
+
+if IS_SQLITE:
+    @event.listens_for(sync_engine, "connect")
+    def set_sqlite_pragma(dbapi_connection, connection_record):
+        cursor = dbapi_connection.cursor()
+        cursor.execute("PRAGMA journal_mode=WAL")
+        cursor.execute("PRAGMA foreign_keys=ON")
+        cursor.execute("PRAGMA cache_size=-64000")
+        cursor.execute("PRAGMA synchronous=NORMAL")
+        cursor.execute("PRAGMA mmap_size=268435456")
+        cursor.close()

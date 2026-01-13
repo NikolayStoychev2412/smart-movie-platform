@@ -1,41 +1,37 @@
 // src/App.tsx
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
-import { useState } from 'react';
-import { AppProvider } from './context/AppContext';
+import { useState, useEffect } from 'react';
 import Navbar from './components/Navbar';
 import Home from './pages/Home';
+import MovieDetail from './pages/MovieDetail';
 import Login from './pages/Login';
 import Register from './pages/Register';
-import MovieDetail from './pages/MovieDetail';
 import Watchlist from './pages/Watchlist';
+import { moviesApi } from './api/movies';
 
-// Placeholder pages
-const Recommendations = () => (
-  <div className="min-h-screen bg-gray-100 dark:bg-gray-950 text-gray-900 dark:text-white p-8 transition-colors">
-    <h1 className="text-2xl">Recommendations (TODO)</h1>
-  </div>
-);
+function App() {
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const [username, setUsername] = useState<string | undefined>();
 
-const Profile = () => (
-  <div className="min-h-screen bg-gray-100 dark:bg-gray-950 text-gray-900 dark:text-white p-8 transition-colors">
-    <h1 className="text-2xl">Profile (TODO)</h1>
-  </div>
-);
+  useEffect(() => {
+    // Check auth status on mount
+    const token = localStorage.getItem('token');
+    const storedUsername = localStorage.getItem('username');
+    if (token) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setIsLoggedIn(true);
+      setUsername(storedUsername || 'User');
+    }
+    
+    // Prefetch movies immediately on app load (performance optimization)
+    moviesApi.prefetch();
+  }, []);
 
-function AppContent() {
-  const [isLoggedIn, setIsLoggedIn] = useState(() => {
-    return !!localStorage.getItem('token');
-  });
-
-  const [username, setUsername] = useState(() => {
-    return localStorage.getItem('username') || undefined;
-  });
-
-  const handleLogin = (token: string, user: string) => {
+  const handleLogin = (token: string, name: string) => {
     localStorage.setItem('token', token);
-    localStorage.setItem('username', user);
+    localStorage.setItem('username', name);
     setIsLoggedIn(true);
-    setUsername(user);
+    setUsername(name);
   };
 
   const handleLogout = () => {
@@ -46,33 +42,23 @@ function AppContent() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-100 dark:bg-gray-950 transition-colors">
-      <Navbar 
-        isLoggedIn={isLoggedIn} 
-        username={username}
-        onLogout={handleLogout}
-      />
-      
-      <Routes>
-        <Route path="/" element={<Home />} />
-        <Route path="/movie/:id" element={<MovieDetail />} />
-        <Route path="/login" element={<Login onLogin={handleLogin} />} />
-        <Route path="/register" element={<Register />} />
-        <Route path="/watchlist" element={<Watchlist />} />
-        <Route path="/recommendations" element={<Recommendations />} />
-        <Route path="/profile" element={<Profile />} />
-      </Routes>
-    </div>
-  );
-}
-
-function App() {
-  return (
-    <AppProvider>
-      <BrowserRouter>
-        <AppContent />
-      </BrowserRouter>
-    </AppProvider>
+    <BrowserRouter>
+      <div className="min-h-screen bg-gray-950">
+        <Navbar 
+          isLoggedIn={isLoggedIn} 
+          username={username}
+          onLogout={handleLogout}
+        />
+        
+        <Routes>
+          <Route path="/" element={<Home />} />
+          <Route path="/movie/:id" element={<MovieDetail />} />
+          <Route path="/login" element={<Login onLogin={handleLogin} />} />
+          <Route path="/register" element={<Register />} />
+          <Route path="/watchlist" element={<Watchlist />} />
+        </Routes>
+      </div>
+    </BrowserRouter>
   );
 }
 

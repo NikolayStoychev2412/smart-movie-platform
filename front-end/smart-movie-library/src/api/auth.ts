@@ -2,12 +2,12 @@
 import api from './client';
 
 interface LoginRequest {
-  username: string;
+  username: string;  // This is actually email for OAuth2 form
   password: string;
 }
 
 interface RegisterRequest {
-  username: string;
+  name: string;
   email: string;
   password: string;
 }
@@ -19,7 +19,7 @@ interface AuthResponse {
 
 interface User {
   id: number;
-  username: string;
+  name: string;
   email: string;
   is_admin: boolean;
 }
@@ -27,7 +27,7 @@ interface User {
 export const authApi = {
   login: async (credentials: LoginRequest): Promise<AuthResponse> => {
     const formData = new URLSearchParams();
-    formData.append('username', credentials.username);
+    formData.append('username', credentials.username);  // Backend expects email here
     formData.append('password', credentials.password);
     
     const response = await api.post('/auth/login', formData, {
@@ -37,12 +37,12 @@ export const authApi = {
   },
 
   register: async (data: RegisterRequest): Promise<User> => {
-    const response = await api.post('/auth/register', data);
+    const response = await api.post('/users/', data);  // Correct endpoint
     return response.data;
   },
 
   getMe: async (): Promise<User> => {
-    const response = await api.get('/auth/me');
+    const response = await api.get('/users/me');  // Fixed: was /auth/me
     return response.data;
   },
 };
