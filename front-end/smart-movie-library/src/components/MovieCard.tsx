@@ -48,7 +48,7 @@ const MovieCard = memo(function MovieCard({ movie, onClick, priority = false }: 
     return 'text-red-500 border-red-500';
   };
 
-  const getOptimizedPosterUrl = (url: string | undefined): string => {
+  const getOptimizedPosterUrl = (url: string | undefined | null): string => {
     if (!url) return '';
     if (url.includes('image.tmdb.org')) {
       return url.replace('/w500/', '/w342/').replace('/original/', '/w342/');

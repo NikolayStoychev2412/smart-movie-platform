@@ -1,7 +1,7 @@
 # app/routers/auth.py
 from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordRequestForm
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session # type: ignore
 from pydantic import BaseModel, EmailStr
 from app.database import get_db
 from app.models.user import User

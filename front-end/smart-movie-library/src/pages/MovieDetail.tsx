@@ -51,6 +51,7 @@ export default function MovieDetail() {
     if (id) {
       fetchMovieData(parseInt(id));
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id]);
 
   const fetchMovieData = async (movieId: number) => {

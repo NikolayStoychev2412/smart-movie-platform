@@ -16,11 +16,11 @@ from functools import lru_cache
 from typing import List, Optional, Dict, Any
 from app.utils.rate_limit import search_rate_limit, recommend_rate_limit, review_rate_limit
 from fastapi import APIRouter, Depends, HTTPException, Path, Query, status, Request
-from sqlalchemy import select
-from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.orm import Session
+from sqlalchemy import select # type: ignore
+from sqlalchemy.ext.asyncio import AsyncSession # type: ignore
+from sqlalchemy.orm import Session # type: ignore
 from pydantic import BaseModel, Field, field_validator
-import bleach
+import bleach # type: ignore
 
 from app.database import get_async_db, get_db
 from app.models.user import User

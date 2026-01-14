@@ -63,10 +63,6 @@ export default function Home() {
     setMovies(allMovies.slice(0, displayCount));
   }, [allMovies, displayCount]);
 
-  useEffect(() => {
-    fetchMovies();
-  }, []);
-
   const fetchMovies = useCallback(async () => {
     try {
       const cached = movieCache.get();
@@ -90,6 +86,10 @@ export default function Home() {
       setLoading(false);
     }
   }, [t.loadError]);
+
+  useEffect(() => {
+    fetchMovies();
+  }, [fetchMovies]);
 
   const handleSearch = useCallback(async (query: string, mode: 'ai' | 'title' = 'ai') => {
     setSearchQuery(query);
