@@ -8,22 +8,19 @@ import Login from './pages/Login';
 import Register from './pages/Register';
 import Watchlist from './pages/Watchlist';
 import { moviesApi } from './api/movies';
+import { useApp } from './context/AppContext';
 
 function App() {
-  const [isLoggedIn, setIsLoggedIn] = useState(false);
-  const [username, setUsername] = useState<string | undefined>();
+  const { theme } = useApp();
+  const [isLoggedIn, setIsLoggedIn] = useState(() => {
+    return !!localStorage.getItem('token');
+  });
+  const [username, setUsername] = useState<string | undefined>(() => {
+    const token = localStorage.getItem('token');
+    return token ? (localStorage.getItem('username') || 'User') : undefined;
+  });
 
   useEffect(() => {
-    // Check auth status on mount
-    const token = localStorage.getItem('token');
-    const storedUsername = localStorage.getItem('username');
-    if (token) {
-      // eslint-disable-next-line react-hooks/set-state-in-effect
-      setIsLoggedIn(true);
-      setUsername(storedUsername || 'User');
-    }
-    
-    // Prefetch movies immediately on app load (performance optimization)
     moviesApi.prefetch();
   }, []);
 
@@ -43,7 +40,9 @@ function App() {
 
   return (
     <BrowserRouter>
-      <div className="min-h-screen bg-gray-950">
+      <div className={`min-h-screen transition-colors ${
+        theme === 'dark' ? 'bg-gray-950 text-white' : 'bg-gray-50 text-gray-900'
+      }`}>
         <Navbar 
           isLoggedIn={isLoggedIn} 
           username={username}

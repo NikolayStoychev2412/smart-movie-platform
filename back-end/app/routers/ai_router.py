@@ -14,7 +14,7 @@ from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime, timedelta
 from functools import lru_cache
 from typing import List, Optional, Dict, Any
-
+from app.utils.rate_limit import search_rate_limit, recommend_rate_limit, review_rate_limit
 from fastapi import APIRouter, Depends, HTTPException, Path, Query, status, Request
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -147,14 +147,15 @@ async def run_in_threadpool(func, *args, **kwargs):
 # =============================================================================
 
 @router.get("/search", response_model=List[SearchResultOut])
+@router.get("/search", response_model=List[SearchResultOut])
 async def semantic_movie_search(
     request: Request,
-    q: str = Query(..., min_length=2, description="Search query (Bulgarian or English)"),
+    q: str = Query(..., min_length=2, description="Search query"),
     top_k: int = Query(20, ge=1, le=50),
     genre: Optional[str] = Query(None),
     min_rating: Optional[float] = Query(None, ge=0, le=5),
-    db: Session = Depends(get_db),  # Using sync for now (AI functions expect sync)
-    _rate_limit: None = Depends(lambda req: rate_limit_dependency(req, max_requests=30, window_seconds=60))
+    db: Session = Depends(get_db),
+    _rate_limit: None = Depends(search_rate_limit)
 ):
     """
     Semantic search for movies using natural language.
@@ -230,7 +231,8 @@ async def semantic_movie_search(
 async def search_movies_by_mood(
     mood: str = Path(..., description="Mood (e.g., 'scary', 'funny', 'страшен')"),
     top_k: int = Query(20, ge=1, le=50),
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    _rate_limit: None = Depends(search_rate_limit),
 ):
     """
     Find movies matching a mood or emotion.
@@ -298,7 +300,7 @@ async def get_personalized_recommendations(
     exclude_watched: bool = Query(True),
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
-    _rate_limit: None = Depends(lambda req: rate_limit_dependency(req, max_requests=10, window_seconds=60))
+    _rate_limit: None = Depends(recommend_rate_limit)
 ):
     """Get personalized movie recommendations based on your history."""
     try:
@@ -407,7 +409,7 @@ async def analyze_review_sentiment(
     request: Request,
     review_request: ReviewAnalysisRequest,
     db: Session = Depends(get_db),
-    _rate_limit: None = Depends(lambda req: rate_limit_dependency(req, max_requests=30, window_seconds=60))
+    _rate_limit: None = Depends(review_rate_limit)
 ):
     """Analyze sentiment and extract insights from review text."""
     try:

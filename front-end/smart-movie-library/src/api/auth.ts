@@ -27,7 +27,7 @@ interface User {
 export const authApi = {
   login: async (credentials: LoginRequest): Promise<AuthResponse> => {
     const formData = new URLSearchParams();
-    formData.append('username', credentials.username);  // Backend expects email here
+    formData.append('username', credentials.username);
     formData.append('password', credentials.password);
     
     const response = await api.post('/auth/login', formData, {
@@ -37,12 +37,12 @@ export const authApi = {
   },
 
   register: async (data: RegisterRequest): Promise<User> => {
-    const response = await api.post('/users/', data);  // Correct endpoint
+    const response = await api.post('/auth/register', data);  // Changed from /users/ to /auth/register
     return response.data;
   },
 
   getMe: async (): Promise<User> => {
-    const response = await api.get('/users/me');  // Fixed: was /auth/me
+    const response = await api.get('/auth/me');  // Changed from /users/me to /auth/me
     return response.data;
   },
 };

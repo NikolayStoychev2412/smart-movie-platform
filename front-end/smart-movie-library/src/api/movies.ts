@@ -3,7 +3,6 @@ import api from './client';
 import type { Movie } from '../types';
 import type { SearchResult } from '../types';
 
-// Request deduplication - prevent multiple identical requests
 const pendingRequests = new Map<string, Promise<unknown>>();
 
 async function dedupedRequest<T>(key: string, request: () => Promise<T>): Promise<T> {
@@ -20,7 +19,6 @@ async function dedupedRequest<T>(key: string, request: () => Promise<T>): Promis
 }
 
 export const moviesApi = {
-  // Get all movies with request deduplication
   getAll: async (): Promise<Movie[]> => {
     return dedupedRequest('getAll', async () => {
       const response = await api.get('/movies/');
@@ -28,7 +26,6 @@ export const moviesApi = {
     });
   },
 
-  // Get single movie
   getById: async (id: number): Promise<Movie> => {
     return dedupedRequest(`getById:${id}`, async () => {
       const response = await api.get(`/movies/${id}`);
@@ -36,7 +33,7 @@ export const moviesApi = {
     });
   },
 
-  // Semantic search (supports Bulgarian!)
+  // Semantic AI search (supports Bulgarian!)
   search: async (query: string, genre?: string, minRating?: number): Promise<SearchResult[]> => {
     const params = new URLSearchParams({ q: query });
     if (genre) params.append('genre', genre);
@@ -46,6 +43,26 @@ export const moviesApi = {
     return dedupedRequest(key, async () => {
       const response = await api.get(`/ai/search?${params}`);
       return response.data;
+    });
+  },
+
+  // Simple title search (filters locally or via backend)
+  searchByTitle: async (query: string): Promise<Movie[]> => {
+    const key = `titleSearch:${query}`;
+    return dedupedRequest(key, async () => {
+      // Option 1: Use backend search endpoint if available
+      try {
+        const response = await api.get(`/movies/search?q=${encodeURIComponent(query)}`);
+        return response.data;
+      } catch {
+        // Option 2: Fallback to filtering all movies locally
+        const allMovies = await moviesApi.getAll();
+        const lowerQuery = query.toLowerCase();
+        return allMovies.filter(movie => 
+          movie.title.toLowerCase().includes(lowerQuery) ||
+          (movie.title_bg && movie.title_bg.toLowerCase().includes(lowerQuery))
+        );
+      }
     });
   },
 
@@ -76,7 +93,6 @@ export const moviesApi = {
     try {
       await moviesApi.getAll();
     } catch (e) {
-      // Silent fail for prefetch
       console.warn('Prefetch failed:', e);
     }
   }

@@ -1,3 +1,4 @@
+// tailwind.config.js
 /** @type {import('tailwindcss').Config} */
 export default {
   content: [
@@ -6,16 +7,7 @@ export default {
   ],
   darkMode: 'class',
   theme: {
-    extend: {
-      animation: {
-        'shimmer': 'shimmer 1.5s infinite',
-      },
-      keyframes: {
-        shimmer: {
-          '100%': { transform: 'translateX(100%)' },
-        },
-      },
-    },
+    extend: {},
   },
   plugins: [],
 }

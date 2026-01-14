@@ -6,12 +6,13 @@ import { moviesApi } from '../api/movies';
 import MovieGrid from '../components/MovieGrid';
 import SearchBar from '../components/SearchBar';
 import MoodFilter from '../components/MoodFilter';
+import { useApp } from '../context/AppContext';
 
 // Simple in-memory cache for movies
 const movieCache = {
   all: null as Movie[] | null,
   timestamp: 0,
-  TTL: 5 * 60 * 1000, // 5 minutes
+  TTL: 5 * 60 * 1000,
   
   get(): Movie[] | null {
     if (this.all && Date.now() - this.timestamp < this.TTL) {
@@ -28,6 +29,8 @@ const movieCache = {
 
 export default function Home() {
   const navigate = useNavigate();
+  const { theme, t, language } = useApp();
+  
   const [movies, setMovies] = useState<Movie[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -35,17 +38,14 @@ export default function Home() {
   const [selectedMood, setSelectedMood] = useState('all');
   const [isSearching, setIsSearching] = useState(false);
   
-  // Pagination state
-  const [displayCount, setDisplayCount] = useState(24); // Show 24 initially (4 rows of 6)
+  const [displayCount, setDisplayCount] = useState(24);
   const [allMovies, setAllMovies] = useState<Movie[]>([]);
   const loaderRef = useRef<HTMLDivElement>(null);
 
-  // Infinite scroll observer
   useEffect(() => {
     const observer = new IntersectionObserver(
       ([entry]) => {
         if (entry.isIntersecting && displayCount < allMovies.length) {
-          // Load 12 more movies
           setDisplayCount(prev => Math.min(prev + 12, allMovies.length));
         }
       },
@@ -59,19 +59,16 @@ export default function Home() {
     return () => observer.disconnect();
   }, [displayCount, allMovies.length]);
 
-  // Update displayed movies when allMovies or displayCount changes
   useEffect(() => {
     setMovies(allMovies.slice(0, displayCount));
   }, [allMovies, displayCount]);
 
-  // Fetch all movies on mount
   useEffect(() => {
     fetchMovies();
   }, []);
 
   const fetchMovies = useCallback(async () => {
     try {
-      // Check cache first
       const cached = movieCache.get();
       if (cached) {
         setAllMovies(cached);
@@ -83,20 +80,18 @@ export default function Home() {
       setError(null);
       const data = await moviesApi.getAll();
       
-      // Cache the result
       movieCache.set(data);
       setAllMovies(data);
-      setDisplayCount(24); // Reset pagination
+      setDisplayCount(24);
     } catch (err) {
-      setError('Failed to load movies. Please try again.');
+      setError(t.loadError);
       console.error(err);
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [t.loadError]);
 
-  // Handle search
-  const handleSearch = useCallback(async (query: string) => {
+  const handleSearch = useCallback(async (query: string, mode: 'ai' | 'title' = 'ai') => {
     setSearchQuery(query);
     setSelectedMood('all');
     setDisplayCount(24);
@@ -114,17 +109,35 @@ export default function Home() {
     try {
       setIsSearching(true);
       setError(null);
-      const results = await moviesApi.search(query);
-      setAllMovies(results.map(r => r.movie));
+      
+      if (mode === 'ai') {
+        const results = await moviesApi.search(query);
+        setAllMovies(results.map(r => r.movie));
+      } else {
+        let allData = movieCache.get();
+        
+        if (!allData || allData.length === 0) {
+          allData = await moviesApi.getAll();
+          movieCache.set(allData);
+        }
+        
+        const searchLower = query.toLowerCase();
+        const filtered = allData.filter(movie => {
+          const title = (movie.title || '').toLowerCase();
+          const titleBg = (movie.title_bg || '').toLowerCase();
+          return title.includes(searchLower) || titleBg.includes(searchLower);
+        });
+        
+        setAllMovies(filtered);
+      }
     } catch (err) {
-      setError('Search failed. Please try again.');
+      setError(t.searchError);
       console.error(err);
     } finally {
       setIsSearching(false);
     }
-  }, [fetchMovies]);
+  }, [fetchMovies, t.searchError]);
 
-  // Handle mood filter
   const handleMoodSelect = useCallback(async (mood: string) => {
     setSelectedMood(mood);
     setSearchQuery('');
@@ -146,48 +159,65 @@ export default function Home() {
       const results = await moviesApi.searchByMood(mood);
       setAllMovies(results.map(r => r.movie));
     } catch (err) {
-      setError('Failed to filter by mood. Please try again.');
+      setError(t.loadError);
       console.error(err);
     } finally {
       setIsSearching(false);
     }
-  }, [fetchMovies]);
+  }, [fetchMovies, t.loadError]);
 
-  // Navigate to movie detail
   const handleMovieClick = useCallback((movie: Movie) => {
     navigate(`/movie/${movie.id}`);
   }, [navigate]);
 
-  // Section title based on current state
   const getSectionTitle = () => {
     if (searchQuery) {
-      return `Results for "${searchQuery}"`;
+      return `${t.resultsFor} "${searchQuery}"`;
     }
     if (selectedMood !== 'all') {
-      const moodLabel = selectedMood.charAt(0).toUpperCase() + selectedMood.slice(1);
-      return `${moodLabel} Movies`;
+      const moodLabels: Record<string, string> = {
+        funny: t.funny,
+        scary: t.scary,
+        romantic: t.romantic,
+        exciting: t.exciting,
+        sad: t.sad,
+        thoughtful: t.thoughtful,
+      };
+      return `${moodLabels[selectedMood] || selectedMood} ${language === 'bg' ? 'филми' : 'Movies'}`;
     }
-    return 'Popular Movies';
+    return t.popularMovies;
   };
 
   return (
-    <div className="min-h-screen bg-gray-950">
+    <div className={`min-h-screen transition-colors ${
+      theme === 'dark' ? 'bg-gray-950' : 'bg-gray-50'
+    }`}>
       {/* Hero Section */}
-      <div className="relative bg-gradient-to-b from-gray-900 to-gray-950 py-16">
-        <div className="absolute inset-0 bg-[url('/grid.svg')] opacity-10" />
+      <div className={`relative py-16 ${
+        theme === 'dark' 
+          ? 'bg-gradient-to-b from-gray-900 to-gray-950' 
+          : 'bg-gradient-to-b from-blue-50 to-gray-50'
+      }`}>
+        <div className={`absolute inset-0 bg-[url('/grid.svg')] ${
+          theme === 'dark' ? 'opacity-10' : 'opacity-5'
+        }`} />
         
         <div className="relative max-w-7xl mx-auto px-4">
           {/* Title */}
-          <h1 className="text-4xl md:text-5xl font-bold text-white text-center mb-2">
-            Discover Your Next
-            <span className="text-blue-500"> Favorite Movie</span>
+          <h1 className={`text-4xl md:text-5xl font-bold text-center mb-2 ${
+            theme === 'dark' ? 'text-white' : 'text-gray-900'
+          }`}>
+            {t.heroTitle}
+            <span className="text-blue-500"> {t.heroHighlight}</span>
           </h1>
-          <p className="text-gray-400 text-center mb-8 max-w-2xl mx-auto">
-            Search in English or Bulgarian • AI-powered recommendations
+          <p className={`text-center mb-8 max-w-2xl mx-auto ${
+            theme === 'dark' ? 'text-gray-400' : 'text-gray-600'
+          }`}>
+            {t.heroSubtitle}
           </p>
 
           {/* Search Bar */}
-          <SearchBar onSearch={handleSearch} initialValue={searchQuery} />
+          <SearchBar onSearch={(query, mode) => handleSearch(query, mode)} initialValue={searchQuery} />
 
           {/* Mood Filter */}
           <div className="mt-8">
@@ -200,23 +230,31 @@ export default function Home() {
       <main className="max-w-7xl mx-auto px-4 py-8">
         {/* Section Header */}
         <div className="flex items-center justify-between mb-6">
-          <h2 className="text-xl font-semibold text-white">
+          <h2 className={`text-xl font-semibold ${
+            theme === 'dark' ? 'text-white' : 'text-gray-900'
+          }`}>
             {getSectionTitle()}
           </h2>
-          <span className="text-gray-500 text-sm">
-            {movies.length}{allMovies.length > displayCount ? ` / ${allMovies.length}` : ''} movies
+          <span className={`text-sm ${
+            theme === 'dark' ? 'text-gray-500' : 'text-gray-600'
+          }`}>
+            {movies.length}{allMovies.length > displayCount ? ` / ${allMovies.length}` : ''} {t.movies}
           </span>
         </div>
 
         {/* Error Message */}
         {error && (
-          <div className="bg-red-500/10 border border-red-500/20 rounded-lg p-4 mb-6">
-            <p className="text-red-400">{error}</p>
+          <div className={`rounded-lg p-4 mb-6 ${
+            theme === 'dark' 
+              ? 'bg-red-500/10 border border-red-500/20' 
+              : 'bg-red-50 border border-red-200'
+          }`}>
+            <p className="text-red-500">{error}</p>
             <button
               onClick={fetchMovies}
-              className="text-red-400 underline mt-2 text-sm"
+              className="text-red-500 underline mt-2 text-sm"
             >
-              Try again
+              {t.tryAgain}
             </button>
           </div>
         )}
@@ -226,32 +264,33 @@ export default function Home() {
           movies={movies}
           loading={loading || isSearching}
           onMovieClick={handleMovieClick}
-          emptyMessage={
-            searchQuery
-              ? `No movies found for "${searchQuery}"`
-              : "No movies available"
-          }
         />
 
-        {/* Load more trigger (invisible) */}
+        {/* Load more trigger */}
         {allMovies.length > displayCount && (
           <div ref={loaderRef} className="h-20 flex items-center justify-center">
-            <div className="flex items-center gap-2 text-gray-500">
+            <div className={`flex items-center gap-2 ${
+              theme === 'dark' ? 'text-gray-500' : 'text-gray-600'
+            }`}>
               <svg className="animate-spin h-5 w-5" viewBox="0 0 24 24">
                 <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
                 <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
               </svg>
-              <span>Loading more...</span>
+              <span>{language === 'bg' ? 'Зареждане...' : 'Loading more...'}</span>
             </div>
           </div>
         )}
       </main>
 
       {/* Footer */}
-      <footer className="border-t border-gray-800 py-8 mt-16">
-        <div className="max-w-7xl mx-auto px-4 text-center text-gray-500 text-sm">
-          <p>Movie Recommendation System • Diploma Project 2025</p>
-          <p className="mt-1">Powered by AI Semantic Search</p>
+      <footer className={`border-t py-8 mt-16 ${
+        theme === 'dark' ? 'border-gray-800' : 'border-gray-200'
+      }`}>
+        <div className={`max-w-7xl mx-auto px-4 text-center text-sm ${
+          theme === 'dark' ? 'text-gray-500' : 'text-gray-600'
+        }`}>
+          <p>{t.footerTitle}</p>
+          <p className="mt-1">{t.footerPowered}</p>
         </div>
       </footer>
     </div>
