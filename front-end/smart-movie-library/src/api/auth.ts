@@ -2,7 +2,7 @@
 import api from './client';
 
 interface LoginRequest {
-  username: string;  // This is actually email for OAuth2 form
+  username: string;
   password: string;
 }
 
@@ -10,6 +10,7 @@ interface RegisterRequest {
   name: string;
   email: string;
   password: string;
+  preferred_genres?: string[];
 }
 
 interface AuthResponse {
@@ -22,6 +23,7 @@ interface User {
   name: string;
   email: string;
   is_admin: boolean;
+  preferred_genres?: string[];
 }
 
 export const authApi = {
@@ -37,12 +39,12 @@ export const authApi = {
   },
 
   register: async (data: RegisterRequest): Promise<User> => {
-    const response = await api.post('/auth/register', data);  // Changed from /users/ to /auth/register
+    const response = await api.post('/auth/register', data);
     return response.data;
   },
 
   getMe: async (): Promise<User> => {
-    const response = await api.get('/auth/me');  // Changed from /users/me to /auth/me
+    const response = await api.get('/auth/me');
     return response.data;
   },
 };

@@ -1,12 +1,13 @@
 // src/pages/Home.tsx
-import { useState, useEffect, useCallback, useRef } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useNavigate, Link } from 'react-router-dom';
 import type { Movie } from '../types';
-import { moviesApi } from '../api/movies';
-import MovieGrid from '../components/MovieGrid';
+import { moviesApi, type RecommendationWithExplanation } from '../api/movies';
+import MovieCarousel from '../components/MovieCarousel';
 import SearchBar from '../components/SearchBar';
-import MoodFilter from '../components/MoodFilter';
+import TMDBAttribution from '../components/TMDBAttribution';
 import { useApp } from '../context/AppContext';
+import { ArrowRight } from 'lucide-react';
 
 // Simple in-memory cache for movies
 const movieCache = {
@@ -31,37 +32,21 @@ export default function Home() {
   const navigate = useNavigate();
   const { theme, t, language } = useApp();
   
-  const [movies, setMovies] = useState<Movie[]>([]);
+  const [allMovies, setAllMovies] = useState<Movie[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [searchQuery, setSearchQuery] = useState('');
-  const [selectedMood, setSelectedMood] = useState('all');
-  const [isSearching, setIsSearching] = useState(false);
+  const [forYouMovies, setForYouMovies] = useState<RecommendationWithExplanation[]>([]);
+  const [forYouLoading, setForYouLoading] = useState(false);
   
-  const [displayCount, setDisplayCount] = useState(24);
-  const [allMovies, setAllMovies] = useState<Movie[]>([]);
-  const loaderRef = useRef<HTMLDivElement>(null);
+  const isLoggedIn = !!localStorage.getItem('token');
 
+  // Fetch all movies on mount
   useEffect(() => {
-    const observer = new IntersectionObserver(
-      ([entry]) => {
-        if (entry.isIntersecting && displayCount < allMovies.length) {
-          setDisplayCount(prev => Math.min(prev + 12, allMovies.length));
-        }
-      },
-      { rootMargin: '200px' }
-    );
-
-    if (loaderRef.current) {
-      observer.observe(loaderRef.current);
+    fetchMovies();
+    if (isLoggedIn) {
+      fetchForYouMovies();
     }
-
-    return () => observer.disconnect();
-  }, [displayCount, allMovies.length]);
-
-  useEffect(() => {
-    setMovies(allMovies.slice(0, displayCount));
-  }, [allMovies, displayCount]);
+  }, [isLoggedIn]);
 
   const fetchMovies = useCallback(async () => {
     try {
@@ -78,7 +63,6 @@ export default function Home() {
       
       movieCache.set(data);
       setAllMovies(data);
-      setDisplayCount(24);
     } catch (err) {
       setError(t.loadError);
       console.error(err);
@@ -87,113 +71,53 @@ export default function Home() {
     }
   }, [t.loadError]);
 
-  useEffect(() => {
-    fetchMovies();
-  }, [fetchMovies]);
-
-  const handleSearch = useCallback(async (query: string, mode: 'ai' | 'title' = 'ai') => {
-    setSearchQuery(query);
-    setSelectedMood('all');
-    setDisplayCount(24);
-
-    if (!query.trim()) {
-      const cached = movieCache.get();
-      if (cached) {
-        setAllMovies(cached);
-      } else {
-        fetchMovies();
-      }
-      return;
-    }
-
+  const fetchForYouMovies = async () => {
+    setForYouLoading(true);
     try {
-      setIsSearching(true);
-      setError(null);
-      
-      if (mode === 'ai') {
-        const results = await moviesApi.search(query);
-        setAllMovies(results.map(r => r.movie));
-      } else {
-        let allData = movieCache.get();
-        
-        if (!allData || allData.length === 0) {
-          allData = await moviesApi.getAll();
-          movieCache.set(allData);
-        }
-        
-        const searchLower = query.toLowerCase();
-        const filtered = allData.filter(movie => {
-          const title = (movie.title || '').toLowerCase();
-          const titleBg = (movie.title_bg || '').toLowerCase();
-          return title.includes(searchLower) || titleBg.includes(searchLower);
-        });
-        
-        setAllMovies(filtered);
-      }
+      const recommendations = await moviesApi.getRecommendations();
+      setForYouMovies(recommendations);
     } catch (err) {
-      setError(t.searchError);
-      console.error(err);
+      console.error('Failed to fetch recommendations:', err);
+      setForYouMovies([]);
     } finally {
-      setIsSearching(false);
+      setForYouLoading(false);
     }
-  }, [fetchMovies, t.searchError]);
-
-  const handleMoodSelect = useCallback(async (mood: string) => {
-    setSelectedMood(mood);
-    setSearchQuery('');
-    setDisplayCount(24);
-
-    if (mood === 'all') {
-      const cached = movieCache.get();
-      if (cached) {
-        setAllMovies(cached);
-      } else {
-        fetchMovies();
-      }
-      return;
-    }
-
-    try {
-      setIsSearching(true);
-      setError(null);
-      const results = await moviesApi.searchByMood(mood);
-      setAllMovies(results.map(r => r.movie));
-    } catch (err) {
-      setError(t.loadError);
-      console.error(err);
-    } finally {
-      setIsSearching(false);
-    }
-  }, [fetchMovies, t.loadError]);
-
-  const handleMovieClick = useCallback((movie: Movie) => {
-    navigate(`/movie/${movie.id}`);
-  }, [navigate]);
-
-  const getSectionTitle = () => {
-    if (searchQuery) {
-      return `${t.resultsFor} "${searchQuery}"`;
-    }
-    if (selectedMood !== 'all') {
-      const moodLabels: Record<string, string> = {
-        funny: t.funny,
-        scary: t.scary,
-        romantic: t.romantic,
-        exciting: t.exciting,
-        sad: t.sad,
-        thoughtful: t.thoughtful,
-      };
-      return `${moodLabels[selectedMood] || selectedMood} ${language === 'bg' ? 'филми' : 'Movies'}`;
-    }
-    return t.popularMovies;
   };
+
+  // Computed movie lists
+  const popularMovies = useMemo(() => {
+    return [...allMovies]
+      .sort((a, b) => b.review_count - a.review_count)
+      .slice(0, 20);
+  }, [allMovies]);
+
+  const topRatedMovies = useMemo(() => {
+    return [...allMovies]
+      .sort((a, b) => b.average_rating - a.average_rating)
+      .slice(0, 20);
+  }, [allMovies]);
+
+  const trendingMovies = useMemo(() => {
+    return [...allMovies]
+      .sort(() => Math.random() - 0.5)
+      .slice(0, 20);
+  }, [allMovies]);
+
+  // Handle search - redirect to browse page
+  const handleSearch = useCallback((query: string, mode: 'ai' | 'title' = 'ai') => {
+    if (query.trim()) {
+      navigate(`/browse?q=${encodeURIComponent(query)}&mode=${mode}`);
+    } else {
+      navigate('/browse');
+    }
+  }, [navigate]);
 
   return (
     <div className={`min-h-screen transition-colors ${
       theme === 'dark' ? 'bg-gray-950' : 'bg-gray-50'
     }`}>
       {/* Hero Section */}
-      <div className={`relative py-16 ${
+      <div className={`relative py-20 ${
         theme === 'dark' 
           ? 'bg-gradient-to-b from-gray-900 to-gray-950' 
           : 'bg-gradient-to-b from-blue-50 to-gray-50'
@@ -203,7 +127,6 @@ export default function Home() {
         }`} />
         
         <div className="relative max-w-7xl mx-auto px-4">
-          {/* Title */}
           <h1 className={`text-4xl md:text-5xl font-bold text-center mb-2 ${
             theme === 'dark' ? 'text-white' : 'text-gray-900'
           }`}>
@@ -216,32 +139,12 @@ export default function Home() {
             {t.heroSubtitle}
           </p>
 
-          {/* Search Bar */}
-          <SearchBar onSearch={(query, mode) => handleSearch(query, mode)} initialValue={searchQuery} />
-
-          {/* Mood Filter */}
-          <div className="mt-8">
-            <MoodFilter onMoodSelect={handleMoodSelect} selectedMood={selectedMood} />
-          </div>
+          <SearchBar onSearch={handleSearch} />
         </div>
       </div>
 
       {/* Main Content */}
       <main className="max-w-7xl mx-auto px-4 py-8">
-        {/* Section Header */}
-        <div className="flex items-center justify-between mb-6">
-          <h2 className={`text-xl font-semibold ${
-            theme === 'dark' ? 'text-white' : 'text-gray-900'
-          }`}>
-            {getSectionTitle()}
-          </h2>
-          <span className={`text-sm ${
-            theme === 'dark' ? 'text-gray-500' : 'text-gray-600'
-          }`}>
-            {movies.length}{allMovies.length > displayCount ? ` / ${allMovies.length}` : ''} {t.movies}
-          </span>
-        </div>
-
         {/* Error Message */}
         {error && (
           <div className={`rounded-lg p-4 mb-6 ${
@@ -250,47 +153,92 @@ export default function Home() {
               : 'bg-red-50 border border-red-200'
           }`}>
             <p className="text-red-500">{error}</p>
-            <button
-              onClick={fetchMovies}
-              className="text-red-500 underline mt-2 text-sm"
-            >
+            <button onClick={fetchMovies} className="text-red-500 underline mt-2 text-sm">
               {t.tryAgain}
             </button>
           </div>
         )}
 
-        {/* Movie Grid */}
-        <MovieGrid
-          movies={movies}
-          loading={loading || isSearching}
-          onMovieClick={handleMovieClick}
+        {/* For You Section (only if logged in) */}
+        {isLoggedIn && forYouMovies.length > 0 && (
+          <MovieCarousel
+            title={language === 'bg' ? '🎯 За теб' : '🎯 For You'}
+            movies={forYouMovies.map(r => r.movie)}
+            loading={forYouLoading}
+            showReason
+            reason={language === 'bg' ? 'Персонализирани препоръки' : 'Personalized recommendations'}
+            reasons={forYouMovies.map(r => {
+              if (r.explanation && r.explanation.reasons && r.explanation.reasons.length > 0) {
+                return language === 'bg' 
+                  ? (r.explanation.reasons_bg?.[0] || r.explanation.reasons[0])
+                  : r.explanation.reasons[0];
+              }
+              return language === 'bg' ? 'Препоръчано за теб' : 'Recommended for you';
+            })}
+          />
+        )}
+
+        {/* Popular Movies */}
+        <MovieCarousel
+          title={language === 'bg' ? '🔥 Популярни' : '🔥 Popular'}
+          movies={popularMovies}
+          loading={loading}
         />
 
-        {/* Load more trigger */}
-        {allMovies.length > displayCount && (
-          <div ref={loaderRef} className="h-20 flex items-center justify-center">
-            <div className={`flex items-center gap-2 ${
-              theme === 'dark' ? 'text-gray-500' : 'text-gray-600'
-            }`}>
-              <svg className="animate-spin h-5 w-5" viewBox="0 0 24 24">
-                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
-                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
-              </svg>
-              <span>{language === 'bg' ? 'Зареждане...' : 'Loading more...'}</span>
-            </div>
-          </div>
-        )}
+        {/* Top Rated */}
+        <MovieCarousel
+          title={language === 'bg' ? '⭐ Най-високо оценени' : '⭐ Top Rated'}
+          movies={topRatedMovies}
+          loading={loading}
+        />
+
+        {/* Trending */}
+        <MovieCarousel
+          title={language === 'bg' ? '📈 Trending' : '📈 Trending'}
+          movies={trendingMovies}
+          loading={loading}
+        />
+
+        {/* Browse All Movies CTA */}
+        <div className={`mt-12 p-8 rounded-2xl text-center ${
+          theme === 'dark' ? 'bg-gray-900' : 'bg-white shadow-lg'
+        }`}>
+          <h2 className={`text-2xl font-bold mb-2 ${
+            theme === 'dark' ? 'text-white' : 'text-gray-900'
+          }`}>
+            {language === 'bg' ? 'Искаш да видиш повече?' : 'Want to see more?'}
+          </h2>
+          <p className={`mb-6 ${
+            theme === 'dark' ? 'text-gray-400' : 'text-gray-600'
+          }`}>
+            {language === 'bg' 
+              ? 'Разгледай всички филми с филтри по жанр, настроение и рейтинг'
+              : 'Browse all movies with filters by genre, mood, and rating'
+            }
+          </p>
+          <Link
+            to="/browse"
+            className="inline-flex items-center gap-2 px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg transition-colors"
+          >
+            {language === 'bg' ? 'Разгледай всички филми' : 'Browse All Movies'}
+            <ArrowRight className="w-5 h-5" />
+          </Link>
+        </div>
       </main>
 
       {/* Footer */}
-      <footer className={`border-t py-8 mt-16 ${
-        theme === 'dark' ? 'border-gray-800' : 'border-gray-200'
+      <footer className={`py-8 mt-16 ${
+        theme === 'dark' ? 'bg-gray-900' : 'bg-white'
       }`}>
-        <div className={`max-w-7xl mx-auto px-4 text-center text-sm ${
-          theme === 'dark' ? 'text-gray-500' : 'text-gray-600'
-        }`}>
-          <p>{t.footerTitle}</p>
-          <p className="mt-1">{t.footerPowered}</p>
+        <div className="max-w-7xl mx-auto px-4">
+          <TMDBAttribution />
+          
+          <div className={`text-center text-sm mt-6 ${
+            theme === 'dark' ? 'text-gray-500' : 'text-gray-600'
+          }`}>
+            <p>{t.footerTitle}</p>
+            <p className="mt-1">{t.footerPowered}</p>
+          </div>
         </div>
       </footer>
     </div>

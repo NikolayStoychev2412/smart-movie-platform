@@ -9,6 +9,7 @@ import Register from './pages/Register';
 import Watchlist from './pages/Watchlist';
 import { moviesApi } from './api/movies';
 import { useApp } from './context/AppContext';
+import Browse from './pages/Browse';
 
 function App() {
   const { theme } = useApp();
@@ -52,6 +53,7 @@ function App() {
         <Routes>
           <Route path="/" element={<Home />} />
           <Route path="/movie/:id" element={<MovieDetail />} />
+          <Route path="/browse" element={<Browse />} />
           <Route path="/login" element={<Login onLogin={handleLogin} />} />
           <Route path="/register" element={<Register />} />
           <Route path="/watchlist" element={<Watchlist />} />

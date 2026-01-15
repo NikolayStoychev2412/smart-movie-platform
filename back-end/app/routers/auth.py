@@ -15,6 +15,7 @@ class UserCreate(BaseModel):
     name: str
     email: EmailStr
     password: str
+    preferred_genres: list[str] = []
 
 
 class UserResponse(BaseModel):
@@ -47,7 +48,8 @@ def register(user_data: UserCreate, db: Session = Depends(get_db)):
         name=user_data.name,
         email=user_data.email,
         hashed_password=hash_password(user_data.password),
-        is_admin=False
+        is_admin=False,
+        preferred_genres=user_data.preferred_genres,
     )
     
     db.add(new_user)

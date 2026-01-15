@@ -17,6 +17,18 @@ async function dedupedRequest<T>(key: string, request: () => Promise<T>): Promis
   pendingRequests.set(key, promise);
   return promise;
 }
+export interface RecommendationWithExplanation {
+  movie: Movie;
+  score: number;
+  explanation: {
+    reasons: string[];
+    reasons_bg?: string[];
+    score_breakdown: Record<string, number>;
+    total_score: number;
+    activity_level: string;
+  };
+}
+
 
 export const moviesApi = {
   getAll: async (): Promise<Movie[]> => {
@@ -83,10 +95,11 @@ export const moviesApi = {
   },
 
   // Get personalized recommendations (requires auth)
-  getRecommendations: async (): Promise<Movie[]> => {
-    const response = await api.get('/ai/recommend/for-me');
-    return response.data.map((item: unknown) => (item as { movie: Movie }).movie);
-  },
+  // Update getRecommendations
+  getRecommendations: async (): Promise<RecommendationWithExplanation[]> => {
+  const response = await api.get('/ai/recommend/for-me');
+  return response.data;
+},
 
   // Prefetch - warm up the cache
   prefetch: async () => {
@@ -96,4 +109,5 @@ export const moviesApi = {
       console.warn('Prefetch failed:', e);
     }
   }
+  
 };

@@ -47,7 +47,17 @@ body.light, .light body {
 ::-webkit-scrollbar-thumb:hover {
   @apply bg-gray-600;
 }
+/* Add this to your existing index.css */
 
+/* Hide scrollbar for carousel */
+.scrollbar-hide {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+.scrollbar-hide::-webkit-scrollbar {
+  display: none;
+}
 /* Shimmer animation for loading skeletons */
 @keyframes shimmer {
   0% {

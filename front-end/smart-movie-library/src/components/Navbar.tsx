@@ -50,6 +50,12 @@ export default function Navbar({ isLoggedIn, username, onLogout }: NavbarProps) 
               {t.home}
             </Link>
             
+            <Link to="/browse" className={`transition-colors ${
+              theme === 'dark' ? 'text-gray-300 hover:text-white' : 'text-gray-600 hover:text-gray-900'
+            }`}>
+              {language === 'bg' ? 'Разгледай' : 'Browse'}
+            </Link>
+            
             {isLoggedIn && (
               <Link to="/watchlist" className={`flex items-center gap-1 transition-colors ${
                 theme === 'dark' ? 'text-gray-300 hover:text-white' : 'text-gray-600 hover:text-gray-900'
@@ -162,6 +168,14 @@ export default function Navbar({ isLoggedIn, username, onLogout }: NavbarProps) 
                 onClick={() => setMobileMenuOpen(false)}
               >
                 {t.home}
+              </Link>
+              
+              <Link
+                to="/browse"
+                className={theme === 'dark' ? 'text-gray-300 hover:text-white' : 'text-gray-600 hover:text-gray-900'}
+                onClick={() => setMobileMenuOpen(false)}
+              >
+                {language === 'bg' ? 'Разгледай' : 'Browse'}
               </Link>
               
               {isLoggedIn && (
