@@ -20,11 +20,11 @@ async function dedupedRequest<T>(key: string, request: () => Promise<T>): Promis
 
 export const moviesApi = {
   getAll: async (): Promise<Movie[]> => {
-    return dedupedRequest('getAll', async () => {
-      const response = await api.get('/movies/');
-      return response.data;
-    });
-  },
+  return dedupedRequest('getAll', async () => {
+    const response = await api.get('/movies/?skip=0&limit=500');
+    return response.data;
+  });
+},
 
   getById: async (id: number): Promise<Movie> => {
     return dedupedRequest(`getById:${id}`, async () => {
