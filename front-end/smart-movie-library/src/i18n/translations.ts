@@ -1,4 +1,5 @@
 // src/i18n/translations.ts
+// Replace your existing translations.ts with this file
 
 export const translations = {
   bg: {
@@ -12,17 +13,17 @@ export const translations = {
     logout: 'Изход',
     profile: 'Профил',
     
-    // Hero
-    heroTitle: 'Открий своя следващ',
-    heroHighlight: 'любим филм',
-    heroSubtitle: 'Интелигентно търсене с AI • Персонализирани препоръки',
+    // Hero - TMDB style
+    heroTitle: 'Добре дошли.',
+    heroHighlight: 'Милиони филми за откриване.',
+    heroSubtitle: 'Интелигентно AI търсене на български и английски.',
     
     // Search
-    searchPlaceholder: 'Търсене на филми...',
+    searchPlaceholder: 'Търсене на филм...',
     search: 'Търси',
     searchByTitle: 'По заглавие',
     aiSearch: 'AI Търсене',
-    searchHint: 'Опитай: "страшни филми" или "романтична комедия"',
+    searchHint: 'Опитай: "страшни филми" или "романтична комедия с щастлив край"',
     
     // Moods
     all: 'Всички',
@@ -59,21 +60,21 @@ export const translations = {
     forYou: 'For You',
     watchlist: 'Watchlist',
     login: 'Login',
-    register: 'Register',
+    register: 'Sign Up',
     logout: 'Logout',
     profile: 'Profile',
     
-    // Hero
-    heroTitle: 'Discover Your Next',
-    heroHighlight: 'Favorite Movie',
-    heroSubtitle: 'AI-powered search • Personalized recommendations',
+    // Hero - TMDB style
+    heroTitle: 'Welcome.',
+    heroHighlight: 'Millions of movies to discover.',
+    heroSubtitle: 'AI-powered search in Bulgarian and English.',
     
     // Search
-    searchPlaceholder: 'Search movies...',
+    searchPlaceholder: 'Search for a movie...',
     search: 'Search',
     searchByTitle: 'By Title',
     aiSearch: 'AI Search',
-    searchHint: 'Try: "scary movies" or "romantic comedy"',
+    searchHint: 'Try: "scary movies" or "romantic comedy with happy ending"',
     
     // Moods
     all: 'All',

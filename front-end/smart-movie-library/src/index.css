@@ -1,7 +1,19 @@
-/* src/index.css */
+/* src/index.css - TMDB-inspired styling */
+/* Replace your existing index.css with this file */
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+/* TMDB Color Variables */
+:root {
+  --tmdb-dark: #0d1117;
+  --tmdb-dark-blue: #032541;
+  --tmdb-light-blue: #01b4e4;
+  --tmdb-light-green: #90cea1;
+  --tmdb-yellow: #d2d531;
+  --tmdb-red: #db2360;
+}
 
 /* Fix white margin issue */
 * {
@@ -17,39 +29,22 @@ html, body, #root {
 }
 
 body {
-  @apply bg-gray-950 text-white;
+  background-color: var(--tmdb-dark);
+  color: white;
+  font-family: 'Source Sans Pro', Arial, sans-serif;
 }
 
 /* Dark mode body */
 body.dark, .dark body {
-  @apply bg-gray-950;
+  background-color: var(--tmdb-dark);
 }
 
 /* Light mode body */
 body.light, .light body {
-  @apply bg-gray-50;
+  background-color: #f4f4f4;
 }
 
-/* Scrollbar styling */
-::-webkit-scrollbar {
-  width: 8px;
-  height: 8px;
-}
-
-::-webkit-scrollbar-track {
-  @apply bg-gray-900;
-}
-
-::-webkit-scrollbar-thumb {
-  @apply bg-gray-700 rounded-full;
-}
-
-::-webkit-scrollbar-thumb:hover {
-  @apply bg-gray-600;
-}
-/* Add this to your existing index.css */
-
-/* Hide scrollbar for carousel */
+/* Hide scrollbar for carousel - IMPORTANT */
 .scrollbar-hide {
   -ms-overflow-style: none;
   scrollbar-width: none;
@@ -58,6 +53,26 @@ body.light, .light body {
 .scrollbar-hide::-webkit-scrollbar {
   display: none;
 }
+
+/* Custom scrollbar for body */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--tmdb-dark);
+}
+
+::-webkit-scrollbar-thumb {
+  background: #333;
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #444;
+}
+
 /* Shimmer animation for loading skeletons */
 @keyframes shimmer {
   0% {
@@ -66,4 +81,70 @@ body.light, .light body {
   100% {
     transform: translateX(100%);
   }
+}
+
+/* Line clamp utilities */
+.line-clamp-2 {
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.line-clamp-3 {
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+/* TMDB-style gradient text */
+.text-gradient {
+  background: linear-gradient(to right, var(--tmdb-light-green), var(--tmdb-light-blue));
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+/* Smooth hover transitions */
+.hover-scale {
+  transition: transform 0.2s ease;
+}
+
+.hover-scale:hover {
+  transform: scale(1.05);
+}
+
+/* Card shadows */
+.card-shadow {
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.3), 0 2px 4px -1px rgba(0, 0, 0, 0.2);
+}
+
+.card-shadow:hover {
+  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.4), 0 10px 10px -5px rgba(0, 0, 0, 0.3);
+}
+
+/* Pulse animation for loading */
+@keyframes pulse {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.5;
+  }
+}
+
+.animate-pulse {
+  animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
+/* Focus styles */
+input:focus, button:focus {
+  outline: none;
+}
+
+/* Selection color */
+::selection {
+  background-color: var(--tmdb-light-blue);
+  color: var(--tmdb-dark);
 }

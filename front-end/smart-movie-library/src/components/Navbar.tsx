@@ -1,7 +1,9 @@
-// src/components/Navbar.tsx
+// src/components/Navbar.tsx - TMDB-inspired navigation
+// Replace your existing Navbar.tsx with this file
+
 import { Link, useNavigate } from 'react-router-dom';
 import { useState } from 'react';
-import { Sun, Moon, Globe } from 'lucide-react';
+import { Sun, Moon, Globe, Menu, X, Film, Heart, LogOut } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 
 interface NavbarProps {
@@ -12,11 +14,13 @@ interface NavbarProps {
 
 export default function Navbar({ isLoggedIn, username, onLogout }: NavbarProps) {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [userMenuOpen, setUserMenuOpen] = useState(false);
   const navigate = useNavigate();
   const { theme, toggleTheme, language, setLanguage, t } = useApp();
 
   const handleLogout = () => {
     onLogout?.();
+    setUserMenuOpen(false);
     navigate('/');
   };
 
@@ -25,60 +29,64 @@ export default function Navbar({ isLoggedIn, username, onLogout }: NavbarProps) 
   };
 
   return (
-    <nav className={`backdrop-blur-sm border-b sticky top-0 z-50 transition-colors ${
+    <nav className={`sticky top-0 z-50 transition-colors ${
       theme === 'dark' 
-        ? 'bg-gray-900/95 border-gray-800' 
-        : 'bg-white/95 border-gray-200'
+        ? 'bg-tmdb-dark-blue' 
+        : 'bg-white shadow-md'
     }`}>
-      <div className="max-w-7xl mx-auto px-4">
+      <div className="max-w-7xl mx-auto px-4 lg:px-10">
         <div className="flex items-center justify-between h-16">
           {/* Logo */}
-          <Link to="/" className={`flex items-center gap-2 font-bold text-xl ${
-            theme === 'dark' ? 'text-white' : 'text-gray-900'
-          }`}>
-            <svg className="w-6 h-6 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 4v16M17 4v16M3 8h4m10 0h4M3 12h18M3 16h4m10 0h4M4 20h16a1 1 0 001-1V5a1 1 0 00-1-1H4a1 1 0 00-1 1v14a1 1 0 001 1z" />
-            </svg>
-            <span>{t.brand}</span>
+          <Link to="/" className="flex items-center gap-3">
+            <div className="w-10 h-10 bg-gradient-to-r from-tmdb-light-green to-tmdb-light-blue rounded-lg flex items-center justify-center">
+              <Film className="w-6 h-6 text-tmdb-dark-blue" />
+            </div>
+            <span className={`font-bold text-xl hidden sm:block ${
+              theme === 'dark' ? 'text-white' : 'text-gray-900'
+            }`}>
+              {t.brand}
+            </span>
           </Link>
 
           {/* Desktop Navigation */}
-          <div className="hidden md:flex items-center gap-6">
-            <Link to="/" className={`transition-colors ${
-              theme === 'dark' ? 'text-gray-300 hover:text-white' : 'text-gray-600 hover:text-gray-900'
-            }`}>
+          <div className="hidden md:flex items-center gap-1">
+            <Link 
+              to="/" 
+              className={`px-4 py-2 rounded-lg font-medium transition-colors ${
+                theme === 'dark' 
+                  ? 'text-white hover:bg-white/10' 
+                  : 'text-gray-700 hover:bg-gray-100'
+              }`}
+            >
               {t.home}
             </Link>
             
-            <Link to="/browse" className={`transition-colors ${
-              theme === 'dark' ? 'text-gray-300 hover:text-white' : 'text-gray-600 hover:text-gray-900'
-            }`}>
-              {language === 'bg' ? 'Разгледай' : 'Browse'}
-            </Link>
-            
             {isLoggedIn && (
-              <Link to="/watchlist" className={`flex items-center gap-1 transition-colors ${
-                theme === 'dark' ? 'text-gray-300 hover:text-white' : 'text-gray-600 hover:text-gray-900'
-              }`}>
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
-                </svg>
+              <Link 
+                to="/watchlist" 
+                className={`flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-colors ${
+                  theme === 'dark' 
+                    ? 'text-white hover:bg-white/10' 
+                    : 'text-gray-700 hover:bg-gray-100'
+                }`}
+              >
+                <Heart className="w-4 h-4" />
                 {t.watchlist}
               </Link>
             )}
           </div>
 
           {/* Right Side - Theme, Language, User */}
-          <div className="hidden md:flex items-center gap-3">
+          <div className="flex items-center gap-2">
             {/* Theme Toggle */}
             <button
               onClick={toggleTheme}
               className={`p-2 rounded-lg transition-colors ${
                 theme === 'dark'
-                  ? 'bg-gray-800 hover:bg-gray-700 text-yellow-500'
-                  : 'bg-gray-100 hover:bg-gray-200 text-gray-700'
+                  ? 'hover:bg-white/10 text-gray-300'
+                  : 'hover:bg-gray-100 text-gray-600'
               }`}
-              title={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
+              title={theme === 'dark' ? 'Light mode' : 'Dark mode'}
             >
               {theme === 'dark' ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
             </button>
@@ -88,139 +96,148 @@ export default function Navbar({ isLoggedIn, username, onLogout }: NavbarProps) 
               onClick={toggleLanguage}
               className={`flex items-center gap-1.5 px-3 py-2 rounded-lg transition-colors ${
                 theme === 'dark'
-                  ? 'bg-gray-800 hover:bg-gray-700 text-gray-300'
-                  : 'bg-gray-100 hover:bg-gray-200 text-gray-700'
+                  ? 'hover:bg-white/10 text-gray-300'
+                  : 'hover:bg-gray-100 text-gray-600'
               }`}
               title="Toggle language"
             >
               <Globe className="w-4 h-4" />
-              <span className="text-sm font-medium">{language === 'bg' ? 'BG' : 'EN'}</span>
-              <span>{language === 'bg' ? '🇧🇬' : '🇬🇧'}</span>
+              <span className="text-sm font-medium">{language.toUpperCase()}</span>
             </button>
 
             {/* User Actions */}
             {isLoggedIn ? (
-              <div className="flex items-center gap-4">
-                <span className={`flex items-center gap-2 ${
-                  theme === 'dark' ? 'text-gray-300' : 'text-gray-600'
-                }`}>
-                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
-                  </svg>
-                  <span>{username}</span>
-                </span>
+              <div className="relative">
                 <button
-                  onClick={handleLogout}
-                  className="flex items-center gap-1 text-gray-400 hover:text-red-400 transition-colors"
+                  onClick={() => setUserMenuOpen(!userMenuOpen)}
+                  className={`flex items-center gap-2 px-3 py-2 rounded-lg transition-colors ${
+                    theme === 'dark'
+                      ? 'hover:bg-white/10 text-white'
+                      : 'hover:bg-gray-100 text-gray-700'
+                  }`}
                 >
-                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
-                  </svg>
-                  {t.logout}
+                  <div className="w-8 h-8 bg-gradient-to-r from-tmdb-light-green to-tmdb-light-blue rounded-full flex items-center justify-center">
+                    <span className="text-tmdb-dark-blue font-bold text-sm">
+                      {username?.charAt(0).toUpperCase() || 'U'}
+                    </span>
+                  </div>
+                  <span className="hidden sm:block font-medium">{username}</span>
                 </button>
+
+                {/* Dropdown Menu */}
+                {userMenuOpen && (
+                  <>
+                    <div 
+                      className="fixed inset-0 z-10" 
+                      onClick={() => setUserMenuOpen(false)}
+                    />
+                    <div className={`absolute right-0 top-full mt-2 w-48 rounded-lg shadow-xl z-20 py-1 ${
+                      theme === 'dark' ? 'bg-gray-800' : 'bg-white'
+                    }`}>
+                      <Link
+                        to="/watchlist"
+                        onClick={() => setUserMenuOpen(false)}
+                        className={`flex items-center gap-3 px-4 py-3 transition-colors ${
+                          theme === 'dark'
+                            ? 'text-gray-300 hover:bg-gray-700'
+                            : 'text-gray-700 hover:bg-gray-100'
+                        }`}
+                      >
+                        <Heart className="w-4 h-4" />
+                        {t.watchlist}
+                      </Link>
+                      <hr className={theme === 'dark' ? 'border-gray-700' : 'border-gray-200'} />
+                      <button
+                        onClick={handleLogout}
+                        className={`flex items-center gap-3 w-full px-4 py-3 transition-colors ${
+                          theme === 'dark'
+                            ? 'text-red-400 hover:bg-gray-700'
+                            : 'text-red-500 hover:bg-gray-100'
+                        }`}
+                      >
+                        <LogOut className="w-4 h-4" />
+                        {t.logout}
+                      </button>
+                    </div>
+                  </>
+                )}
               </div>
             ) : (
-              <div className="flex items-center gap-3">
+              <div className="flex items-center gap-2">
                 <Link
                   to="/login"
-                  className={`transition-colors ${
-                    theme === 'dark' ? 'text-gray-300 hover:text-white' : 'text-gray-600 hover:text-gray-900'
+                  className={`hidden sm:block px-4 py-2 rounded-lg font-medium transition-colors ${
+                    theme === 'dark'
+                      ? 'text-white hover:bg-white/10'
+                      : 'text-gray-700 hover:bg-gray-100'
                   }`}
                 >
                   {t.login}
                 </Link>
                 <Link
                   to="/register"
-                  className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors"
+                  className="px-4 py-2 bg-gradient-to-r from-tmdb-light-green to-tmdb-light-blue text-tmdb-dark-blue font-semibold rounded-lg hover:opacity-90 transition-opacity text-sm"
                 >
                   {t.register}
                 </Link>
               </div>
             )}
-          </div>
 
-          {/* Mobile menu button */}
-          <button
-            onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-            className={`md:hidden ${theme === 'dark' ? 'text-gray-400 hover:text-white' : 'text-gray-600 hover:text-gray-900'}`}
-          >
-            {mobileMenuOpen ? (
-              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-              </svg>
-            ) : (
-              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
-              </svg>
-            )}
-          </button>
+            {/* Mobile menu button */}
+            <button
+              onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+              className={`md:hidden p-2 rounded-lg transition-colors ${
+                theme === 'dark'
+                  ? 'hover:bg-white/10 text-white'
+                  : 'hover:bg-gray-100 text-gray-700'
+              }`}
+            >
+              {mobileMenuOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
+            </button>
+          </div>
         </div>
 
         {/* Mobile Menu */}
         {mobileMenuOpen && (
           <div className={`md:hidden py-4 border-t ${
-            theme === 'dark' ? 'border-gray-800' : 'border-gray-200'
+            theme === 'dark' ? 'border-gray-700' : 'border-gray-200'
           }`}>
-            <div className="flex flex-col gap-4">
+            <div className="flex flex-col gap-2">
               <Link
                 to="/"
-                className={theme === 'dark' ? 'text-gray-300 hover:text-white' : 'text-gray-600 hover:text-gray-900'}
+                className={`px-4 py-3 rounded-lg font-medium ${
+                  theme === 'dark' ? 'text-white hover:bg-white/10' : 'text-gray-700 hover:bg-gray-100'
+                }`}
                 onClick={() => setMobileMenuOpen(false)}
               >
                 {t.home}
               </Link>
               
-              <Link
-                to="/browse"
-                className={theme === 'dark' ? 'text-gray-300 hover:text-white' : 'text-gray-600 hover:text-gray-900'}
-                onClick={() => setMobileMenuOpen(false)}
-              >
-                {language === 'bg' ? 'Разгледай' : 'Browse'}
-              </Link>
-              
               {isLoggedIn && (
                 <Link
                   to="/watchlist"
-                  className={theme === 'dark' ? 'text-gray-300 hover:text-white' : 'text-gray-600 hover:text-gray-900'}
+                  className={`px-4 py-3 rounded-lg font-medium ${
+                    theme === 'dark' ? 'text-white hover:bg-white/10' : 'text-gray-700 hover:bg-gray-100'
+                  }`}
                   onClick={() => setMobileMenuOpen(false)}
                 >
                   {t.watchlist}
                 </Link>
               )}
 
-              {/* Mobile Theme & Language */}
-              <div className="flex items-center gap-3 py-2">
-                <button
-                  onClick={toggleTheme}
-                  className={`p-2 rounded-lg ${
-                    theme === 'dark' ? 'bg-gray-800 text-yellow-500' : 'bg-gray-100 text-gray-700'
-                  }`}
-                >
-                  {theme === 'dark' ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
-                </button>
-                <button
-                  onClick={toggleLanguage}
-                  className={`flex items-center gap-1.5 px-3 py-2 rounded-lg ${
-                    theme === 'dark' ? 'bg-gray-800 text-gray-300' : 'bg-gray-100 text-gray-700'
-                  }`}
-                >
-                  <span>{language === 'bg' ? '🇧🇬 BG' : '🇬🇧 EN'}</span>
-                </button>
-              </div>
-
-              <hr className={theme === 'dark' ? 'border-gray-800' : 'border-gray-200'} />
+              <hr className={theme === 'dark' ? 'border-gray-700 my-2' : 'border-gray-200 my-2'} />
 
               {isLoggedIn ? (
                 <>
-                  <span className={theme === 'dark' ? 'text-gray-300' : 'text-gray-600'}>
+                  <div className={`px-4 py-2 ${theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}`}>
                     {username}
-                  </span>
+                  </div>
                   <button
                     onClick={() => {
                       handleLogout();
                       setMobileMenuOpen(false);
                     }}
-                    className="text-red-400 text-left"
+                    className="px-4 py-3 text-left text-red-400 hover:bg-red-500/10 rounded-lg"
                   >
                     {t.logout}
                   </button>
@@ -229,14 +246,16 @@ export default function Navbar({ isLoggedIn, username, onLogout }: NavbarProps) 
                 <>
                   <Link
                     to="/login"
-                    className={theme === 'dark' ? 'text-gray-300 hover:text-white' : 'text-gray-600 hover:text-gray-900'}
+                    className={`px-4 py-3 rounded-lg font-medium ${
+                      theme === 'dark' ? 'text-white hover:bg-white/10' : 'text-gray-700 hover:bg-gray-100'
+                    }`}
                     onClick={() => setMobileMenuOpen(false)}
                   >
                     {t.login}
                   </Link>
                   <Link
                     to="/register"
-                    className="text-blue-400 hover:text-blue-300"
+                    className="mx-4 py-3 text-center bg-gradient-to-r from-tmdb-light-green to-tmdb-light-blue text-tmdb-dark-blue font-semibold rounded-lg"
                     onClick={() => setMobileMenuOpen(false)}
                   >
                     {t.register}
