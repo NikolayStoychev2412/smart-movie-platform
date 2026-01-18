@@ -147,7 +147,6 @@ async def run_in_threadpool(func, *args, **kwargs):
 # =============================================================================
 
 @router.get("/search", response_model=List[SearchResultOut])
-@router.get("/search", response_model=List[SearchResultOut])
 async def semantic_movie_search(
     request: Request,
     q: str = Query(..., min_length=2, description="Search query"),

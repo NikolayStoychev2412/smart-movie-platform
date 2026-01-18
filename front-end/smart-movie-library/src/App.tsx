@@ -22,7 +22,7 @@ function App() {
   });
 
   useEffect(() => {
-    moviesApi.prefetch();
+    moviesApi.getAll();
   }, []);
 
   const handleLogin = (token: string, name: string) => {
