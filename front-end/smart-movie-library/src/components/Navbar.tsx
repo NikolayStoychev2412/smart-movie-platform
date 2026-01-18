@@ -1,289 +1,272 @@
-import { Link, useNavigate, createSearchParams, useSearchParams } from "react-router-dom";
-import { useEffect, useMemo, useState } from "react";
-import { Globe, Menu, X, Film, Heart, LogOut, Search, Sparkles } from "lucide-react";
+import { useState } from "react";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import { useApp } from "../context/AppContext";
-import ThemeToggle from "./ThemeToggle";
+import { 
+  Home, 
+  Film, 
+  Sun, 
+  Moon, 
+  Globe, 
+  Menu, 
+  X, 
+  User, 
+  LogOut,
+  Search,
+  ChevronDown
+} from "lucide-react";
 
-type SearchMode = "ai" | "title";
-
-interface NavbarProps {
-  isLoggedIn: boolean;
-  username?: string;
-  onLogout?: () => void;
-}
-
-export default function Navbar({ isLoggedIn, username, onLogout }: NavbarProps) {
+export default function Navbar() {
+  const { theme, setTheme, language, setLanguage, user, logout } = useApp();
+  const location = useLocation();
+  const navigate = useNavigate();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [userMenuOpen, setUserMenuOpen] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
 
-  const navigate = useNavigate();
-  const { theme, language, setLanguage, t } = useApp();
+  const isActive = (path: string) => location.pathname === path;
 
-  // ✅ URL-driven search
-  const [params] = useSearchParams();
-  const urlQuery = useMemo(() => (params.get("q") || "").trim(), [params]);
-  const urlMode = useMemo<SearchMode>(() => (params.get("mode") === "title" ? "title" : "ai"), [params]);
-
-  // Local input mirrors URL
-  const [q, setQ] = useState(urlQuery);
-  const [mode, setMode] = useState<SearchMode>(urlMode);
-
-  useEffect(() => setQ(urlQuery), [urlQuery]);
-  useEffect(() => setMode(urlMode), [urlMode]);
-
-  const toggleLanguage = () => setLanguage(language === "bg" ? "en" : "bg");
-
-  const handleLogout = () => {
-    onLogout?.();
-    setUserMenuOpen(false);
-    navigate("/");
-  };
-
-  const submitSearch = (e: React.FormEvent) => {
+  const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
-    const query = q.trim();
-
-    if (!query) {
-      navigate("/");
-      return;
+    if (searchQuery.trim()) {
+      navigate(`/browse?q=${encodeURIComponent(searchQuery.trim())}&mode=ai`);
+      setSearchQuery("");
+      setMobileMenuOpen(false);
     }
-
-    navigate({
-      pathname: "/",
-      search: createSearchParams({ q: query, mode }).toString(),
-    });
   };
 
-  const clearSearch = () => {
-    setQ("");
-    navigate("/");
-  };
+  const navLinks = [
+    { path: "/", label: language === "bg" ? "Начало" : "Home", icon: Home },
+    { path: "/browse", label: language === "bg" ? "Филми" : "Movies", icon: Film },
+  ];
 
   return (
-    <nav
-      className={`sticky top-0 z-50 transition-colors ${
-        theme === "dark" ? "bg-tmdb-dark-blue" : "bg-white shadow-md"
-      }`}
-    >
-      <div className="max-w-7xl mx-auto px-4 lg:px-10">
-        <div className="flex items-center justify-between h-16 gap-4">
-          {/* ✅ Logo: always go home and clear search */}
-          <Link
-            to="/"
-            onClick={() => {
-              setQ("");
-              setMobileMenuOpen(false);
-              setUserMenuOpen(false);
-            }}
-            className="flex items-center gap-3 shrink-0"
-          >
-            <div className="w-10 h-10 bg-gradient-to-r from-tmdb-light-green to-tmdb-light-blue rounded-lg flex items-center justify-center">
-              <Film className="w-6 h-6 text-tmdb-dark-blue" />
+    <nav className={`sticky top-0 z-50 transition-colors ${
+      theme === "dark" 
+        ? "bg-tmdb-dark-blue/95 backdrop-blur-sm border-b border-gray-800" 
+        : "bg-white/95 backdrop-blur-sm border-b border-gray-200 shadow-sm"
+    }`}>
+      <div className="max-w-7xl mx-auto px-4 md:px-8">
+        <div className="flex items-center justify-between h-16">
+          {/* Logo */}
+          <Link to="/" className="flex items-center gap-2 group">
+            <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-tmdb-light-green to-tmdb-light-blue flex items-center justify-center">
+              <Film className="w-5 h-5 text-tmdb-dark-blue" />
             </div>
-            <span className={`font-bold text-xl hidden sm:block ${theme === "dark" ? "text-white" : "text-gray-900"}`}>
-              {t.brand}
+            <span className={`font-bold text-lg hidden sm:block ${
+              theme === "dark" ? "text-white" : "text-gray-900"
+            }`}>
+              MovieDB
             </span>
           </Link>
 
-          {/* ✅ Search in navbar (works) */}
-          <div className="hidden md:flex flex-1 items-center justify-center">
-            <div className="w-full max-w-xl">
-              {/* Mode pills like your screenshot */}
-              <div className="flex items-center justify-center gap-2 mb-2">
-                <button
-                  type="button"
-                  onClick={() => setMode("title")}
-                  className={`px-4 py-1.5 rounded-full text-sm font-semibold transition-all flex items-center gap-2 ${
-                    mode === "title"
-                      ? "bg-white text-tmdb-dark-blue shadow"
-                      : theme === "dark"
-                      ? "bg-white/10 text-gray-200 hover:bg-white/15"
-                      : "bg-gray-100 text-gray-700 hover:bg-gray-200"
-                  }`}
-                >
-                  <Search className="w-4 h-4" />
-                  {language === "bg" ? "Нормално" : "Normal"}
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() => setMode("ai")}
-                  className={`px-4 py-1.5 rounded-full text-sm font-semibold transition-all flex items-center gap-2 ${
-                    mode === "ai"
-                      ? "bg-gradient-to-r from-tmdb-light-green to-tmdb-light-blue text-tmdb-dark-blue shadow"
-                      : theme === "dark"
-                      ? "bg-white/10 text-gray-200 hover:bg-white/15"
-                      : "bg-gray-100 text-gray-700 hover:bg-gray-200"
-                  }`}
-                >
-                  <Sparkles className="w-4 h-4" />
-                  AI
-                </button>
-              </div>
-
-              <form onSubmit={submitSearch} className="relative">
-                <div
-                  className={`flex items-center rounded-full border shadow-lg overflow-hidden ${
-                    theme === "dark" ? "bg-black/20 border-white/10" : "bg-white border-gray-200"
-                  }`}
-                >
-                  <div className={`pl-4 ${theme === "dark" ? "text-gray-300" : "text-gray-500"}`}>
-                    {mode === "ai" ? <Sparkles className="w-5 h-5" /> : <Search className="w-5 h-5" />}
-                  </div>
-
-                  <input
-                    value={q}
-                    onChange={(e) => setQ(e.target.value)}
-                    placeholder={
-                      mode === "ai"
-                        ? t.searchPlaceholder
-                        : language === "bg"
-                        ? "Търси по заглавие..."
-                        : "Search by title..."
-                    }
-                    className={`flex-1 px-3 py-2 bg-transparent focus:outline-none ${
-                      theme === "dark" ? "text-white placeholder:text-gray-400" : "text-gray-900 placeholder:text-gray-400"
-                    }`}
-                  />
-
-                  {q && (
-                    <button
-                      type="button"
-                      onClick={clearSearch}
-                      className={`px-3 py-2 ${theme === "dark" ? "text-gray-300 hover:bg-white/10" : "text-gray-500 hover:bg-gray-100"}`}
-                      title={language === "bg" ? "Изчисти" : "Clear"}
-                    >
-                      ✕
-                    </button>
-                  )}
-
-                  <button
-                    type="submit"
-                    className="mx-2 my-1 px-5 py-2 rounded-full font-semibold bg-gradient-to-r from-tmdb-light-green to-tmdb-light-blue text-tmdb-dark-blue hover:opacity-90 transition-opacity"
-                  >
-                    {t.search}
-                  </button>
-                </div>
-              </form>
-            </div>
-          </div>
-
-          {/* Right side */}
-          <div className="flex items-center gap-2 shrink-0">
-            <ThemeToggle />
-
-            <button
-              onClick={toggleLanguage}
-              className={`flex items-center gap-1.5 px-3 py-2 rounded-lg transition-colors ${
-                theme === "dark" ? "hover:bg-white/10 text-gray-200" : "hover:bg-gray-100 text-gray-700"
-              }`}
-              title="Toggle language"
-            >
-              <Globe className="w-4 h-4" />
-              <span className="text-sm font-semibold">{language.toUpperCase()}</span>
-            </button>
-
-            {isLoggedIn && (
+          {/* Desktop Navigation */}
+          <div className="hidden md:flex items-center gap-1">
+            {navLinks.map((link) => (
               <Link
-                to="/watchlist"
-                className={`hidden md:flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-colors ${
-                  theme === "dark" ? "text-white hover:bg-white/10" : "text-gray-700 hover:bg-gray-100"
+                key={link.path}
+                to={link.path}
+                className={`px-4 py-2 rounded-lg font-medium transition-colors flex items-center gap-2 ${
+                  isActive(link.path)
+                    ? "bg-tmdb-light-blue text-tmdb-dark-blue"
+                    : theme === "dark"
+                    ? "text-gray-300 hover:text-white hover:bg-white/10"
+                    : "text-gray-600 hover:text-gray-900 hover:bg-gray-100"
                 }`}
               >
-                <Heart className="w-4 h-4" />
-                {t.watchlist}
+                <link.icon className="w-4 h-4" />
+                {link.label}
               </Link>
-            )}
+            ))}
+          </div>
 
-            {isLoggedIn ? (
+          {/* Search Bar - Desktop */}
+          <form onSubmit={handleSearch} className="hidden md:block flex-1 max-w-md mx-6">
+            <div className="relative">
+              <input
+                type="text"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                placeholder={language === "bg" ? "Търси филми..." : "Search movies..."}
+                className={`w-full pl-10 pr-4 py-2 rounded-full border focus:outline-none focus:ring-2 focus:ring-tmdb-light-blue transition-colors ${
+                  theme === "dark"
+                    ? "bg-gray-900 border-gray-700 text-white placeholder:text-gray-500"
+                    : "bg-gray-100 border-gray-200 text-gray-900 placeholder:text-gray-400 focus:bg-white"
+                }`}
+              />
+              <Search className={`absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 ${
+                theme === "dark" ? "text-gray-500" : "text-gray-400"
+              }`} />
+            </div>
+          </form>
+
+          {/* Right side controls */}
+          <div className="flex items-center gap-2">
+            {/* Theme Toggle */}
+            <button
+              onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
+              className={`p-2 rounded-lg transition-colors ${
+                theme === "dark"
+                  ? "text-gray-300 hover:text-white hover:bg-white/10"
+                  : "text-gray-600 hover:text-gray-900 hover:bg-gray-100"
+              }`}
+              aria-label="Toggle theme"
+            >
+              {theme === "dark" ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
+            </button>
+
+            {/* Language Toggle */}
+            <button
+              onClick={() => setLanguage(language === "en" ? "bg" : "en")}
+              className={`p-2 rounded-lg transition-colors flex items-center gap-1 ${
+                theme === "dark"
+                  ? "text-gray-300 hover:text-white hover:bg-white/10"
+                  : "text-gray-600 hover:text-gray-900 hover:bg-gray-100"
+              }`}
+              aria-label="Toggle language"
+            >
+              <Globe className="w-5 h-5" />
+              <span className="text-xs font-medium uppercase">{language}</span>
+            </button>
+
+            {/* User Menu */}
+            {user ? (
               <div className="relative">
                 <button
-                  onClick={() => setUserMenuOpen((v) => !v)}
+                  onClick={() => setUserMenuOpen(!userMenuOpen)}
                   className={`flex items-center gap-2 px-3 py-2 rounded-lg transition-colors ${
-                    theme === "dark" ? "hover:bg-white/10 text-white" : "hover:bg-gray-100 text-gray-700"
+                    theme === "dark"
+                      ? "text-gray-300 hover:text-white hover:bg-white/10"
+                      : "text-gray-600 hover:text-gray-900 hover:bg-gray-100"
                   }`}
                 >
-                  <div className="w-8 h-8 bg-gradient-to-r from-tmdb-light-green to-tmdb-light-blue rounded-full flex items-center justify-center">
+                  <div className="w-8 h-8 rounded-full bg-gradient-to-br from-tmdb-light-green to-tmdb-light-blue flex items-center justify-center">
                     <span className="text-tmdb-dark-blue font-bold text-sm">
-                      {username?.charAt(0).toUpperCase() || "U"}
+                      {user.name?.charAt(0).toUpperCase() || "U"}
                     </span>
                   </div>
-                  <span className="hidden sm:block font-medium">{username}</span>
+                  <ChevronDown className={`w-4 h-4 transition-transform ${userMenuOpen ? "rotate-180" : ""}`} />
                 </button>
 
                 {userMenuOpen && (
                   <>
                     <div className="fixed inset-0 z-10" onClick={() => setUserMenuOpen(false)} />
-                    <div className={`absolute right-0 top-full mt-2 w-48 rounded-lg shadow-xl z-20 py-1 ${
-                      theme === "dark" ? "bg-gray-800" : "bg-white"
+                    <div className={`absolute right-0 top-full mt-2 w-48 rounded-lg shadow-lg border z-20 overflow-hidden ${
+                      theme === "dark" ? "bg-gray-900 border-gray-800" : "bg-white border-gray-200"
                     }`}>
+                      <div className={`px-4 py-3 border-b ${theme === "dark" ? "border-gray-800" : "border-gray-200"}`}>
+                        <p className={`font-medium ${theme === "dark" ? "text-white" : "text-gray-900"}`}>
+                          {user.name}
+                        </p>
+                        <p className={`text-sm ${theme === "dark" ? "text-gray-400" : "text-gray-500"}`}>
+                          {user.email}
+                        </p>
+                      </div>
+                      <Link
+                        to="/profile"
+                        onClick={() => setUserMenuOpen(false)}
+                        className={`flex items-center gap-2 px-4 py-3 transition-colors ${
+                          theme === "dark" ? "text-gray-300 hover:bg-gray-800" : "text-gray-600 hover:bg-gray-50"
+                        }`}
+                      >
+                        <User className="w-4 h-4" />
+                        {language === "bg" ? "Профил" : "Profile"}
+                      </Link>
                       <button
-                        onClick={handleLogout}
-                        className={`flex items-center gap-3 w-full px-4 py-3 transition-colors ${
-                          theme === "dark" ? "text-red-400 hover:bg-gray-700" : "text-red-500 hover:bg-gray-100"
+                        onClick={() => {
+                          logout();
+                          setUserMenuOpen(false);
+                        }}
+                        className={`flex items-center gap-2 px-4 py-3 w-full transition-colors ${
+                          theme === "dark" ? "text-red-400 hover:bg-gray-800" : "text-red-600 hover:bg-gray-50"
                         }`}
                       >
                         <LogOut className="w-4 h-4" />
-                        {t.logout}
+                        {language === "bg" ? "Изход" : "Logout"}
                       </button>
                     </div>
                   </>
                 )}
               </div>
             ) : (
-              <div className="hidden sm:flex items-center gap-2">
-                <Link
-                  to="/login"
-                  className={`px-4 py-2 rounded-lg font-medium transition-colors ${
-                    theme === "dark" ? "text-white hover:bg-white/10" : "text-gray-700 hover:bg-gray-100"
-                  }`}
-                >
-                  {t.login}
-                </Link>
-                <Link
-                  to="/register"
-                  className="px-4 py-2 bg-gradient-to-r from-tmdb-light-green to-tmdb-light-blue text-tmdb-dark-blue font-semibold rounded-lg hover:opacity-90 transition-opacity text-sm"
-                >
-                  {t.register}
-                </Link>
-              </div>
+              <Link
+                to="/login"
+                className="hidden md:flex items-center gap-2 px-4 py-2 rounded-lg bg-tmdb-light-blue text-tmdb-dark-blue font-medium hover:bg-tmdb-light-blue/90 transition-colors"
+              >
+                <User className="w-4 h-4" />
+                {language === "bg" ? "Вход" : "Login"}
+              </Link>
             )}
 
-            {/* Mobile menu button */}
+            {/* Mobile Menu Toggle */}
             <button
-              onClick={() => setMobileMenuOpen((v) => !v)}
+              onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
               className={`md:hidden p-2 rounded-lg transition-colors ${
-                theme === "dark" ? "hover:bg-white/10 text-white" : "hover:bg-gray-100 text-gray-700"
+                theme === "dark"
+                  ? "text-gray-300 hover:text-white hover:bg-white/10"
+                  : "text-gray-600 hover:text-gray-900 hover:bg-gray-100"
               }`}
+              aria-label="Toggle menu"
             >
               {mobileMenuOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
             </button>
           </div>
         </div>
 
-        {/* Mobile menu (simple) */}
+        {/* Mobile Menu */}
         {mobileMenuOpen && (
-          <div className={`md:hidden py-4 border-t ${theme === "dark" ? "border-gray-700" : "border-gray-200"}`}>
-            <div className="flex flex-col gap-2">
-              <Link
-                to="/"
-                onClick={() => setMobileMenuOpen(false)}
-                className={`px-4 py-3 rounded-lg font-medium ${
-                  theme === "dark" ? "text-white hover:bg-white/10" : "text-gray-700 hover:bg-gray-100"
-                }`}
-              >
-                {t.home}
-              </Link>
+          <div className={`md:hidden py-4 border-t ${theme === "dark" ? "border-gray-800" : "border-gray-200"}`}>
+            {/* Mobile Search */}
+            <form onSubmit={handleSearch} className="mb-4">
+              <div className="relative">
+                <input
+                  type="text"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  placeholder={language === "bg" ? "Търси филми..." : "Search movies..."}
+                  className={`w-full pl-10 pr-4 py-2 rounded-lg border focus:outline-none focus:ring-2 focus:ring-tmdb-light-blue ${
+                    theme === "dark"
+                      ? "bg-gray-900 border-gray-700 text-white placeholder:text-gray-500"
+                      : "bg-gray-100 border-gray-200 text-gray-900 placeholder:text-gray-400"
+                  }`}
+                />
+                <Search className={`absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 ${
+                  theme === "dark" ? "text-gray-500" : "text-gray-400"
+                }`} />
+              </div>
+            </form>
 
-              {isLoggedIn && (
+            {/* Mobile Nav Links */}
+            <div className="space-y-1">
+              {navLinks.map((link) => (
                 <Link
-                  to="/watchlist"
+                  key={link.path}
+                  to={link.path}
                   onClick={() => setMobileMenuOpen(false)}
-                  className={`px-4 py-3 rounded-lg font-medium ${
-                    theme === "dark" ? "text-white hover:bg-white/10" : "text-gray-700 hover:bg-gray-100"
+                  className={`flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${
+                    isActive(link.path)
+                      ? "bg-tmdb-light-blue text-tmdb-dark-blue"
+                      : theme === "dark"
+                      ? "text-gray-300 hover:text-white hover:bg-white/10"
+                      : "text-gray-600 hover:text-gray-900 hover:bg-gray-100"
                   }`}
                 >
-                  {t.watchlist}
+                  <link.icon className="w-5 h-5" />
+                  {link.label}
+                </Link>
+              ))}
+              
+              {!user && (
+                <Link
+                  to="/login"
+                  onClick={() => setMobileMenuOpen(false)}
+                  className={`flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${
+                    theme === "dark"
+                      ? "text-gray-300 hover:text-white hover:bg-white/10"
+                      : "text-gray-600 hover:text-gray-900 hover:bg-gray-100"
+                  }`}
+                >
+                  <User className="w-5 h-5" />
+                  {language === "bg" ? "Вход" : "Login"}
                 </Link>
               )}
             </div>
