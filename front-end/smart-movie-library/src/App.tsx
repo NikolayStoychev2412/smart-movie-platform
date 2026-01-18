@@ -4,7 +4,7 @@ import ScrollToTop from "./components/ScrollToTop";
 import Navbar from "./components/Navbar";
 import Home from "./pages/Home";
 import Browse from "./pages/Browse";
-import MovieDetails from "./pages/MovieDetails";
+import MovieDetails from "./pages/MovieDetail";
 import Login from "./pages/Login";
 import Register from "./pages/Register";
 
