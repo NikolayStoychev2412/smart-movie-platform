@@ -1,8 +1,17 @@
-// src/api/movies.ts
 /* eslint-disable @typescript-eslint/no-explicit-any */
-import type { Movie, SearchResult } from "../types";
+import type { Movie } from "../types";
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:8000";
+
+/**
+ * Search result shape coming from backend:
+ * { movie, relevance, snippet }
+ */
+export interface SearchResult {
+  movie: Movie;
+  relevance: number;
+  snippet: string;
+}
 
 // Recommendation types
 export interface RecommendationExplanation {
@@ -20,7 +29,7 @@ export interface RecommendationWithExplanation {
   explanation: RecommendationExplanation;
 }
 
-// Helper to get auth header (always valid HeadersInit)
+// Helper to get auth header
 const getAuthHeaders = (): Record<string, string> => {
   const token = localStorage.getItem("token");
   return token ? { Authorization: `Bearer ${token}` } : {};
@@ -34,41 +43,33 @@ export const moviesApi = {
   },
 
   async getById(id: number): Promise<Movie> {
-    // backend route is: GET /movies/{movie_id}
     const response = await fetch(`${API_BASE_URL}/movies/${id}`);
     if (!response.ok) throw new Error("Failed to fetch movie");
     return response.json();
   },
 
   async getByGenre(genre: string): Promise<Movie[]> {
-    // backend route is: GET /movies/genre/{genre}
-    const response = await fetch(
-      `${API_BASE_URL}/movies/genre/${encodeURIComponent(genre)}`
-    );
+    const response = await fetch(`${API_BASE_URL}/movies/genre/${encodeURIComponent(genre)}`);
     if (!response.ok) throw new Error("Failed to fetch movies by genre");
     return response.json();
   },
 
   async getTopRated(minReviews = 5, limit = 20): Promise<Movie[]> {
-    // backend route is: GET /movies/top-rated/?min_reviews=...&limit=...
-    const response = await fetch(
-      `${API_BASE_URL}/movies/top-rated/?min_reviews=${minReviews}&limit=${limit}`
-    );
+    const response = await fetch(`${API_BASE_URL}/movies/top-rated/?min_reviews=${minReviews}&limit=${limit}`);
     if (!response.ok) throw new Error("Failed to fetch top-rated movies");
     return response.json();
   },
 
+  /**
+   * AI search (backend route: GET /ai/search?q=...)
+   */
   async search(query: string): Promise<SearchResult[]> {
-    // backend route is: GET /ai/search?q=...
-    const response = await fetch(
-      `${API_BASE_URL}/ai/search?q=${encodeURIComponent(query)}`
-    );
+    const response = await fetch(`${API_BASE_URL}/ai/search?q=${encodeURIComponent(query)}`);
     if (!response.ok) throw new Error("Failed to search");
 
     const data = await response.json();
     const items = Array.isArray(data) ? data : data?.results ?? data?.items ?? [];
 
-    // Backend SearchResultOut already matches: { movie, relevance, snippet }
     return items.map((item: any) => ({
       movie: item.movie,
       relevance: item.relevance ?? 0,
@@ -76,12 +77,13 @@ export const moviesApi = {
     }));
   },
 
+  /**
+   * For-me recommendations (backend: GET /ai/recommend/for-me?top_k=...)
+   */
   async getRecommendations(limit = 20): Promise<RecommendationWithExplanation[]> {
-    // backend route is: GET /ai/recommend/for-me?top_k=...
-    const response = await fetch(
-      `${API_BASE_URL}/ai/recommend/for-me?top_k=${limit}`,
-      { headers: getAuthHeaders() }
-    );
+    const response = await fetch(`${API_BASE_URL}/ai/recommend/for-me?top_k=${limit}`, {
+      headers: getAuthHeaders(),
+    });
     if (!response.ok) throw new Error("Failed to fetch recommendations");
 
     const data = await response.json();
@@ -101,12 +103,13 @@ export const moviesApi = {
     }));
   },
 
+  /**
+   * Similar recommendations (backend: GET /ai/recommend/similar/{movieId}?top_k=...)
+   */
   async getSimilar(movieId: number, limit = 10): Promise<Movie[]> {
-    // backend route is: GET /ai/recommend/similar/{movieId}?top_k=...
-    const response = await fetch(
-      `${API_BASE_URL}/ai/recommend/similar/${movieId}?top_k=${limit}`,
-      { headers: getAuthHeaders() }
-    );
+    const response = await fetch(`${API_BASE_URL}/ai/recommend/similar/${movieId}?top_k=${limit}`, {
+      headers: getAuthHeaders(),
+    });
     if (!response.ok) throw new Error("Failed to fetch similar movies");
 
     const data = await response.json();
@@ -115,7 +118,7 @@ export const moviesApi = {
   },
 };
 
-// Reviews API (IMPORTANT: your backend routes are /reviews/movies/{movie_id})
+// Reviews API
 export const reviewsApi = {
   async getForMovie(movieId: number) {
     const response = await fetch(`${API_BASE_URL}/reviews/movies/${movieId}`);
@@ -124,7 +127,6 @@ export const reviewsApi = {
   },
 
   async create(movieId: number, rating: number, comment: string) {
-    // backend: POST /reviews/movies/{movie_id}
     const response = await fetch(`${API_BASE_URL}/reviews/movies/${movieId}`, {
       method: "POST",
       headers: {
@@ -143,7 +145,6 @@ export const reviewsApi = {
   },
 
   async update(reviewId: number, rating: number, comment: string) {
-    // backend: PUT /reviews/{review_id}
     const response = await fetch(`${API_BASE_URL}/reviews/${reviewId}`, {
       method: "PUT",
       headers: {
@@ -157,7 +158,6 @@ export const reviewsApi = {
   },
 
   async delete(reviewId: number) {
-    // backend: DELETE /reviews/{review_id}
     const response = await fetch(`${API_BASE_URL}/reviews/${reviewId}`, {
       method: "DELETE",
       headers: getAuthHeaders(),
@@ -167,7 +167,7 @@ export const reviewsApi = {
   },
 };
 
-// Watchlist API (your backend matches these)
+// Watchlist API
 export const watchlistApi = {
   async getMyWatchlist() {
     const response = await fetch(`${API_BASE_URL}/watchlist/`, {
@@ -213,11 +213,11 @@ export const watchlistApi = {
   },
 };
 
-// Auth API (backend expects name/email; login uses email in OAuth2 "username")
+// Auth API
 export const authApi = {
   async login(email: string, password: string) {
     const formData = new FormData();
-    formData.append("username", email); // OAuth2PasswordRequestForm uses "username"
+    formData.append("username", email);
     formData.append("password", password);
 
     const response = await fetch(`${API_BASE_URL}/auth/login`, {
@@ -233,12 +233,7 @@ export const authApi = {
     return response.json();
   },
 
-  async register(
-    name: string,
-    email: string,
-    password: string,
-    preferredGenres: string[] = []
-  ) {
+  async register(name: string, email: string, password: string, preferredGenres: string[] = []) {
     const response = await fetch(`${API_BASE_URL}/auth/register`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },

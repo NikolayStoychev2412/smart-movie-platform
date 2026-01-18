@@ -1,24 +1,26 @@
-// src/pages/Home.tsx
 /* eslint-disable @typescript-eslint/no-explicit-any */
-import { useState, useEffect, useCallback, useRef } from "react";
-import type { ReactNode } from "react";
-import { useNavigate } from "react-router-dom";
+import { useState, useEffect, useCallback, useRef, type ReactNode } from "react";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import type { Movie } from "../types";
-import { moviesApi, type RecommendationWithExplanation } from "../api/movies";
+import { moviesApi, type RecommendationWithExplanation, type SearchResult } from "../api/movies";
 import { useApp } from "../context/AppContext";
 import { ChevronLeft, ChevronRight, TrendingUp, Star, Sparkles, Heart } from "lucide-react";
 
-// Simple cache
+type SearchMode = "ai" | "title";
+
+type HomeProps = {
+  isLoggedIn: boolean;
+};
+
 const cache = {
   movies: null as Movie[] | null,
   recommendations: null as RecommendationWithExplanation[] | null,
   timestamp: 0,
-  TTL: 5 * 60 * 1000, // 5 minutes
+  TTL: 5 * 60 * 1000,
 };
 
 let lastToken: string | null = null;
 
-// Circular rating component
 function CircularRating({ rating, size = 40 }: { rating: number; size?: number }) {
   const percentage = Math.round((rating || 0) * 20);
   const circumference = 2 * Math.PI * 18;
@@ -57,7 +59,6 @@ function CircularRating({ rating, size = 40 }: { rating: number; size?: number }
   );
 }
 
-// Movie card
 function MovieCardWithReason({
   movie,
   onClick,
@@ -72,12 +73,11 @@ function MovieCardWithReason({
   const [imageLoaded, setImageLoaded] = useState(false);
   const [imageError, setImageError] = useState(false);
 
-  const title = language === "bg" ? (movie.title_bg || movie.title) : movie.title;
+  const title = language === "bg" ? movie.title_bg || movie.title : movie.title;
 
-  const posterUrl =
-    (movie as any).poster_path
-      ? `https://image.tmdb.org/t/p/w342${(movie as any).poster_path}`
-      : (movie as any).poster_url;
+  const posterUrl = (movie as any).poster_path
+    ? `https://image.tmdb.org/t/p/w342${(movie as any).poster_path}`
+    : (movie as any).poster_url;
 
   return (
     <div className="flex-shrink-0 w-[150px] cursor-pointer group" onClick={onClick}>
@@ -118,7 +118,7 @@ function MovieCardWithReason({
         </h3>
 
         {reason ? (
-          <p className="text-xs text-tmdb-light-green mt-1 line-clamp-2 italic">💡 {reason}</p>
+          <p className="text-xs text-tmdb-light-green mt-1 line-clamp-3 italic">💡 {reason}</p>
         ) : (
           <p className="text-gray-400 text-xs mt-1">
             {(movie as any).review_count ?? 0} {language === "bg" ? "ревюта" : "reviews"}
@@ -129,7 +129,6 @@ function MovieCardWithReason({
   );
 }
 
-// Carousel component
 function MovieCarousel({
   title,
   movies,
@@ -221,25 +220,26 @@ function MovieCarousel({
   );
 }
 
-// Main component
-export default function Home() {
+export default function Home({ isLoggedIn }: HomeProps) {
   const navigate = useNavigate();
   const { theme, t, language } = useApp();
+  const [params] = useSearchParams();
+
+  const urlQuery = (params.get("q") || "").trim();
+  const urlMode = (params.get("mode") === "title" ? "title" : "ai") as SearchMode;
 
   const [allMovies, setAllMovies] = useState<Movie[]>([]);
   const [recommendations, setRecommendations] = useState<RecommendationWithExplanation[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  const [searchQuery, setSearchQuery] = useState("");
   const [searchResults, setSearchResults] = useState<Movie[]>([]);
   const [isSearching, setIsSearching] = useState(false);
-  const [showSearchResults, setShowSearchResults] = useState(false);
+  const [aiSnippets, setAiSnippets] = useState<Record<number, string>>({});
 
-  const isLoggedIn = !!localStorage.getItem("token");
+  const showSearchResults = urlQuery.length > 0;
 
   const fetchMovies = useCallback(async () => {
-    // reset rec cache if token changed
     const token = localStorage.getItem("token");
     if (token !== lastToken) {
       cache.recommendations = null;
@@ -284,6 +284,56 @@ export default function Home() {
     fetchMovies();
   }, [fetchMovies]);
 
+  // ✅ URL-driven search
+  useEffect(() => {
+    const q = urlQuery;
+    if (!q) {
+      setSearchResults([]);
+      setAiSnippets({});
+      return;
+    }
+
+    setIsSearching(true);
+
+    if (urlMode === "title") {
+      const lower = q.toLowerCase();
+      const filtered = allMovies.filter((m: any) => {
+        const title = (m.title ?? "").toLowerCase();
+        const titleBg = (m.title_bg ?? "").toLowerCase();
+        return title.includes(lower) || titleBg.includes(lower);
+      });
+
+      setSearchResults(filtered);
+      setAiSnippets({});
+      setIsSearching(false);
+      return;
+    }
+
+    moviesApi
+      .search(q)
+      .then((results: SearchResult[]) => {
+        setSearchResults(results.map((r) => r.movie));
+
+        const map: Record<number, string> = {};
+        results.forEach((r) => {
+          map[r.movie.id] = r.snippet || "";
+        });
+        setAiSnippets(map);
+      })
+      .catch(() => {
+        // fallback
+        const lower = q.toLowerCase();
+        const filtered = allMovies.filter((m: any) => {
+          const title = (m.title ?? "").toLowerCase();
+          const titleBg = (m.title_bg ?? "").toLowerCase();
+          return title.includes(lower) || titleBg.includes(lower);
+        });
+        setSearchResults(filtered);
+        setAiSnippets({});
+      })
+      .finally(() => setIsSearching(false));
+  }, [urlQuery, urlMode, allMovies]);
+
   const getTrending = useCallback(() => {
     return [...allMovies].sort((a: any, b: any) => (b.review_count ?? 0) - (a.review_count ?? 0)).slice(0, 20);
   }, [allMovies]);
@@ -299,36 +349,7 @@ export default function Home() {
       .slice(0, 20);
   }, [allMovies]);
 
-  const handleSearch = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!searchQuery.trim()) return;
-
-    setIsSearching(true);
-    setShowSearchResults(true);
-
-    try {
-      const results = await moviesApi.search(searchQuery);
-      setSearchResults(results.map((r) => r.movie));
-    } catch {
-      const query = searchQuery.toLowerCase();
-      const filtered = allMovies.filter((m: any) => {
-        const title = (m.title ?? "").toLowerCase();
-        const titleBg = (m.title_bg ?? "").toLowerCase();
-        return title.includes(query) || titleBg.includes(query);
-      });
-      setSearchResults(filtered);
-    } finally {
-      setIsSearching(false);
-    }
-  };
-
   const handleMovieClick = (movie: any) => navigate(`/movie/${movie.id}`);
-
-  const clearSearch = () => {
-    setSearchQuery("");
-    setSearchResults([]);
-    setShowSearchResults(false);
-  };
 
   if (loading && allMovies.length === 0) {
     return (
@@ -343,48 +364,48 @@ export default function Home() {
 
   return (
     <div className={`min-h-screen transition-colors ${theme === "dark" ? "bg-tmdb-dark" : "bg-gray-100"}`}>
-      {/* Hero Section */}
-      <section className="relative h-[300px] md:h-[360px] overflow-hidden">
-        <div className="absolute inset-0 bg-gradient-to-r from-tmdb-dark-blue via-tmdb-dark-blue/90 to-tmdb-dark-blue/60" />
-        <div className="absolute inset-0 bg-gradient-to-t from-tmdb-dark via-transparent to-transparent" />
+      {/* Hero section only shows when NOT searching */}
+      {!showSearchResults && (
+        <section className="relative h-[260px] md:h-[320px] overflow-hidden">
+          <div className="absolute inset-0 bg-gradient-to-r from-tmdb-dark-blue via-tmdb-dark-blue/90 to-tmdb-dark-blue/60" />
+          <div className="absolute inset-0 bg-gradient-to-t from-tmdb-dark via-transparent to-transparent" />
+          <div className="relative h-full flex flex-col justify-center px-6 md:px-10 max-w-7xl mx-auto">
+            <h1 className="text-3xl md:text-5xl font-bold text-white mb-2">{t.heroTitle}</h1>
+            <p className="text-lg md:text-xl text-tmdb-light-blue font-medium mb-2">{t.heroHighlight}</p>
+            <p className="text-gray-300">{t.heroSubtitle}</p>
+            <p className="text-gray-400 text-xs md:text-sm mt-4 flex items-center gap-2">
+              <Sparkles className="w-4 h-4 text-tmdb-light-blue" />
+              {t.searchHint}
+            </p>
+          </div>
+        </section>
+      )}
 
-        <div className="relative h-full flex flex-col justify-center px-6 md:px-10 max-w-7xl mx-auto">
-          <h1 className="text-3xl md:text-5xl font-bold text-white mb-2">{t.heroTitle}</h1>
-          <p className="text-lg md:text-xl text-tmdb-light-blue font-medium mb-2">{t.heroHighlight}</p>
-          <p className="text-gray-300 mb-8 md:mb-10">{t.heroSubtitle}</p>
-
-          <form onSubmit={handleSearch} className="relative max-w-4xl">
-            <input
-              type="text"
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder={t.searchPlaceholder}
-              className="w-full px-6 py-3 md:py-4 pr-28 md:pr-32 rounded-full bg-white text-gray-900 text-base md:text-lg placeholder-gray-500 focus:outline-none focus:ring-4 focus:ring-tmdb-light-blue/30 shadow-xl"
-            />
-            <button
-              type="submit"
-              className="absolute right-1.5 md:right-2 top-1/2 -translate-y-1/2 px-6 md:px-8 py-2 md:py-3 bg-gradient-to-r from-tmdb-light-green to-tmdb-light-blue text-tmdb-dark-blue font-semibold rounded-full hover:opacity-90 transition-opacity text-sm md:text-base"
-            >
-              {t.search}
-            </button>
-          </form>
-
-          <p className="text-gray-400 text-xs md:text-sm mt-3 md:mt-4 flex items-center gap-2">
-            <Sparkles className="w-4 h-4 text-tmdb-light-blue" />
-            {t.searchHint}
-          </p>
-        </div>
-      </section>
-
-      {/* Search Results */}
+      {/* Search Results (URL-driven) */}
       {showSearchResults && (
         <section className={`py-8 px-6 md:px-10 ${theme === "dark" ? "bg-gray-900/50" : "bg-gray-200"}`}>
           <div className="max-w-7xl mx-auto">
             <div className="flex items-center justify-between mb-6 flex-wrap gap-4">
-              <h2 className={`text-xl font-semibold ${theme === "dark" ? "text-white" : "text-gray-900"}`}>
-                {t.resultsFor} "{searchQuery}" ({searchResults.length})
-              </h2>
-              <button onClick={clearSearch} className="text-tmdb-light-blue hover:underline text-sm">
+              <div>
+                <h2 className={`text-xl font-semibold ${theme === "dark" ? "text-white" : "text-gray-900"}`}>
+                  {t.resultsFor} "{urlQuery}" ({searchResults.length})
+                </h2>
+
+                <div className="mt-2 inline-flex items-center gap-2 text-xs">
+                  <span className={`px-2 py-1 rounded-full ${
+                    urlMode === "ai" ? "bg-gradient-to-r from-tmdb-light-green to-tmdb-light-blue text-tmdb-dark-blue" : "bg-white/10 text-gray-200"
+                  }`}>
+                    {urlMode === "ai" ? "AI" : language === "bg" ? "Нормално" : "Normal"}
+                  </span>
+                  <span className="text-gray-400">
+                    {urlMode === "ai"
+                      ? (language === "bg" ? "Семантично търсене + обяснения" : "Semantic search + explanations")
+                      : (language === "bg" ? "Търсене по заглавие" : "Title match")}
+                  </span>
+                </div>
+              </div>
+
+              <button onClick={() => navigate("/")} className="text-tmdb-light-blue hover:underline text-sm">
                 {language === "bg" ? "Изчисти търсенето" : "Clear search"}
               </button>
             </div>
@@ -398,7 +419,13 @@ export default function Home() {
             ) : (
               <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 xl:grid-cols-8 gap-5">
                 {searchResults.map((movie: any) => (
-                  <MovieCardWithReason key={movie.id} movie={movie} onClick={() => handleMovieClick(movie)} language={language} />
+                  <MovieCardWithReason
+                    key={movie.id}
+                    movie={movie}
+                    onClick={() => handleMovieClick(movie)}
+                    language={language}
+                    reason={urlMode === "ai" ? aiSnippets[movie.id] : undefined}
+                  />
                 ))}
               </div>
             )}
@@ -406,16 +433,14 @@ export default function Home() {
         </section>
       )}
 
-      {/* Main Content */}
+      {/* Main content */}
       {!showSearchResults && (
         <>
           {error && (
             <div className="px-6 md:px-10 py-4 max-w-7xl mx-auto">
-              <div
-                className={`rounded-lg p-4 ${
-                  theme === "dark" ? "bg-red-500/10 border border-red-500/20" : "bg-red-50 border border-red-200"
-                }`}
-              >
+              <div className={`rounded-lg p-4 ${
+                theme === "dark" ? "bg-red-500/10 border border-red-500/20" : "bg-red-50 border border-red-200"
+              }`}>
                 <p className="text-red-400">{error}</p>
                 <button onClick={fetchMovies} className="text-red-400 underline text-sm mt-2">
                   {t.tryAgain}
@@ -434,7 +459,9 @@ export default function Home() {
               gradient
               reasons={recommendations.map((r) => {
                 const primaryReason =
-                  language === "bg" ? r.explanation.reasons_bg?.[0] || r.explanation.reasons[0] : r.explanation.reasons[0];
+                  language === "bg"
+                    ? r.explanation.reasons_bg?.[0] || r.explanation.reasons[0]
+                    : r.explanation.reasons[0];
                 return primaryReason;
               })}
             />
@@ -468,10 +495,14 @@ export default function Home() {
           {!isLoggedIn && (
             <section className="py-12 px-6 md:px-10">
               <div className="max-w-4xl mx-auto text-center bg-gradient-to-r from-tmdb-light-blue/20 to-tmdb-light-green/20 rounded-2xl p-8 md:p-12">
-                <h2 className={`text-2xl md:text-3xl font-bold mb-4 ${theme === "dark" ? "text-white" : "text-gray-900"}`}>
+                <h2 className={`text-2xl md:text-3xl font-bold mb-4 ${
+                  theme === "dark" ? "text-white" : "text-gray-900"
+                }`}>
                   {language === "bg" ? "Присъедини се към общността" : "Join The Community"}
                 </h2>
-                <p className={`mb-6 leading-relaxed ${theme === "dark" ? "text-gray-300" : "text-gray-600"}`}>
+                <p className={`mb-6 leading-relaxed ${
+                  theme === "dark" ? "text-gray-300" : "text-gray-600"
+                }`}>
                   {language === "bg"
                     ? "Регистрирай се безплатно и започни да следиш любимите си филми, да оставяш ревюта и да откриваш нови заглавия с помощта на AI."
                     : "Sign up for free and start tracking your favorite movies, leave reviews, and discover new titles with the help of AI."}

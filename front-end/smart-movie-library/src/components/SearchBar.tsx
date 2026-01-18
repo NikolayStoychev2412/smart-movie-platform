@@ -1,124 +1,164 @@
-// src/components/SearchBar.tsx
-import { useState, type FormEvent } from 'react';
-import { useApp } from '../context/AppContext';
-import { Search, Sparkles } from 'lucide-react';
+import { useEffect, useState, type FormEvent } from "react";
+import { useApp } from "../context/AppContext";
+import { Search, Sparkles, X } from "lucide-react";
 
-type SearchMode = 'ai' | 'title';
+export type SearchMode = "ai" | "title";
+
+type Variant = "hero" | "navbar";
 
 interface SearchBarProps {
   onSearch: (query: string, mode: SearchMode) => void;
   initialValue?: string;
+  initialMode?: SearchMode;
+  variant?: Variant;
+
+  // Useful for navbar: allow removing the mode toggle if you want
+  showModeToggle?: boolean;
+
+  // Optional: parent can control query/mode (if you later want URL-sync)
+  value?: string;
+  mode?: SearchMode;
 }
 
-export default function SearchBar({ onSearch, initialValue = "" }: SearchBarProps) {
-  const { theme, t } = useApp();
+export default function SearchBar({
+  onSearch,
+  initialValue = "",
+  initialMode = "ai",
+  variant = "hero",
+  showModeToggle = true,
+  value,
+  mode,
+}: SearchBarProps) {
+  const { theme, t, language } = useApp();
+
   const [query, setQuery] = useState(initialValue);
-  const [searchMode, setSearchMode] = useState<SearchMode>('ai');
+  const [searchMode, setSearchMode] = useState<SearchMode>(initialMode);
+
+  // If parent controls the value/mode, sync local state
+  useEffect(() => {
+    if (typeof value === "string") setQuery(value);
+  }, [value]);
+
+  useEffect(() => {
+    if (mode) setSearchMode(mode);
+  }, [mode]);
 
   const handleSubmit = (e: FormEvent) => {
     e.preventDefault();
-    if (query.trim()) {
-      onSearch(query.trim(), searchMode);
-    }
+    const q = query.trim();
+    onSearch(q, searchMode);
   };
 
   const handleClear = () => {
-    setQuery('');
-    onSearch('', searchMode);
+    setQuery("");
+    onSearch("", searchMode);
   };
 
-  return (
-    <div className="w-full max-w-2xl mx-auto">
-      {/* Search Mode Toggle */}
-      <div className="flex justify-center gap-2 mb-4">
-        <button
-          type="button"
-          onClick={() => setSearchMode('ai')}
-          className={`flex items-center gap-2 px-4 py-2 rounded-full text-sm font-medium transition-all ${
-            searchMode === 'ai'
-              ? 'bg-blue-600 text-white shadow-lg shadow-blue-500/25'
-              : theme === 'dark'
-                ? 'bg-gray-800 text-gray-400 hover:bg-gray-700 hover:text-white'
-                : 'bg-gray-200 text-gray-600 hover:bg-gray-300 hover:text-gray-900'
-          }`}
-        >
-          <Sparkles className="w-4 h-4" />
-          {t.aiSearch}
-        </button>
-        <button
-          type="button"
-          onClick={() => setSearchMode('title')}
-          className={`flex items-center gap-2 px-4 py-2 rounded-full text-sm font-medium transition-all ${
-            searchMode === 'title'
-              ? 'bg-blue-600 text-white shadow-lg shadow-blue-500/25'
-              : theme === 'dark'
-                ? 'bg-gray-800 text-gray-400 hover:bg-gray-700 hover:text-white'
-                : 'bg-gray-200 text-gray-600 hover:bg-gray-300 hover:text-gray-900'
-          }`}
-        >
-          <Search className="w-4 h-4" />
-          {t.searchByTitle}
-        </button>
-      </div>
+  const isNavbar = variant === "navbar";
 
-      {/* Search Input */}
+  return (
+    <div className={isNavbar ? "w-full" : "w-full max-w-3xl mx-auto"}>
+      {/* Mode toggle */}
+      {showModeToggle && (
+        <div className={isNavbar ? "hidden md:flex justify-center gap-2 mb-2" : "flex justify-center gap-2 mb-4"}>
+          <button
+            type="button"
+            onClick={() => setSearchMode("title")}
+            className={`flex items-center gap-2 px-4 py-2 rounded-full text-sm font-semibold transition-all ${
+              searchMode === "title"
+                ? "bg-white text-tmdb-dark-blue shadow-lg"
+                : theme === "dark"
+                ? "bg-white/10 text-gray-200 hover:bg-white/15"
+                : "bg-gray-200 text-gray-700 hover:bg-gray-300"
+            }`}
+            title={language === "bg" ? "Търсене по заглавие" : "Search by title"}
+          >
+            <Search className="w-4 h-4" />
+            {language === "bg" ? "Заглавие" : "Title"}
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setSearchMode("ai")}
+            className={`flex items-center gap-2 px-4 py-2 rounded-full text-sm font-semibold transition-all ${
+              searchMode === "ai"
+                ? "bg-gradient-to-r from-tmdb-light-green to-tmdb-light-blue text-tmdb-dark-blue shadow-lg"
+                : theme === "dark"
+                ? "bg-white/10 text-gray-200 hover:bg-white/15"
+                : "bg-gray-200 text-gray-700 hover:bg-gray-300"
+            }`}
+            title={language === "bg" ? "AI търсене" : "AI search"}
+          >
+            <Sparkles className="w-4 h-4" />
+            AI
+          </button>
+        </div>
+      )}
+
+      {/* Input */}
       <form onSubmit={handleSubmit} className="relative">
-        <div className="relative">
-          {/* Icon */}
-          {searchMode === 'ai' ? (
-            <Sparkles className={`absolute left-4 top-1/2 transform -translate-y-1/2 w-5 h-5 ${
-              theme === 'dark' ? 'text-blue-400' : 'text-blue-500'
-            }`} />
-          ) : (
-            <Search className={`absolute left-4 top-1/2 transform -translate-y-1/2 w-5 h-5 ${
-              theme === 'dark' ? 'text-gray-400' : 'text-gray-500'
-            }`} />
-          )}
-          
+        <div
+          className={`relative flex items-center rounded-full overflow-hidden border ${
+            theme === "dark" ? "border-white/10 bg-black/20" : "border-gray-200 bg-white"
+          } ${isNavbar ? "h-10" : "h-14"} shadow-xl`}
+        >
+          <div className={`pl-4 ${theme === "dark" ? "text-gray-300" : "text-gray-500"}`}>
+            {searchMode === "ai" ? <Sparkles className="w-5 h-5" /> : <Search className="w-5 h-5" />}
+          </div>
+
           <input
             type="text"
             value={query}
             onChange={(e) => setQuery(e.target.value)}
-            placeholder={searchMode === 'ai' ? t.searchPlaceholder : (t.searchByTitle + '...')}
-            className={`w-full pl-12 pr-28 py-3 border rounded-full focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 transition-all ${
-              theme === 'dark'
-                ? 'bg-gray-800 border-gray-700 text-white placeholder-gray-500'
-                : 'bg-white border-gray-300 text-gray-900 placeholder-gray-400'
-            }`}
+            placeholder={
+              searchMode === "ai"
+                ? t.searchPlaceholder
+                : language === "bg"
+                ? "Търси по точно заглавие..."
+                : "Search by exact title..."
+            }
+            className={`flex-1 px-3 bg-transparent focus:outline-none ${
+              theme === "dark" ? "text-white placeholder:text-gray-400" : "text-gray-900 placeholder:text-gray-400"
+            } ${isNavbar ? "text-sm" : "text-base"}`}
           />
-          
-          {/* Clear button */}
-          {query && (
+
+          {query.length > 0 && (
             <button
               type="button"
               onClick={handleClear}
-              className={`absolute right-24 top-1/2 transform -translate-y-1/2 p-1 ${
-                theme === 'dark' ? 'text-gray-400 hover:text-white' : 'text-gray-500 hover:text-gray-700'
+              className={`mr-2 p-2 rounded-full transition-colors ${
+                theme === "dark" ? "text-gray-300 hover:bg-white/10" : "text-gray-500 hover:bg-gray-100"
               }`}
+              aria-label="Clear search"
+              title={language === "bg" ? "Изчисти" : "Clear"}
             >
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-              </svg>
+              <X className="w-4 h-4" />
             </button>
           )}
-          
+
           <button
             type="submit"
-            className="absolute right-2 top-1/2 transform -translate-y-1/2 bg-blue-600 hover:bg-blue-700 text-white px-4 py-1.5 rounded-full text-sm font-medium transition-colors"
+            className={`mr-2 rounded-full font-semibold transition-all ${
+              searchMode === "ai"
+                ? "bg-gradient-to-r from-tmdb-light-green to-tmdb-light-blue text-tmdb-dark-blue hover:opacity-90"
+                : "bg-white/10 text-white hover:bg-white/20"
+            } ${isNavbar ? "px-4 py-1.5 text-sm" : "px-6 py-2 text-base"}`}
           >
             {t.search}
           </button>
         </div>
-        
-        {/* Hint text */}
-        <p className={`text-xs mt-2 text-center ${
-          theme === 'dark' ? 'text-gray-500' : 'text-gray-400'
-        }`}>
-          {searchMode === 'ai' 
-            ? t.searchHint
-            : (theme === 'dark' ? 'Enter exact movie title' : 'Въведете точното заглавие')
-          }
-        </p>
+
+        {/* Hint (only in hero mode) */}
+        {!isNavbar && (
+          <p className={`text-xs mt-3 flex items-center gap-2 ${theme === "dark" ? "text-gray-400" : "text-gray-500"}`}>
+            <Sparkles className="w-4 h-4 text-tmdb-light-blue" />
+            {searchMode === "ai"
+              ? t.searchHint
+              : language === "bg"
+              ? "Пример: “The Godfather”"
+              : 'Example: "The Godfather"'}
+          </p>
+        )}
       </form>
     </div>
   );
