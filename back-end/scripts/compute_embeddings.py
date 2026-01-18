@@ -1,6 +1,8 @@
 #!/usr/bin/env python3
 """
-Compute and store embeddings for all movies.
+Compute and store embeddings for all movies - FIXED FOR POSTGRESQL
+===================================================================
+
 Run this script once to build the initial index, and periodically to update.
 
 Usage:
@@ -19,7 +21,7 @@ from pathlib import Path
 project_root = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(project_root))
 
-from app.database import SessionLocal
+from app.database import SyncSessionLocal  # ✅ FIXED: Use SyncSessionLocal for PostgreSQL
 from app.models.movie import Movie
 from app.ai.embeddings import get_embedding_provider
 from app.ai.vector_store import get_vector_store
@@ -61,7 +63,7 @@ def compute_embeddings(batch_size: int = 10, force_rebuild: bool = False):
     """
     logger.info("🚀 Starting embedding computation...")
     
-    db = SessionLocal()
+    db = SyncSessionLocal()
     embedding_provider = get_embedding_provider()
     vector_store = get_vector_store()
     
@@ -130,11 +132,11 @@ def compute_embeddings(batch_size: int = 10, force_rebuild: bool = False):
             logger.info(f"   Adding to vector store...")
             vector_store.add_vectors(batch_ids, embeddings)
             
-            # 🔥 NEW: Save embeddings to database
+            # Save embeddings to database
             logger.info(f"   Saving embeddings to database...")
             for movie, embedding in zip(batch_movies, embeddings):
                 movie.embedding = embedding  # Store as JSON array
-                movie.embedding_model = embedding_provider.provider
+                movie.embedding_model = embedding_provider.model_name
                 movie.embedding_generated_at = current_time
             
             db.commit()
@@ -183,7 +185,7 @@ def update_single_movie(movie_id: int):
     """
     logger.info(f"🔄 Updating embedding for movie {movie_id}...")
     
-    db = SessionLocal()
+    db = SyncSessionLocal()
     embedding_provider = get_embedding_provider()
     vector_store = get_vector_store()
     
@@ -213,10 +215,10 @@ def update_single_movie(movie_id: int):
         logger.info(f"   Adding to vector store...")
         vector_store.add_vectors([movie_id], [embedding])
         
-        # 🔥 NEW: Save to database
+        # Save to database
         logger.info(f"   Saving to database...")
         movie.embedding = embedding
-        movie.embedding_model = embedding_provider.provider
+        movie.embedding_model = embedding_provider.model_name
         movie.embedding_generated_at = time.time()
         db.commit()
         
@@ -239,7 +241,7 @@ def verify_index():
     """Verify the integrity of the vector index"""
     logger.info("🔍 Verifying vector index...")
     
-    db = SessionLocal()
+    db = SyncSessionLocal()
     vector_store = get_vector_store()
     
     try:
@@ -302,7 +304,7 @@ def rebuild_faiss_from_db():
     """
     logger.info("🔨 Rebuilding FAISS index from database...")
     
-    db = SessionLocal()
+    db = SyncSessionLocal()
     vector_store = get_vector_store()
     
     try:
