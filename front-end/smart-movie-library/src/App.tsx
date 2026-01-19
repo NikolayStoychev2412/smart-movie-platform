@@ -7,6 +7,8 @@ import Browse from "./pages/Browse";
 import MovieDetails from "./pages/MovieDetail";
 import Login from "./pages/Login";
 import Register from "./pages/Register";
+import Profile from "./pages/Profile";
+import Watchlist from "./pages/Watchlist";
 
 function App() {
   return (
@@ -21,7 +23,8 @@ function App() {
             <Route path="/movie/:id" element={<MovieDetails />} />
             <Route path="/login" element={<Login />} />
             <Route path="/register" element={<Register />} />
-            <Route path="/profile" element={<div className="p-8 text-center text-white">Profile Page</div>} />
+            <Route path="/profile" element={<Profile />} />
+            <Route path="/watchlist" element={<Watchlist />} />
             <Route path="*" element={<div className="p-8 text-center text-white">404 - Page Not Found</div>} />
           </Routes>
         </div>
