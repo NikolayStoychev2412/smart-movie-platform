@@ -1,264 +1,148 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
-import type { Movie } from "../types";
+import type { Movie, Review, CastMember, CrewMember } from "../types";
 
-const API_BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:8000";
+// Use VITE_API_URL directly - FastAPI routes are at root level (/movies, not /api/movies)
+const API_BASE = import.meta.env.VITE_API_URL || "http://localhost:8000";
 
-/**
- * Search result shape coming from backend:
- * { movie, relevance, snippet }
- */
-export interface SearchResult {
-  movie: Movie;
-  relevance: number;
-  snippet: string;
+export interface CastResponse {
+  cast: CastMember[];
+  crew: CrewMember[];
 }
 
-// Recommendation types
-export interface RecommendationExplanation {
-  reasons: string[];
-  reasons_bg?: string[];
-  score_breakdown?: Record<string, number>;
-  total_score: number;
-  weights_used?: Record<string, number>;
-  activity_level?: string;
-}
-
-export interface RecommendationWithExplanation {
-  movie: Movie;
-  score: number;
-  explanation: RecommendationExplanation;
-}
-
-// Helper to get auth header
-const getAuthHeaders = (): Record<string, string> => {
+async function fetchJson<T>(url: string, options?: RequestInit): Promise<T> {
   const token = localStorage.getItem("token");
-  return token ? { Authorization: `Bearer ${token}` } : {};
-};
+  
+  console.log("[Movies API]", options?.method || "GET", url);
+  
+  const response = await fetch(url, {
+    ...options,
+    headers: {
+      "Content-Type": "application/json",
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      ...options?.headers,
+    },
+  });
+
+  if (!response.ok) {
+    console.error("[Movies API] Error:", response.status, response.statusText);
+    throw new Error(`API Error: ${response.status}`);
+  }
+
+  return response.json();
+}
 
 export const moviesApi = {
-  async getAll(): Promise<Movie[]> {
-    const response = await fetch(`${API_BASE_URL}/movies/`);
-    if (!response.ok) throw new Error("Failed to fetch movies");
-    return response.json();
+  getAll: async (): Promise<Movie[]> => {
+    return fetchJson<Movie[]>(`${API_BASE}/movies`);
   },
 
-  async getById(id: number): Promise<Movie> {
-    const response = await fetch(`${API_BASE_URL}/movies/${id}`);
-    if (!response.ok) throw new Error("Failed to fetch movie");
-    return response.json();
+  getById: async (id: number): Promise<Movie> => {
+    return fetchJson<Movie>(`${API_BASE}/movies/${id}`);
   },
 
-  async getByGenre(genre: string): Promise<Movie[]> {
-    const response = await fetch(`${API_BASE_URL}/movies/genre/${encodeURIComponent(genre)}`);
-    if (!response.ok) throw new Error("Failed to fetch movies by genre");
-    return response.json();
+  search: async (query: string): Promise<Movie[]> => {
+    return fetchJson<Movie[]>(`${API_BASE}/movies/search?q=${encodeURIComponent(query)}`);
   },
 
-  async getTopRated(minReviews = 5, limit = 20): Promise<Movie[]> {
-    const response = await fetch(`${API_BASE_URL}/movies/top-rated/?min_reviews=${minReviews}&limit=${limit}`);
-    if (!response.ok) throw new Error("Failed to fetch top-rated movies");
-    return response.json();
-  },
-
-  /**
-   * AI search (backend route: GET /ai/search?q=...)
-   */
-  async search(query: string): Promise<SearchResult[]> {
-    const response = await fetch(`${API_BASE_URL}/ai/search?q=${encodeURIComponent(query)}`);
-    if (!response.ok) throw new Error("Failed to search");
-
-    const data = await response.json();
-    const items = Array.isArray(data) ? data : data?.results ?? data?.items ?? [];
-
-    return items.map((item: any) => ({
-      movie: item.movie,
-      relevance: item.relevance ?? 0,
-      snippet: item.snippet ?? "",
-    }));
-  },
-
-  /**
-   * For-me recommendations (backend: GET /ai/recommend/for-me?top_k=...)
-   */
-  async getRecommendations(limit = 20): Promise<RecommendationWithExplanation[]> {
-    const response = await fetch(`${API_BASE_URL}/ai/recommend/for-me?top_k=${limit}`, {
-      headers: getAuthHeaders(),
-    });
-    if (!response.ok) throw new Error("Failed to fetch recommendations");
-
-    const data = await response.json();
-    const items = Array.isArray(data) ? data : data?.results ?? data?.items ?? [];
-
-    return items.map((item: any) => ({
-      movie: item.movie,
-      score: item.score ?? 0,
-      explanation: {
-        reasons: item.explanation?.reasons ?? ["Recommended for you"],
-        reasons_bg: item.explanation?.reasons_bg ?? ["Препоръчано за теб"],
-        score_breakdown: item.explanation?.score_breakdown ?? {},
-        total_score: item.explanation?.total_score ?? item.score ?? 0,
-        weights_used: item.explanation?.weights_used,
-        activity_level: item.explanation?.activity_level,
-      },
-    }));
-  },
-
-  /**
-   * Similar recommendations (backend: GET /ai/recommend/similar/{movieId}?top_k=...)
-   */
-  async getSimilar(movieId: number, limit = 10): Promise<Movie[]> {
-    const response = await fetch(`${API_BASE_URL}/ai/recommend/similar/${movieId}?top_k=${limit}`, {
-      headers: getAuthHeaders(),
-    });
-    if (!response.ok) throw new Error("Failed to fetch similar movies");
-
-    const data = await response.json();
-    const items = Array.isArray(data) ? data : data?.results ?? data?.items ?? [];
-    return items.map((item: any) => item.movie ?? item);
-  },
-};
-
-// Reviews API
-export const reviewsApi = {
-  async getForMovie(movieId: number) {
-    const response = await fetch(`${API_BASE_URL}/reviews/movies/${movieId}`);
-    if (!response.ok) throw new Error("Failed to fetch reviews");
-    return response.json();
-  },
-
-  async create(movieId: number, rating: number, comment: string) {
-    const response = await fetch(`${API_BASE_URL}/reviews/movies/${movieId}`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        ...getAuthHeaders(),
-      },
-      body: JSON.stringify({ rating, comment }),
-    });
-
-    if (!response.ok) {
-      const error = await response.json().catch(() => ({}));
-      throw new Error(error.detail || "Failed to create review");
+  getCast: async (id: number): Promise<CastMember[]> => {
+    try {
+      const response = await fetchJson<CastResponse | CastMember[]>(`${API_BASE}/movies/${id}/cast`);
+      if (Array.isArray(response)) return response;
+      return response.cast || [];
+    } catch {
+      return [];
     }
-
-    return response.json();
   },
 
-  async update(reviewId: number, rating: number, comment: string) {
-    const response = await fetch(`${API_BASE_URL}/reviews/${reviewId}`, {
-      method: "PUT",
-      headers: {
-        "Content-Type": "application/json",
-        ...getAuthHeaders(),
-      },
-      body: JSON.stringify({ rating, comment }),
-    });
-    if (!response.ok) throw new Error("Failed to update review");
-    return response.json();
-  },
-
-  async delete(reviewId: number) {
-    const response = await fetch(`${API_BASE_URL}/reviews/${reviewId}`, {
-      method: "DELETE",
-      headers: getAuthHeaders(),
-    });
-    if (!response.ok) throw new Error("Failed to delete review");
-    return response.json();
-  },
-};
-
-// Watchlist API
-export const watchlistApi = {
-  async getMyWatchlist() {
-    const response = await fetch(`${API_BASE_URL}/watchlist/`, {
-      headers: getAuthHeaders(),
-    });
-    if (!response.ok) throw new Error("Failed to fetch watchlist");
-    return response.json();
-  },
-
-  async add(movieId: number, status = "planned") {
-    const response = await fetch(`${API_BASE_URL}/watchlist/`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        ...getAuthHeaders(),
-      },
-      body: JSON.stringify({ movie_id: movieId, status }),
-    });
-    if (!response.ok) throw new Error("Failed to add to watchlist");
-    return response.json();
-  },
-
-  async updateStatus(movieId: number, status: string) {
-    const response = await fetch(`${API_BASE_URL}/watchlist/${movieId}`, {
-      method: "PUT",
-      headers: {
-        "Content-Type": "application/json",
-        ...getAuthHeaders(),
-      },
-      body: JSON.stringify({ status }),
-    });
-    if (!response.ok) throw new Error("Failed to update watchlist status");
-    return response.json();
-  },
-
-  async remove(movieId: number) {
-    const response = await fetch(`${API_BASE_URL}/watchlist/${movieId}`, {
-      method: "DELETE",
-      headers: getAuthHeaders(),
-    });
-    if (!response.ok) throw new Error("Failed to remove from watchlist");
-    return response.json();
-  },
-};
-
-// Auth API
-export const authApi = {
-  async login(email: string, password: string) {
-    const formData = new FormData();
-    formData.append("username", email);
-    formData.append("password", password);
-
-    const response = await fetch(`${API_BASE_URL}/auth/login`, {
-      method: "POST",
-      body: formData,
-    });
-
-    if (!response.ok) {
-      const error = await response.json().catch(() => ({}));
-      throw new Error(error.detail || "Login failed");
+  getCrew: async (id: number): Promise<CrewMember[]> => {
+    try {
+      const response = await fetchJson<CastResponse>(`${API_BASE}/movies/${id}/cast`);
+      return response.crew || [];
+    } catch {
+      return [];
     }
-
-    return response.json();
   },
 
-  async register(name: string, email: string, password: string, preferredGenres: string[] = []) {
-    const response = await fetch(`${API_BASE_URL}/auth/register`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        name,
-        email,
-        password,
-        preferred_genres: preferredGenres,
-      }),
-    });
-
-    if (!response.ok) {
-      const error = await response.json().catch(() => ({}));
-      throw new Error(error.detail || "Registration failed");
+  getCredits: async (id: number): Promise<CastResponse> => {
+    try {
+      return await fetchJson<CastResponse>(`${API_BASE}/movies/${id}/credits`);
+    } catch {
+      return { cast: [], crew: [] };
     }
-
-    return response.json();
   },
 
-  async getCurrentUser() {
-    const response = await fetch(`${API_BASE_URL}/auth/me`, {
-      headers: getAuthHeaders(),
-    });
+  getReviews: async (id: number): Promise<Review[]> => {
+    try {
+      return await fetchJson<Review[]>(`${API_BASE}/movies/${id}/reviews`);
+    } catch {
+      return [];
+    }
+  },
 
-    if (!response.ok) throw new Error("Failed to fetch user");
-    return response.json();
+  getRecommendations: async (id: number): Promise<Movie[]> => {
+    try {
+      // Use AI similar movies endpoint - returns RecommendationOut[]
+      const response = await fetchJson<any[]>(`${API_BASE}/ai/recommend/similar/${id}?top_k=10`);
+      // Extract movies from RecommendationOut format
+      if (response.length > 0 && response[0].movie) {
+        return response.map(r => r.movie);
+      }
+      return response;
+    } catch {
+      return [];
+    }
+  },
+
+  getSimilar: async (id: number): Promise<Movie[]> => {
+    try {
+      // Use AI similar movies endpoint - returns RecommendationOut[]
+      const response = await fetchJson<any[]>(`${API_BASE}/ai/recommend/similar/${id}?top_k=10`);
+      // Extract movies from RecommendationOut format
+      if (response.length > 0 && response[0].movie) {
+        return response.map(r => r.movie);
+      }
+      return response;
+    } catch {
+      return [];
+    }
+  },
+
+  getPopular: async (): Promise<Movie[]> => {
+    try {
+      return await fetchJson<Movie[]>(`${API_BASE}/movies/popular`);
+    } catch {
+      return [];
+    }
+  },
+
+  getTopRated: async (): Promise<Movie[]> => {
+    try {
+      return await fetchJson<Movie[]>(`${API_BASE}/movies/top-rated`);
+    } catch {
+      return [];
+    }
+  },
+
+  getTrending: async (): Promise<Movie[]> => {
+    try {
+      return await fetchJson<Movie[]>(`${API_BASE}/movies/trending`);
+    } catch {
+      return [];
+    }
+  },
+
+  getByMood: async (mood: string): Promise<Movie[]> => {
+    try {
+      return await fetchJson<Movie[]>(`${API_BASE}/movies/mood/${encodeURIComponent(mood)}`);
+    } catch {
+      return [];
+    }
+  },
+
+  getByGenre: async (genre: string): Promise<Movie[]> => {
+    try {
+      return await fetchJson<Movie[]>(`${API_BASE}/movies/genre/${encodeURIComponent(genre)}`);
+    } catch {
+      return [];
+    }
   },
 };
