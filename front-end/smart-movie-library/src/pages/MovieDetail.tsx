@@ -1,27 +1,15 @@
-// src/pages/MovieDetail.tsx
-/* eslint-disable @typescript-eslint/no-explicit-any */
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useApp } from "../context/AppContext";
-import { moviesApi, reviewsApi, watchlistApi } from "../api/movies";
-import {
-  Play,
-  Star,
-  Calendar,
-  Clock,
-  Bookmark,
-  Eye,
-  Check,
-  X,
-  ExternalLink,
-  TrendingUp,
-  User,
-  Film,
-  Globe,
+import { moviesApi } from "../api/movies";
+import type { Movie, Review } from "../types";
+import { 
+  Star, Calendar, Clock, Heart, Bookmark, ChevronLeft, ChevronRight, 
+  User, Building2, Film, Play, ExternalLink
 } from "lucide-react";
 
 interface CastMember {
-  id?: number;
+  id: number;
   name: string;
   character?: string;
   profile_path?: string;
@@ -29,596 +17,763 @@ interface CastMember {
 }
 
 interface CrewMember {
-  id?: number;
+  id: number;
   name: string;
   job: string;
-  department?: string;
+  department: string;
   profile_path?: string;
 }
 
+interface Video {
+  id: string;
+  key: string;
+  name: string;
+  site: string;
+  type: string;
+}
+
 interface ProductionCompany {
-  id?: number;
+  id: number;
   name: string;
   logo_path?: string;
   origin_country?: string;
 }
 
-export default function MovieDetail() {
-  const { id } = useParams<{ id: string }>();
-  const navigate = useNavigate();
-  const { theme, language } = useApp();
+// Extended movie type matching your backend's full response
+interface MovieDetail extends Movie {
+  cast?: CastMember[];
+  crew?: CrewMember[];
+  videos?: Video[];
+  trailer_youtube_key?: string;
+  trailer_url?: string;
+  trailer_embed_url?: string;
+  main_actors?: string[];
+  budget_formatted?: string;
+  revenue_formatted?: string;
+  runtime_formatted?: string;
+  poster_url_large?: string;
+  poster_url_small?: string;
+  backdrop_url_large?: string;
+  genres?: { id: number; name: string }[];
+  homepage?: string;
+  tmdb_rating?: number;
+  tmdb_vote_count?: number;
+  production_companies?: ProductionCompany[];
+  production_countries?: { iso_3166_1: string; name: string }[];
+  spoken_languages?: { iso_639_1: string; name: string }[];
+  belongs_to_collection?: { id: number; name: string; poster_path?: string };
+  adult?: boolean;
+  imdb_id?: string;
+  original_title?: string;
+}
 
-  const [movie, setMovie] = useState<any>(null);
-  const [similarMovies, setSimilarMovies] = useState<any[]>([]);
-  const [reviews, setReviews] = useState<any[]>([]);
-  const [watchlistStatus, setWatchlistStatus] = useState<string | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [showTrailer, setShowTrailer] = useState(false);
+function CircularRating({ rating, size = 60 }: { rating: number; size?: number }) {
+  const normalizedRating = rating > 10 ? rating / 10 : rating;
+  const percentage = Math.round((normalizedRating || 0) * 10);
+  const radius = (size - 8) / 2;
+  const circumference = 2 * Math.PI * radius;
+  const strokeDashoffset = circumference - (percentage / 100) * circumference;
+  
+  const getColor = () => {
+    if (percentage >= 70) return { stroke: "#21d07a", bg: "#204529" };
+    if (percentage >= 50) return { stroke: "#d2d531", bg: "#423d0f" };
+    return { stroke: "#db2360", bg: "#571435" };
+  };
+  const colors = getColor();
+  
+  return (
+    <div className="relative flex items-center justify-center rounded-full flex-shrink-0" 
+      style={{ width: size, height: size, backgroundColor: "#081c22" }}>
+      <svg className="transform -rotate-90" width={size} height={size} viewBox={`0 0 ${size} ${size}`}>
+        <circle cx={size / 2} cy={size / 2} r={radius} fill="#081c22" stroke={colors.bg} strokeWidth="4" />
+        <circle cx={size / 2} cy={size / 2} r={radius} fill="none" stroke={colors.stroke} strokeWidth="4" 
+          strokeLinecap="round" strokeDasharray={circumference} strokeDashoffset={strokeDashoffset} />
+      </svg>
+      <span className="absolute text-white font-bold" style={{ fontSize: size * 0.3 }}>
+        {percentage}<sup style={{ fontSize: size * 0.15 }}>%</sup>
+      </span>
+    </div>
+  );
+}
 
-  const isLoggedIn = !!localStorage.getItem("token");
+function CastCarousel({ cast, theme, language }: { cast: CastMember[]; theme: string; language: string }) {
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const [canScrollLeft, setCanScrollLeft] = useState(false);
+  const [canScrollRight, setCanScrollRight] = useState(false);
+
+  const checkScroll = () => {
+    if (scrollRef.current) {
+      const { scrollLeft, scrollWidth, clientWidth } = scrollRef.current;
+      setCanScrollLeft(scrollLeft > 5);
+      setCanScrollRight(scrollLeft < scrollWidth - clientWidth - 5);
+    }
+  };
+
+  const scroll = (direction: "left" | "right") => {
+    if (scrollRef.current) {
+      scrollRef.current.scrollBy({ left: direction === "left" ? -320 : 320, behavior: "smooth" });
+      setTimeout(checkScroll, 350);
+    }
+  };
 
   useEffect(() => {
-    if (id) fetchMovieData();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [id]);
-
-  const fetchMovieData = async () => {
-    try {
-      setLoading(true);
-
-      const movieData = await moviesApi.getById(parseInt(id!, 10));
-      setMovie(movieData);
-
-      try {
-        const similar = await moviesApi.getSimilar(parseInt(id!, 10), 12);
-        setSimilarMovies(similar);
-      } catch (err) {
-        console.warn("Could not fetch similar movies:", err);
-      }
-
-      try {
-        const reviewsData = await reviewsApi.getForMovie(parseInt(id!, 10));
-        setReviews(Array.isArray(reviewsData) ? reviewsData : reviewsData?.items ?? []);
-      } catch (err) {
-        console.warn("Could not fetch reviews:", err);
-      }
-
-      if (isLoggedIn) {
-        try {
-          const watchlistData = await watchlistApi.getMyWatchlist();
-          const list = Array.isArray(watchlistData) ? watchlistData : watchlistData?.items ?? [];
-          const entry = list.find((w: any) => w.movie_id === parseInt(id!, 10));
-          setWatchlistStatus(entry?.status ?? null);
-        } catch (err) {
-          console.warn("Could not fetch watchlist status:", err);
-        }
-      }
-    } catch (err) {
-      console.error("Failed to fetch movie data:", err);
-    } finally {
-      setLoading(false);
+    checkScroll();
+    const ref = scrollRef.current;
+    if (ref) {
+      ref.addEventListener("scroll", checkScroll);
+      window.addEventListener("resize", checkScroll);
+      return () => {
+        ref.removeEventListener("scroll", checkScroll);
+        window.removeEventListener("resize", checkScroll);
+      };
     }
-  };
+  }, [cast]);
 
-  const handleWatchlistToggle = async (status: string) => {
-    if (!isLoggedIn) {
-      navigate("/login");
-      return;
-    }
-
-    try {
-      if (watchlistStatus) {
-        if (watchlistStatus === status) {
-          await watchlistApi.remove(parseInt(id!, 10));
-          setWatchlistStatus(null);
-        } else {
-          await watchlistApi.updateStatus(parseInt(id!, 10), status);
-          setWatchlistStatus(status);
-        }
-      } else {
-        await watchlistApi.add(parseInt(id!, 10), status);
-        setWatchlistStatus(status);
-      }
-    } catch (err) {
-      console.error("Watchlist error:", err);
-    }
-  };
-
-  if (loading) {
+  if (!cast || cast.length === 0) {
     return (
-      <div className={`min-h-screen flex items-center justify-center ${theme === "dark" ? "bg-tmdb-dark" : "bg-gray-100"}`}>
-        <div className="w-12 h-12 border-4 border-tmdb-light-blue border-t-transparent rounded-full animate-spin" />
+      <div className={`text-center py-12 rounded-lg ${theme === "dark" ? "bg-gray-900 text-gray-500" : "bg-gray-100 text-gray-400"}`}>
+        <User className="w-16 h-16 mx-auto mb-3 opacity-50" />
+        <p className="text-lg">{language === "bg" ? "Няма информация за актьорите" : "No cast information available"}</p>
       </div>
     );
   }
 
-  if (!movie) {
+  const sortedCast = [...cast].sort((a, b) => (a.order ?? 999) - (b.order ?? 999)).slice(0, 15);
+
+  return (
+    <div className="relative">
+      {canScrollLeft && (
+        <button onClick={() => scroll("left")} 
+          className={`absolute left-0 top-1/2 -translate-y-1/2 z-20 p-2 rounded-full shadow-xl hover:scale-110 transition-all ${
+            theme === "dark" ? "bg-gray-800 text-white" : "bg-white text-gray-800 border border-gray-200"
+          }`} style={{ marginTop: "-20px" }}>
+          <ChevronLeft className="w-6 h-6" />
+        </button>
+      )}
+      {canScrollRight && (
+        <button onClick={() => scroll("right")} 
+          className={`absolute right-0 top-1/2 -translate-y-1/2 z-20 p-2 rounded-full shadow-xl hover:scale-110 transition-all ${
+            theme === "dark" ? "bg-gray-800 text-white" : "bg-white text-gray-800 border border-gray-200"
+          }`} style={{ marginTop: "-20px" }}>
+          <ChevronRight className="w-6 h-6" />
+        </button>
+      )}
+      
+      <div ref={scrollRef} className="flex gap-4 pb-4"
+        style={{ overflowX: "auto", scrollbarWidth: "none", msOverflowStyle: "none", scrollSnapType: "x mandatory" }}>
+        {sortedCast.map((actor, index) => {
+          const profileUrl = actor.profile_path 
+            ? `https://image.tmdb.org/t/p/w185${actor.profile_path}` 
+            : null;
+          return (
+            <div key={actor.id || `actor-${index}`} 
+              className={`flex-shrink-0 w-[150px] rounded-lg overflow-hidden shadow-lg hover:scale-105 transition-transform ${
+                theme === "dark" ? "bg-gray-900" : "bg-white border border-gray-200"
+              }`} style={{ scrollSnapAlign: "start" }}>
+              <div className="aspect-[2/3] relative">
+                {profileUrl ? (
+                  <img src={profileUrl} alt={actor.name} className="w-full h-full object-cover" loading="lazy" />
+                ) : (
+                  <div className={`w-full h-full flex items-center justify-center ${theme === "dark" ? "bg-gray-800" : "bg-gray-200"}`}>
+                    <User className={`w-16 h-16 ${theme === "dark" ? "text-gray-600" : "text-gray-400"}`} />
+                  </div>
+                )}
+              </div>
+              <div className="p-3">
+                <p className={`font-semibold text-sm truncate ${theme === "dark" ? "text-white" : "text-gray-900"}`}>{actor.name}</p>
+                {actor.character && (
+                  <p className={`text-xs mt-1 truncate ${theme === "dark" ? "text-gray-400" : "text-gray-500"}`}>{actor.character}</p>
+                )}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+function FactsPanel({ movie, theme, language }: { movie: MovieDetail; theme: string; language: string }) {
+  // Get director - try multiple sources
+  const director = movie.director || movie.crew?.find(c => c.job === "Director")?.name;
+  
+  // Get writers from crew
+  const writers = movie.crew?.filter(c => 
+    c.job === "Writer" || c.job === "Screenplay" || c.job === "Story" || c.department === "Writing"
+  ).slice(0, 2);
+
+  // Format currency helper
+  const formatMoney = (amount?: number) => {
+    if (!amount || amount === 0) return null;
+    if (amount >= 1e9) return `$${(amount / 1e9).toFixed(1)}B`;
+    if (amount >= 1e6) return `$${(amount / 1e6).toFixed(0)}M`;
+    return `$${amount.toLocaleString()}`;
+  };
+
+  const facts: { label: string; value: string | null | undefined }[] = [];
+  
+  if (movie.status) {
+    facts.push({ label: language === "bg" ? "Статус" : "Status", value: movie.status });
+  }
+  
+  if (movie.original_language) {
+    facts.push({ label: language === "bg" ? "Оригинален език" : "Original Language", value: movie.original_language.toUpperCase() });
+  }
+  
+  // Use pre-formatted or format ourselves
+  const budgetStr = movie.budget_formatted || formatMoney(movie.budget);
+  if (budgetStr) facts.push({ label: language === "bg" ? "Бюджет" : "Budget", value: budgetStr });
+  
+  const revenueStr = movie.revenue_formatted || formatMoney(movie.revenue);
+  if (revenueStr) facts.push({ label: language === "bg" ? "Приходи" : "Revenue", value: revenueStr });
+
+  const hasContent = director || (writers && writers.length > 0) || facts.length > 0 || 
+    (movie.production_companies && movie.production_companies.length > 0);
+  
+  if (!hasContent) return null;
+
+  return (
+    <div className={`rounded-lg p-5 ${theme === "dark" ? "bg-gray-900" : "bg-white border border-gray-200 shadow-sm"}`}>
+      <h3 className={`font-bold text-lg mb-4 ${theme === "dark" ? "text-white" : "text-gray-900"}`}>
+        {language === "bg" ? "Информация" : "Facts"}
+      </h3>
+      <div className="space-y-4">
+        {director && (
+          <div>
+            <p className={`text-sm font-medium ${theme === "dark" ? "text-gray-400" : "text-gray-500"}`}>
+              {language === "bg" ? "Режисьор" : "Director"}
+            </p>
+            <p className={`font-medium mt-0.5 ${theme === "dark" ? "text-white" : "text-gray-900"}`}>{director}</p>
+          </div>
+        )}
+        
+        {writers && writers.length > 0 && (
+          <div>
+            <p className={`text-sm font-medium ${theme === "dark" ? "text-gray-400" : "text-gray-500"}`}>
+              {language === "bg" ? "Сценарист" : "Writer"}
+            </p>
+            <p className={`font-medium mt-0.5 ${theme === "dark" ? "text-white" : "text-gray-900"}`}>
+              {writers.map(w => w.name).join(", ")}
+            </p>
+          </div>
+        )}
+        
+        {facts.map((fact, i) => fact.value && (
+          <div key={i}>
+            <p className={`text-sm font-medium ${theme === "dark" ? "text-gray-400" : "text-gray-500"}`}>{fact.label}</p>
+            <p className={`font-medium mt-0.5 ${theme === "dark" ? "text-white" : "text-gray-900"}`}>{fact.value}</p>
+          </div>
+        ))}
+        
+        {movie.production_companies && movie.production_companies.length > 0 && (
+          <div>
+            <p className={`text-sm font-medium mb-2 ${theme === "dark" ? "text-gray-400" : "text-gray-500"}`}>
+              {language === "bg" ? "Продукция" : "Production"}
+            </p>
+            <div className="space-y-2">
+              {movie.production_companies.slice(0, 3).map((c, idx) => (
+                <div key={c.id || idx} className="flex items-center gap-2">
+                  {c.logo_path ? (
+                    <img src={`https://image.tmdb.org/t/p/w92${c.logo_path}`} alt={c.name} 
+                      className={`h-6 w-auto object-contain ${theme === "dark" ? "" : "filter brightness-0"}`} />
+                  ) : (
+                    <Building2 className={`w-5 h-5 flex-shrink-0 ${theme === "dark" ? "text-gray-500" : "text-gray-400"}`} />
+                  )}
+                  <span className={`text-sm ${theme === "dark" ? "text-gray-300" : "text-gray-700"}`}>{c.name}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+        
+        {movie.homepage && (
+          <a href={movie.homepage} target="_blank" rel="noopener noreferrer"
+            className="flex items-center gap-2 text-tmdb-light-blue hover:underline text-sm mt-4">
+            <ExternalLink className="w-4 h-4" />
+            {language === "bg" ? "Официален сайт" : "Official Website"}
+          </a>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function TrailerSection({ movie, theme, language }: { movie: MovieDetail; theme: string; language: string }) {
+  const [showTrailer, setShowTrailer] = useState(false);
+  
+  // Try multiple ways to get trailer key
+  const trailerKey = movie.trailer_youtube_key || 
+    movie.videos?.find(v => v.type === "Trailer" && v.site === "YouTube")?.key ||
+    movie.videos?.find(v => v.site === "YouTube")?.key;
+  
+  if (!trailerKey) return null;
+
+  const embedUrl = movie.trailer_embed_url || `https://www.youtube.com/embed/${trailerKey}`;
+
+  return (
+    <section>
+      <h3 className={`text-xl font-bold mb-4 ${theme === "dark" ? "text-white" : "text-gray-900"}`}>
+        {language === "bg" ? "Трейлър" : "Trailer"}
+      </h3>
+      {showTrailer ? (
+        <div className="relative aspect-video rounded-lg overflow-hidden bg-black">
+          <iframe src={`${embedUrl}?autoplay=1`} title="Trailer"
+            className="w-full h-full" 
+            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" 
+            allowFullScreen />
+        </div>
+      ) : (
+        <button onClick={() => setShowTrailer(true)}
+          className={`relative w-full aspect-video rounded-lg overflow-hidden group ${theme === "dark" ? "bg-gray-900" : "bg-gray-200"}`}>
+          <img 
+            src={`https://img.youtube.com/vi/${trailerKey}/maxresdefault.jpg`} 
+            alt="Trailer thumbnail"
+            className="w-full h-full object-cover"
+            onError={(e) => { (e.target as HTMLImageElement).src = `https://img.youtube.com/vi/${trailerKey}/hqdefault.jpg`; }} 
+          />
+          <div className="absolute inset-0 bg-black/40 group-hover:bg-black/50 flex items-center justify-center transition-colors">
+            <div className="w-20 h-20 rounded-full bg-white/90 flex items-center justify-center group-hover:scale-110 transition-transform">
+              <Play className="w-10 h-10 text-tmdb-dark-blue ml-1" fill="currentColor" />
+            </div>
+          </div>
+        </button>
+      )}
+    </section>
+  );
+}
+
+function RecommendationsSection({ movies, theme, language, title }: { 
+  movies: Movie[]; theme: string; language: string; title: string 
+}) {
+  const navigate = useNavigate();
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const [canScrollLeft, setCanScrollLeft] = useState(false);
+  const [canScrollRight, setCanScrollRight] = useState(false);
+
+  const checkScroll = () => {
+    if (scrollRef.current) {
+      const { scrollLeft, scrollWidth, clientWidth } = scrollRef.current;
+      setCanScrollLeft(scrollLeft > 5);
+      setCanScrollRight(scrollLeft < scrollWidth - clientWidth - 5);
+    }
+  };
+
+  const scroll = (d: "left" | "right") => {
+    if (scrollRef.current) {
+      scrollRef.current.scrollBy({ left: d === "left" ? -320 : 320, behavior: "smooth" });
+      setTimeout(checkScroll, 350);
+    }
+  };
+
+  useEffect(() => {
+    checkScroll();
+    const ref = scrollRef.current;
+    if (ref) {
+      ref.addEventListener("scroll", checkScroll);
+      return () => ref.removeEventListener("scroll", checkScroll);
+    }
+  }, [movies]);
+
+  if (!movies || movies.length === 0) return null;
+
+  return (
+    <section className="relative">
+      <h3 className={`text-xl font-bold mb-4 ${theme === "dark" ? "text-white" : "text-gray-900"}`}>{title}</h3>
+      
+      {canScrollLeft && (
+        <button onClick={() => scroll("left")} 
+          className={`absolute left-0 top-1/2 z-20 p-2 rounded-full shadow-xl ${
+            theme === "dark" ? "bg-gray-800 text-white" : "bg-white text-gray-800 border"
+          }`} style={{ marginTop: "20px" }}>
+          <ChevronLeft className="w-6 h-6" />
+        </button>
+      )}
+      {canScrollRight && (
+        <button onClick={() => scroll("right")} 
+          className={`absolute right-0 top-1/2 z-20 p-2 rounded-full shadow-xl ${
+            theme === "dark" ? "bg-gray-800 text-white" : "bg-white text-gray-800 border"
+          }`} style={{ marginTop: "20px" }}>
+          <ChevronRight className="w-6 h-6" />
+        </button>
+      )}
+      
+      <div ref={scrollRef} className="flex gap-4 pb-4" 
+        style={{ overflowX: "auto", scrollbarWidth: "none", scrollSnapType: "x mandatory" }}>
+        {movies.map((movie, idx) => {
+          const movieTitle = language === "bg" ? movie.title_bg || movie.title : movie.title;
+          const posterUrl = movie.poster_path 
+            ? `https://image.tmdb.org/t/p/w342${movie.poster_path}` 
+            : movie.poster_url;
+          
+          return (
+            <div key={movie.id || idx} onClick={() => navigate(`/movie/${movie.id}`)} 
+              className="flex-shrink-0 w-[180px] cursor-pointer group" style={{ scrollSnapAlign: "start" }}>
+              <div className="relative rounded-lg overflow-hidden shadow-lg">
+                {posterUrl ? (
+                  <img src={posterUrl} alt={movieTitle} 
+                    className="w-full aspect-[2/3] object-cover group-hover:scale-105 transition-transform" />
+                ) : (
+                  <div className={`w-full aspect-[2/3] flex items-center justify-center ${
+                    theme === "dark" ? "bg-gray-800" : "bg-gray-200"
+                  }`}>
+                    <Film className="w-12 h-12 text-gray-500" />
+                  </div>
+                )}
+                <div className="absolute -bottom-4 left-2">
+                  <CircularRating rating={movie.average_rating ?? 0} size={38} />
+                </div>
+              </div>
+              <div className="pt-6 px-1">
+                <p className={`font-semibold text-sm line-clamp-2 group-hover:text-tmdb-light-blue transition-colors ${
+                  theme === "dark" ? "text-white" : "text-gray-900"
+                }`}>
+                  {movieTitle}
+                </p>
+                {movie.release_date && (
+                  <p className={`text-xs mt-1 ${theme === "dark" ? "text-gray-400" : "text-gray-500"}`}>
+                    {new Date(movie.release_date).getFullYear()}
+                  </p>
+                )}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </section>
+  );
+}
+
+function ReviewCard({ review, theme, language }: { review: Review; theme: string; language: string }) {
+  const [expanded, setExpanded] = useState(false);
+  const content = review.content || review.review_text || "";
+  const isLong = content.length > 300;
+  
+  return (
+    <div className={`p-5 rounded-lg ${theme === "dark" ? "bg-gray-900" : "bg-white border border-gray-200"}`}>
+      <div className="flex items-start gap-4">
+        <div className={`w-12 h-12 rounded-full flex items-center justify-center flex-shrink-0 ${
+          theme === "dark" ? "bg-tmdb-light-blue/20" : "bg-tmdb-light-blue/10"
+        }`}>
+          <User className="w-6 h-6 text-tmdb-light-blue" />
+        </div>
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center gap-3 flex-wrap">
+            <span className={`font-semibold ${theme === "dark" ? "text-white" : "text-gray-900"}`}>
+              {review.author || review.user_name || (language === "bg" ? "Анонимен" : "Anonymous")}
+            </span>
+            {review.rating && (
+              <span className={`flex items-center gap-1 px-2 py-0.5 rounded text-sm ${
+                theme === "dark" ? "bg-yellow-500/20 text-yellow-400" : "bg-yellow-100 text-yellow-700"
+              }`}>
+                <Star className="w-4 h-4 fill-current" />{review.rating}/10
+              </span>
+            )}
+          </div>
+          <p className={`mt-3 leading-relaxed ${theme === "dark" ? "text-gray-300" : "text-gray-600"}`}>
+            {isLong && !expanded ? `${content.slice(0, 300)}...` : content}
+          </p>
+          {isLong && (
+            <button onClick={() => setExpanded(!expanded)} className="text-tmdb-light-blue font-medium mt-3 hover:underline">
+              {expanded ? (language === "bg" ? "По-малко" : "Show less") : (language === "bg" ? "Повече" : "Read more")}
+            </button>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+export default function MovieDetails() {
+  const { id } = useParams<{ id: string }>();
+  const navigate = useNavigate();
+  const { theme, language } = useApp();
+
+  const [movie, setMovie] = useState<MovieDetail | null>(null);
+  const [reviews, setReviews] = useState<Review[]>([]);
+  const [recommendations, setRecommendations] = useState<Movie[]>([]);
+  const [similarMovies, setSimilarMovies] = useState<Movie[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [isFavorite, setIsFavorite] = useState(false);
+  const [isWatchlist, setIsWatchlist] = useState(false);
+
+  useEffect(() => {
+    const fetchMovieDetails = async () => {
+      if (!id) return;
+      setLoading(true);
+      setError(null);
+      
+      try {
+        // Main movie fetch - this returns MovieDetailOut with everything embedded
+        console.log("[MovieDetails] Fetching movie:", id);
+        const movieData = await moviesApi.getById(parseInt(id));
+        
+        // Log full response for debugging
+        console.log("[MovieDetails] Full response:", JSON.stringify(movieData, null, 2));
+        console.log("[MovieDetails] Cast array:", movieData.cast);
+        console.log("[MovieDetails] Crew array:", movieData.crew);
+        console.log("[MovieDetails] Director field:", movieData.director);
+        console.log("[MovieDetails] Videos array:", movieData.videos);
+        console.log("[MovieDetails] Trailer key:", movieData.trailer_youtube_key);
+        console.log("[MovieDetails] Production companies:", movieData.production_companies);
+        
+        setMovie(movieData as MovieDetail);
+        
+        // Fetch additional data
+        try {
+          const reviewsData = await moviesApi.getReviews(parseInt(id));
+          setReviews(Array.isArray(reviewsData) ? reviewsData : []);
+        } catch { setReviews([]); }
+        
+        try {
+          const recsData = await moviesApi.getRecommendations(parseInt(id));
+          setRecommendations(Array.isArray(recsData) ? recsData.slice(0, 10) : []);
+        } catch { setRecommendations([]); }
+        
+        try {
+          const similarData = await moviesApi.getSimilar(parseInt(id));
+          setSimilarMovies(Array.isArray(similarData) ? similarData.slice(0, 10) : []);
+        } catch { setSimilarMovies([]); }
+        
+      } catch (err) {
+        console.error("[MovieDetails] Error:", err);
+        setError(language === "bg" ? "Грешка при зареждане" : "Failed to load movie");
+      } finally {
+        setLoading(false);
+      }
+    };
+    
+    fetchMovieDetails();
+  }, [id, language]);
+
+  // Loading state
+  if (loading) {
     return (
-      <div className={`min-h-screen flex items-center justify-center ${theme === "dark" ? "bg-tmdb-dark" : "bg-gray-100"}`}>
+      <div className={`min-h-screen ${theme === "dark" ? "bg-tmdb-dark" : "bg-gray-50"}`}>
+        <div className="animate-pulse">
+          <div className={`h-[500px] ${theme === "dark" ? "bg-gray-800" : "bg-gray-300"}`} />
+          <div className="max-w-7xl mx-auto px-4 py-8">
+            <div className={`h-8 w-1/3 rounded ${theme === "dark" ? "bg-gray-700" : "bg-gray-200"}`} />
+            <div className="flex gap-4 mt-8" style={{ overflow: "hidden" }}>
+              {[1,2,3,4,5].map(i => (
+                <div key={i} className={`w-[150px] h-[280px] rounded-lg flex-shrink-0 ${
+                  theme === "dark" ? "bg-gray-700" : "bg-gray-200"
+                }`} />
+              ))}
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // Error state
+  if (error || !movie) {
+    return (
+      <div className={`min-h-screen flex items-center justify-center ${theme === "dark" ? "bg-tmdb-dark" : "bg-gray-50"}`}>
         <div className="text-center">
-          <p className="text-gray-400 text-xl mb-4">Movie not found</p>
-          <button onClick={() => navigate("/")} className="px-6 py-2 bg-tmdb-light-blue text-white rounded-full hover:opacity-90">
-            Go Home
+          <Film className={`w-20 h-20 mx-auto mb-4 ${theme === "dark" ? "text-gray-600" : "text-gray-400"}`} />
+          <p className={`text-xl ${theme === "dark" ? "text-gray-300" : "text-gray-700"}`}>
+            {error || (language === "bg" ? "Филмът не е намерен" : "Movie not found")}
+          </p>
+          <button onClick={() => navigate(-1)} 
+            className="mt-4 px-6 py-2 bg-tmdb-light-blue text-tmdb-dark-blue rounded-lg font-medium">
+            {language === "bg" ? "Назад" : "Go Back"}
           </button>
         </div>
       </div>
     );
   }
 
-  const title = language === "bg" ? movie.title_bg || movie.title : movie.title;
-  const tagline = language === "bg" ? movie.tagline_bg || movie.tagline : movie.tagline;
-  const summary = language === "bg" ? movie.summary_bg || movie.summary : movie.summary;
-
-  const genresText =
-    typeof (language === "bg" ? (movie.genre_bg ?? movie.genre) : movie.genre) === "string"
-      ? (language === "bg" ? (movie.genre_bg ?? movie.genre) : movie.genre)
-      : Array.isArray(movie.genres)
-        ? movie.genres.map((g: any) => g.name).join(", ")
-        : "";
-
-  const cast: CastMember[] = Array.isArray(movie.cast) ? movie.cast : [];
-  const crew: CrewMember[] = Array.isArray(movie.crew) ? movie.crew : [];
-  const productionCompanies: ProductionCompany[] = Array.isArray(movie.production_companies) ? movie.production_companies : [];
-
-  const posterUrl = movie.poster_path ? `https://image.tmdb.org/t/p/w500${movie.poster_path}` : movie.poster_url;
-  const backdropUrl = movie.backdrop_path ? `https://image.tmdb.org/t/p/w1280${movie.backdrop_path}` : movie.backdrop_url;
-
-  const director = movie.director || crew.find((c) => c.job === "Director")?.name;
-
-  const userScore = Math.round((movie.average_rating ?? 0) * 20);
-  const getUserScoreColor = () => {
-    if (userScore >= 70) return { stroke: "#21d07a", bg: "#204529" };
-    if (userScore >= 50) return { stroke: "#d2d531", bg: "#423d0f" };
-    return { stroke: "#db2360", bg: "#571435" };
-  };
-  const scoreColors = getUserScoreColor();
-
-  const releaseDate =
-    movie.release_date && !Number.isNaN(new Date(movie.release_date).getTime())
-      ? new Date(movie.release_date).toLocaleDateString(language === "bg" ? "bg-BG" : "en-US", {
-          year: "numeric",
-          month: "long",
-          day: "numeric",
-        })
-      : null;
+  // Compute display values with multiple fallbacks
+  const title = language === "bg" ? (movie.title_bg || movie.title) : movie.title;
+  const summary = language === "bg" ? (movie.summary_bg || movie.summary) : movie.summary;
+  const tagline = language === "bg" ? (movie.tagline_bg || movie.tagline) : movie.tagline;
+  const genre = language === "bg" ? (movie.genre_bg || movie.genre) : movie.genre;
+  
+  // Image URLs with multiple fallbacks
+  const backdropUrl = movie.backdrop_url_large || movie.backdrop_url || 
+    (movie.backdrop_path ? `https://image.tmdb.org/t/p/w1280${movie.backdrop_path}` : null);
+  const posterUrl = movie.poster_url_large || movie.poster_url || 
+    (movie.poster_path ? `https://image.tmdb.org/t/p/w500${movie.poster_path}` : null);
+  
+  // Release info
+  const releaseYear = movie.release_year || (movie.release_date ? new Date(movie.release_date).getFullYear() : null);
+  
+  // Runtime - use pre-formatted or calculate
+  const runtimeDisplay = movie.runtime_formatted || 
+    (movie.runtime ? `${Math.floor(movie.runtime / 60)}h ${movie.runtime % 60}m` : null);
+  
+  // Director - try multiple sources
+  const director = movie.director || movie.crew?.find(c => c.job === "Director")?.name;
+  
+  // Cast from embedded data
+  const cast = movie.cast || [];
+  
+  // Rating - prefer our rating, fall back to TMDB
+  const rating = movie.average_rating || movie.tmdb_rating || 0;
 
   return (
-    <div className={`min-h-screen ${theme === "dark" ? "bg-tmdb-dark" : "bg-gray-100"}`}>
-      {/* Hero */}
+    <div className={`min-h-screen ${theme === "dark" ? "bg-tmdb-dark" : "bg-gray-50"}`}>
+      {/* Hero Section */}
       <div className="relative">
-        {backdropUrl && (
-          <div className="absolute inset-0 bg-cover bg-center" style={{ backgroundImage: `url(${backdropUrl})` }}>
-            <div className="absolute inset-0 bg-gradient-to-r from-tmdb-dark-blue via-tmdb-dark-blue/95 to-tmdb-dark-blue/60" />
-            <div className="absolute inset-0 bg-gradient-to-t from-tmdb-dark via-transparent to-transparent" />
-          </div>
-        )}
-
-        <div className="relative max-w-7xl mx-auto px-6 py-12">
-          <div className="flex flex-col lg:flex-row gap-8">
-            <div className="flex-shrink-0">
-              <div className="w-full lg:w-[300px] rounded-lg overflow-hidden shadow-2xl">
+        <div className="absolute inset-0 h-[500px] md:h-[600px]" style={{ overflow: "hidden" }}>
+          {backdropUrl ? (
+            <img src={backdropUrl} alt={title} className="w-full h-full object-cover object-top" />
+          ) : (
+            <div className={`w-full h-full ${theme === "dark" ? "bg-gray-800" : "bg-gray-300"}`} />
+          )}
+          <div className="absolute inset-0 bg-gradient-to-r from-black/95 via-black/70 to-black/30" />
+          <div className="absolute inset-0 bg-gradient-to-t from-black via-black/30 to-transparent" />
+        </div>
+        
+        <div className="relative z-10 max-w-7xl mx-auto px-4 md:px-8 pt-8 pb-16">
+          <div className="flex flex-col md:flex-row gap-8">
+            {/* Poster */}
+            <div className="w-full max-w-[300px] md:w-[300px] mx-auto md:mx-0 flex-shrink-0">
+              <div className="rounded-xl shadow-2xl" style={{ overflow: "hidden" }}>
                 {posterUrl ? (
-                  <img
-                    src={posterUrl}
-                    alt={title}
-                    className="w-full h-auto"
-                    onError={(e) => {
-                      e.currentTarget.style.display = "none";
-                    }}
-                  />
+                  <img src={posterUrl} alt={title} className="w-full aspect-[2/3] object-cover" />
                 ) : (
-                  <div className="aspect-[2/3] bg-gray-800 flex items-center justify-center">
-                    <Film className="w-20 h-20 text-gray-600" />
+                  <div className="w-full aspect-[2/3] bg-gray-700 flex items-center justify-center">
+                    <Film className="w-16 h-16 text-gray-500" />
                   </div>
                 )}
               </div>
             </div>
-
+            
+            {/* Movie Info */}
             <div className="flex-1 text-white">
-              <h1 className="text-4xl lg:text-5xl font-bold mb-2">
+              <h1 className="text-3xl md:text-4xl lg:text-5xl font-bold">
                 {title}
-                {movie.release_year && <span className="text-gray-400 font-normal ml-2">({movie.release_year})</span>}
+                {releaseYear && <span className="font-normal text-gray-300 ml-3">({releaseYear})</span>}
               </h1>
-
-              <div className="flex flex-wrap items-center gap-4 text-sm mb-4">
-                {movie.adult && <span className="px-2 py-0.5 border border-gray-400 text-gray-400">R</span>}
-                {releaseDate && (
-                  <span className="flex items-center gap-1">
+              
+              {/* Meta line */}
+              <div className="flex flex-wrap items-center gap-x-4 gap-y-2 mt-4 text-sm text-gray-300">
+                {movie.release_date && (
+                  <span className="flex items-center gap-1.5">
                     <Calendar className="w-4 h-4" />
-                    {releaseDate}
+                    {new Date(movie.release_date).toLocaleDateString(language === "bg" ? "bg-BG" : "en-US")}
                   </span>
                 )}
-                {movie.runtime && (
-                  <span className="flex items-center gap-1">
-                    <Clock className="w-4 h-4" />
-                    {movie.runtime_formatted || `${movie.runtime}m`}
+                {genre && <span className="px-2 py-0.5 bg-white/10 rounded">{genre}</span>}
+                {runtimeDisplay && (
+                  <span className="flex items-center gap-1.5">
+                    <Clock className="w-4 h-4" />{runtimeDisplay}
                   </span>
                 )}
               </div>
-
-              {genresText && (
-                <div className="flex flex-wrap gap-2 mb-6">
-                  {genresText.split(",").map((genre: string, i: number) => (
-                    <span key={i} className="px-3 py-1 bg-white/10 backdrop-blur-sm rounded-full text-sm">
-                      {genre.trim()}
-                    </span>
-                  ))}
-                </div>
-              )}
-
-              {tagline && <p className="text-gray-300 italic text-lg mb-6">"{tagline}"</p>}
-
-              <div className="flex flex-wrap items-center gap-6 mb-6">
+              
+              {/* Rating & Actions */}
+              <div className="flex items-center gap-6 mt-6">
                 <div className="flex items-center gap-3">
-                  <div className="relative">
-                    <svg className="transform -rotate-90" width="60" height="60" viewBox="0 0 60 60">
-                      <circle cx="30" cy="30" r="26" fill="#081c22" stroke={scoreColors.bg} strokeWidth="4" />
-                      <circle
-                        cx="30"
-                        cy="30"
-                        r="26"
-                        fill="none"
-                        stroke={scoreColors.stroke}
-                        strokeWidth="4"
-                        strokeLinecap="round"
-                        strokeDasharray={`${2 * Math.PI * 26}`}
-                        strokeDashoffset={`${2 * Math.PI * 26 * (1 - userScore / 100)}`}
-                      />
-                    </svg>
-                    <span className="absolute inset-0 flex items-center justify-center text-white font-bold text-sm">
-                      {userScore}
-                      <sup className="text-[8px]">%</sup>
-                    </span>
-                  </div>
+                  <CircularRating rating={rating} size={70} />
                   <div>
-                    <div className="text-white font-semibold">User</div>
-                    <div className="text-white font-semibold">Score</div>
+                    <p className="font-semibold text-lg">{language === "bg" ? "Рейтинг" : "User"}</p>
+                    <p className="text-sm text-gray-400">{language === "bg" ? "от потребители" : "Score"}</p>
                   </div>
                 </div>
-
-                {isLoggedIn && (
-                  <>
-                    <button
-                      onClick={() => handleWatchlistToggle("planned")}
-                      className={`p-3 rounded-full transition-colors ${
-                        watchlistStatus === "planned"
-                          ? "bg-tmdb-light-blue text-white"
-                          : "bg-tmdb-dark-blue/80 hover:bg-tmdb-dark-blue text-white"
-                      }`}
-                      title="Add to watchlist"
-                    >
-                      <Bookmark className="w-5 h-5" />
-                    </button>
-
-                    <button
-                      onClick={() => handleWatchlistToggle("completed")}
-                      className={`p-3 rounded-full transition-colors ${
-                        watchlistStatus === "completed"
-                          ? "bg-green-600 text-white"
-                          : "bg-tmdb-dark-blue/80 hover:bg-tmdb-dark-blue text-white"
-                      }`}
-                      title="Mark as watched"
-                    >
-                      <Check className="w-5 h-5" />
-                    </button>
-
-                    <button
-                      onClick={() => handleWatchlistToggle("watching")}
-                      className={`p-3 rounded-full transition-colors ${
-                        watchlistStatus === "watching"
-                          ? "bg-blue-600 text-white"
-                          : "bg-tmdb-dark-blue/80 hover:bg-tmdb-dark-blue text-white"
-                      }`}
-                      title="Currently watching"
-                    >
-                      <Eye className="w-5 h-5" />
-                    </button>
-                  </>
-                )}
-
-                {movie.trailer_youtube_key && (
-                  <button
-                    onClick={() => setShowTrailer(true)}
-                    className="flex items-center gap-2 px-6 py-3 bg-white/10 hover:bg-white/20 rounded-full transition-colors"
-                  >
-                    <Play className="w-5 h-5" />
-                    <span className="font-semibold">Play Trailer</span>
+                
+                <div className="flex items-center gap-2">
+                  <button onClick={() => setIsFavorite(!isFavorite)} 
+                    className={`p-3 rounded-full transition-all ${
+                      isFavorite ? "bg-pink-500 text-white" : "bg-tmdb-dark-blue/80 text-gray-300 hover:text-white"
+                    }`}>
+                    <Heart className={`w-5 h-5 ${isFavorite ? "fill-current" : ""}`} />
                   </button>
+                  <button onClick={() => setIsWatchlist(!isWatchlist)} 
+                    className={`p-3 rounded-full transition-all ${
+                      isWatchlist ? "bg-tmdb-light-blue text-tmdb-dark-blue" : "bg-tmdb-dark-blue/80 text-gray-300 hover:text-white"
+                    }`}>
+                    <Bookmark className={`w-5 h-5 ${isWatchlist ? "fill-current" : ""}`} />
+                  </button>
+                </div>
+              </div>
+              
+              {/* Tagline */}
+              {tagline && <p className="text-gray-400 italic text-lg mt-6">{tagline}</p>}
+              
+              {/* Overview */}
+              <div className="mt-6">
+                <h3 className="text-xl font-semibold mb-2">{language === "bg" ? "Резюме" : "Overview"}</h3>
+                {summary ? (
+                  <p className="text-gray-200 leading-relaxed max-w-3xl">{summary}</p>
+                ) : (
+                  <p className="text-gray-500 italic">{language === "bg" ? "Няма резюме" : "No overview available"}</p>
                 )}
               </div>
-
-              <div className="mb-6">
-                <h3 className="text-xl font-semibold mb-2">Overview</h3>
-                <p className="text-gray-300 leading-relaxed">{summary || "No overview available."}</p>
-              </div>
-
+              
+              {/* Director in hero */}
               {director && (
-                <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-                  <div>
-                    <div className="font-semibold">{director}</div>
-                    <div className="text-sm text-gray-400">Director</div>
-                  </div>
-
-                  {crew
-                    .filter((c) => ["Screenplay", "Writer", "Story"].includes(c.job))
-                    .slice(0, 2)
-                    .map((person, i) => (
-                      <div key={i}>
-                        <div className="font-semibold">{person.name}</div>
-                        <div className="text-sm text-gray-400">{person.job}</div>
-                      </div>
-                    ))}
+                <div className="mt-6 pt-6 border-t border-white/10">
+                  <p className="font-semibold text-lg">{director}</p>
+                  <p className="text-sm text-gray-400">{language === "bg" ? "Режисьор" : "Director"}</p>
                 </div>
               )}
             </div>
           </div>
         </div>
       </div>
-
-      {/* Trailer Modal */}
-      {showTrailer && movie.trailer_youtube_key && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/90 p-4" onClick={() => setShowTrailer(false)}>
-          <div className="relative w-full max-w-5xl aspect-video" onClick={(e) => e.stopPropagation()}>
-            <button onClick={() => setShowTrailer(false)} className="absolute -top-12 right-0 text-white hover:text-gray-300">
-              <X className="w-8 h-8" />
-            </button>
-            <iframe
-              src={`https://www.youtube.com/embed/${movie.trailer_youtube_key}?autoplay=1`}
-              className="w-full h-full rounded-lg"
-              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-              allowFullScreen
-            />
-          </div>
-        </div>
-      )}
-
-      {/* Main */}
-      <div className="max-w-7xl mx-auto px-6 py-8">
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-          <div className="lg:col-span-2 space-y-12">
-            {cast.length > 0 && (
+      
+      {/* Main Content */}
+      <div className={theme === "dark" ? "bg-tmdb-dark" : "bg-gray-50"}>
+        <div className="max-w-7xl mx-auto px-4 md:px-8 py-10">
+          <div className="flex flex-col lg:flex-row gap-10">
+            {/* Left Column */}
+            <div className="flex-1 min-w-0 space-y-12">
+              {/* Cast Section */}
               <section>
-                <h2 className="text-2xl font-semibold text-white mb-6">Top Billed Cast</h2>
-                <div className="flex gap-4 overflow-x-auto pb-4 scrollbar-hide">
-                  {cast.slice(0, 9).map((person, i) => (
-                    <div key={i} className="flex-shrink-0 w-[138px]">
-                      <div className="rounded-lg overflow-hidden shadow-lg bg-gray-800">
-                        {person.profile_path ? (
-                          <img src={`https://image.tmdb.org/t/p/w185${person.profile_path}`} alt={person.name} className="w-full aspect-[2/3] object-cover" />
-                        ) : (
-                          <div className="w-full aspect-[2/3] bg-gray-700 flex items-center justify-center">
-                            <User className="w-12 h-12 text-gray-600" />
-                          </div>
-                        )}
-                        <div className="p-3">
-                          <div className="font-semibold text-white text-sm line-clamp-2">{person.name}</div>
-                          <div className="text-xs text-gray-400 line-clamp-2 mt-1">{person.character}</div>
-                        </div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
+                <h2 className={`text-2xl font-bold mb-5 ${theme === "dark" ? "text-white" : "text-gray-900"}`}>
+                  {language === "bg" ? "Актьорски състав" : "Top Billed Cast"}
+                </h2>
+                <CastCarousel cast={cast} theme={theme} language={language} />
               </section>
-            )}
-
-            {crew.length > 0 && (
-              <section>
-                <h2 className="text-2xl font-semibold text-white mb-6">Crew</h2>
-                <div className="space-y-3">
-                  {crew.slice(0, 20).map((person, i) => (
-                    <div key={i} className="flex gap-4 bg-gray-800 rounded-lg p-4">
-                      {person.profile_path ? (
-                        <img
-                          src={`https://image.tmdb.org/t/p/w185${person.profile_path}`}
-                          alt={person.name}
-                          className="w-16 h-16 rounded-full object-cover flex-shrink-0"
-                        />
-                      ) : (
-                        <div className="w-16 h-16 rounded-full bg-gray-700 flex items-center justify-center flex-shrink-0">
-                          <User className="w-8 h-8 text-gray-500" />
-                        </div>
-                      )}
-                      <div className="flex-1 min-w-0">
-                        <div className="font-semibold text-white">{person.name}</div>
-                        <div className="text-sm text-gray-400">{person.job}</div>
-                        {person.department && <div className="text-xs text-gray-500">{person.department}</div>}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </section>
-            )}
-
-            <section>
-              <h2 className="text-2xl font-semibold text-white mb-6">Reviews ({reviews.length})</h2>
-              {reviews.length === 0 ? (
-                <div className="text-center py-12 text-gray-400 bg-gray-800/50 rounded-lg">No reviews yet. Be the first!</div>
-              ) : (
-                <div className="space-y-6">
-                  {reviews.map((review: any) => {
-                    const created = review.created_at ? new Date(review.created_at) : null;
-                    const createdLabel = created && !Number.isNaN(created.getTime()) ? created.toLocaleDateString() : "";
-
-                    const username =
-                      review.username ||
-                      review.user_name ||
-                      (review.user_id ? `User #${review.user_id}` : "Anonymous");
-
-                    const text = review.comment ?? review.content ?? "";
-
-                    return (
-                      <div key={review.id ?? `${username}-${createdLabel}`} className="bg-gray-800 rounded-lg p-6">
-                        <div className="flex items-start justify-between mb-4">
-                          <div>
-                            <div className="font-semibold text-white">{username}</div>
-                            <div className="flex items-center gap-2 text-sm text-gray-400">
-                              <Star className="w-4 h-4 fill-yellow-500 text-yellow-500" />
-                              <span>{review.rating}/5</span>
-                              {createdLabel && (
-                                <>
-                                  <span>•</span>
-                                  <span>{createdLabel}</span>
-                                </>
-                              )}
-                            </div>
-                          </div>
-                        </div>
-                        <p className="text-gray-300 leading-relaxed">{text}</p>
-                      </div>
-                    );
-                  })}
-                </div>
+              
+              {/* Trailer Section */}
+              <TrailerSection movie={movie} theme={theme} language={language} />
+              
+              {/* Reviews Section */}
+              {reviews.length > 0 && (
+                <section>
+                  <h2 className={`text-2xl font-bold mb-5 ${theme === "dark" ? "text-white" : "text-gray-900"}`}>
+                    {language === "bg" ? "Ревюта" : "Reviews"} ({reviews.length})
+                  </h2>
+                  <div className="space-y-4">
+                    {reviews.slice(0, 3).map((r, i) => (
+                      <ReviewCard key={r.id || i} review={r} theme={theme} language={language} />
+                    ))}
+                  </div>
+                </section>
               )}
-            </section>
-
-            {similarMovies.length > 0 && (
-              <section>
-                <h2 className="text-2xl font-semibold text-white mb-6">Recommendations</h2>
-                <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-                  {similarMovies.slice(0, 6).map((similar: any) => (
-                    <div key={similar.id} onClick={() => navigate(`/movie/${similar.id}`)} className="cursor-pointer group">
-                      <div className="relative rounded-lg overflow-hidden shadow-lg">
-                        <div className="aspect-video bg-gray-800">
-                          {similar.backdrop_path ? (
-                            <img
-                              src={`https://image.tmdb.org/t/p/w500${similar.backdrop_path}`}
-                              alt={similar.title}
-                              className="w-full h-full object-cover group-hover:scale-105 transition-transform"
-                            />
-                          ) : similar.poster_path ? (
-                            <img
-                              src={`https://image.tmdb.org/t/p/w500${similar.poster_path}`}
-                              alt={similar.title}
-                              className="w-full h-full object-cover group-hover:scale-105 transition-transform"
-                            />
-                          ) : (
-                            <div className="w-full h-full flex items-center justify-center">
-                              <Film className="w-12 h-12 text-gray-600" />
-                            </div>
-                          )}
-                        </div>
-                        <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/90 to-transparent p-3">
-                          <div className="text-white font-semibold text-sm line-clamp-2">
-                            {language === "bg" ? similar.title_bg || similar.title : similar.title}
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </section>
-            )}
-          </div>
-
-          {/* Right column */}
-          <div className="space-y-6">
-            <div>
-              {movie.homepage && (
-                <a href={movie.homepage} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 text-white hover:text-tmdb-light-blue mb-2">
-                  <Globe className="w-5 h-5" />
-                  <span>Official Website</span>
-                  <ExternalLink className="w-4 h-4" />
-                </a>
+              
+              {/* Recommendations */}
+              {recommendations.length > 0 && (
+                <RecommendationsSection 
+                  movies={recommendations} 
+                  theme={theme} 
+                  language={language} 
+                  title={language === "bg" ? "Препоръки" : "Recommendations"} 
+                />
               )}
-              {movie.imdb_id && (
-                <a
-                  href={`https://www.imdb.com/title/${movie.imdb_id}`}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="flex items-center gap-2 text-white hover:text-tmdb-light-blue"
-                >
-                  <span>IMDb</span>
-                  <ExternalLink className="w-4 h-4" />
-                </a>
+              
+              {/* Similar Movies */}
+              {similarMovies.length > 0 && (
+                <RecommendationsSection 
+                  movies={similarMovies} 
+                  theme={theme} 
+                  language={language} 
+                  title={language === "bg" ? "Подобни филми" : "Similar Movies"} 
+                />
               )}
             </div>
-
-            <div className="text-white">
-              <h3 className="font-semibold text-lg mb-4">Facts</h3>
-              <div className="space-y-4 text-sm">
-                {movie.status && (
-                  <div>
-                    <div className="text-gray-400 font-semibold">Status</div>
-                    <div>{movie.status}</div>
-                  </div>
-                )}
-
-                {movie.original_language && (
-                  <div>
-                    <div className="text-gray-400 font-semibold">Original Language</div>
-                    <div>{String(movie.original_language).toUpperCase()}</div>
-                  </div>
-                )}
-
-                {movie.budget && movie.budget > 0 && (
-                  <div>
-                    <div className="text-gray-400 font-semibold">Budget</div>
-                    <div>{movie.budget_formatted || `$${Number(movie.budget).toLocaleString()}`}</div>
-                  </div>
-                )}
-
-                {movie.revenue && movie.revenue > 0 && (
-                  <div>
-                    <div className="text-gray-400 font-semibold">Revenue</div>
-                    <div>{movie.revenue_formatted || `$${Number(movie.revenue).toLocaleString()}`}</div>
-                  </div>
-                )}
-
-                {movie.tmdb_rating && (
-                  <div>
-                    <div className="text-gray-400 font-semibold">TMDB Rating</div>
-                    <div className="flex items-center gap-2">
-                      <Star className="w-4 h-4 fill-yellow-500 text-yellow-500" />
-                      {Number(movie.tmdb_rating).toFixed(1)} ({movie.tmdb_vote_count?.toLocaleString?.() ?? movie.tmdb_vote_count ?? 0} votes)
-                    </div>
-                  </div>
-                )}
-
-                {movie.popularity && (
-                  <div>
-                    <div className="text-gray-400 font-semibold">Popularity</div>
-                    <div className="flex items-center gap-2">
-                      <TrendingUp className="w-4 h-4 text-tmdb-light-blue" />
-                      {Number(movie.popularity).toFixed(0)}
-                    </div>
-                  </div>
-                )}
+            
+            {/* Right Column - Sidebar */}
+            <aside className="lg:w-[320px] flex-shrink-0">
+              <div className="lg:sticky lg:top-24">
+                <FactsPanel movie={movie} theme={theme} language={language} />
               </div>
-            </div>
-
-            {productionCompanies.length > 0 && (
-              <div className="text-white">
-                <h3 className="font-semibold text-lg mb-4">Production</h3>
-                <div className="space-y-3">
-                  {productionCompanies.map((company, i) => (
-                    <div key={i} className="flex items-center gap-3">
-                      {company.logo_path ? (
-                        <img
-                          src={`https://image.tmdb.org/t/p/w92${company.logo_path}`}
-                          alt={company.name}
-                          className="h-8 object-contain filter brightness-0 invert"
-                        />
-                      ) : (
-                        <div className="text-sm">{company.name}</div>
-                      )}
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            {Array.isArray(movie.genres) && movie.genres.length > 0 && (
-              <div className="text-white">
-                <h3 className="font-semibold text-lg mb-4">Genres</h3>
-                <div className="flex flex-wrap gap-2">
-                  {movie.genres.map((genre: any, i: number) => (
-                    <span key={i} className="px-3 py-1 bg-gray-800 rounded-full text-sm">
-                      {genre.name}
-                    </span>
-                  ))}
-                </div>
-              </div>
-            )}
+            </aside>
           </div>
         </div>
       </div>
