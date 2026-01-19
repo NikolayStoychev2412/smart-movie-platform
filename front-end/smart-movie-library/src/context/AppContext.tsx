@@ -5,33 +5,64 @@ import { translations, type Language, type Translations } from '../i18n/translat
 
 type Theme = 'light' | 'dark';
 
+// User type matching backend UserResponse
+export interface User {
+  id: number;
+  name: string;
+  email: string;
+  is_admin: boolean;
+}
+
 interface AppContextType {
+  // Language
   language: Language;
   setLanguage: (lang: Language) => void;
   t: Translations;
+  
+  // Theme
   theme: Theme;
   setTheme: (theme: Theme) => void;
   toggleTheme: () => void;
+  
+  // Auth
+  user: User | null;
+  setUser: (user: User | null) => void;
+  isAuthenticated: boolean;
+  logout: () => void;
 }
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
 
 export function AppProvider({ children }: { children: ReactNode }) {
+  // Language state
   const [language, setLanguageState] = useState<Language>(() => {
     const saved = localStorage.getItem('language') as Language;
     return saved || 'bg';
   });
 
+  // Theme state
   const [theme, setThemeState] = useState<Theme>(() => {
     const saved = localStorage.getItem('theme') as Theme;
     return saved || 'dark';
   });
 
+  // User state - load from localStorage on init
+  const [user, setUserState] = useState<User | null>(() => {
+    try {
+      const saved = localStorage.getItem('user');
+      return saved ? JSON.parse(saved) : null;
+    } catch {
+      return null;
+    }
+  });
+
+  // Language setter
   const setLanguage = (lang: Language) => {
     setLanguageState(lang);
     localStorage.setItem('language', lang);
   };
 
+  // Theme setter
   const setTheme = (newTheme: Theme) => {
     setThemeState(newTheme);
     localStorage.setItem('theme', newTheme);
@@ -40,6 +71,26 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const toggleTheme = () => {
     setTheme(theme === 'dark' ? 'light' : 'dark');
   };
+
+  // User setter - also persists to localStorage
+  const setUser = (newUser: User | null) => {
+    setUserState(newUser);
+    if (newUser) {
+      localStorage.setItem('user', JSON.stringify(newUser));
+    } else {
+      localStorage.removeItem('user');
+    }
+  };
+
+  // Logout function - clears both user and token
+  const logout = () => {
+    setUserState(null);
+    localStorage.removeItem('user');
+    localStorage.removeItem('token');
+  };
+
+  // Check if authenticated (both user and token must exist)
+  const isAuthenticated = !!user && !!localStorage.getItem('token');
 
   // Apply theme to document
   useEffect(() => {
@@ -53,10 +104,30 @@ export function AppProvider({ children }: { children: ReactNode }) {
     }
   }, [theme]);
 
+  // Sync auth state - if token is gone but user exists, clear user
+  useEffect(() => {
+    const token = localStorage.getItem('token');
+    if (!token && user) {
+      setUserState(null);
+      localStorage.removeItem('user');
+    }
+  }, [user]);
+
   const t = translations[language];
 
   return (
-    <AppContext.Provider value={{ language, setLanguage, t, theme, setTheme, toggleTheme }}>
+    <AppContext.Provider value={{ 
+      language, 
+      setLanguage, 
+      t, 
+      theme, 
+      setTheme, 
+      toggleTheme,
+      user,
+      setUser,
+      isAuthenticated,
+      logout,
+    }}>
       {children}
     </AppContext.Provider>
   );

@@ -72,7 +72,7 @@ function HeroCarousel({ movies, language }: { movies: Movie[]; language: string 
   const title = language === "bg" ? movie.title_bg || movie.title : movie.title;
   const summary = language === "bg" ? movie.summary_bg || movie.summary : movie.summary;
   const backdropUrl = movie.backdrop_path 
-    ? `https://image.tmdb.org/t/p/original${movie.backdrop_path}` 
+    ? `https://image.tmdb.org/t/p/w1280${movie.backdrop_path}` 
     : movie.backdrop_url;
 
   return (
