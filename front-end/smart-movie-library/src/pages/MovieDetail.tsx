@@ -6,7 +6,8 @@ import api from "../api/client";
 import type { Movie, Review, WatchStatus } from "../types";
 import { 
   Star, Calendar, Clock, Bookmark, ChevronLeft, ChevronRight, 
-  User, Building2, Film, Play, ExternalLink, Check, Plus, X
+  User, Building2, Film, Play, ExternalLink, Check, Plus, X,
+  Send, Loader2, ThumbsUp, ThumbsDown, Minus, MessageSquare
 } from "lucide-react";
 
 interface CastMember { id: number; name: string; character?: string; profile_path?: string; order?: number; }
@@ -24,6 +25,17 @@ interface MovieDetail extends Movie {
   imdb_id?: string; original_title?: string;
 }
 
+interface SentimentAnalysis {
+  sentiment: 'positive' | 'negative' | 'neutral';
+  confidence: number;
+  summary: string;
+  keywords: string[];
+}
+
+interface ReviewWithSentiment extends Review {
+  sentiment?: SentimentAnalysis;
+}
+
 function CircularRating({ rating, size = 60 }: { rating: number; size?: number }) {
   const percentage = Math.round((rating > 10 ? rating / 10 : rating || 0) * 10);
   const radius = (size - 8) / 2;
@@ -38,6 +50,262 @@ function CircularRating({ rating, size = 60 }: { rating: number; size?: number }
         <circle cx={size/2} cy={size/2} r={radius} fill="none" stroke={colors.stroke} strokeWidth="4" strokeLinecap="round" strokeDasharray={circumference} strokeDashoffset={strokeDashoffset} />
       </svg>
       <span className="absolute text-white font-bold" style={{ fontSize: size * 0.3 }}>{percentage}<sup style={{ fontSize: size * 0.15 }}>%</sup></span>
+    </div>
+  );
+}
+
+function StarRating({ rating, onRate, size = 24 }: { rating: number; onRate?: (r: number) => void; size?: number }) {
+  const [hover, setHover] = useState(0);
+  
+  return (
+    <div className="flex gap-1">
+      {[1, 2, 3, 4, 5].map((star) => (
+        <button
+          key={star}
+          type="button"
+          onClick={() => onRate?.(star)}
+          onMouseEnter={() => setHover(star)}
+          onMouseLeave={() => setHover(0)}
+          className={`transition-colors ${onRate ? 'cursor-pointer' : 'cursor-default'}`}
+          disabled={!onRate}
+        >
+          <Star
+            size={size}
+            className={`${
+              star <= (hover || rating)
+                ? 'fill-yellow-400 text-yellow-400'
+                : 'text-gray-400'
+            }`}
+          />
+        </button>
+      ))}
+    </div>
+  );
+}
+
+function SentimentBadge({ sentiment, confidence }: { sentiment: string; confidence: number }) {
+  const config = {
+    positive: { icon: ThumbsUp, color: 'text-green-400 bg-green-500/20', label: 'Positive' },
+    negative: { icon: ThumbsDown, color: 'text-red-400 bg-red-500/20', label: 'Negative' },
+    neutral: { icon: Minus, color: 'text-gray-400 bg-gray-500/20', label: 'Neutral' }
+  };
+  
+  const { icon: Icon, color, label } = config[sentiment as keyof typeof config] || config.neutral;
+  
+  return (
+    <div className={`inline-flex items-center gap-1.5 px-2 py-1 rounded-full text-xs font-medium ${color}`}>
+      <Icon className="w-3 h-3" />
+      {label} ({Math.round(confidence * 100)}%)
+    </div>
+  );
+}
+
+function ReviewForm({ movieId, theme, language, onReviewAdded }: { 
+  movieId: number; 
+  theme: string; 
+  language: string;
+  onReviewAdded: (review: Review) => void;
+}) {
+  const [rating, setRating] = useState(0);
+  const [comment, setComment] = useState('');
+  const [submitting, setSubmitting] = useState(false);
+  const [analyzing, setAnalyzing] = useState(false);
+  const [sentiment, setSentiment] = useState<SentimentAnalysis | null>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  // Analyze sentiment when comment changes (debounced)
+  useEffect(() => {
+    if (comment.length < 20) {
+      setSentiment(null);
+      return;
+    }
+    
+    const timeout = setTimeout(async () => {
+      setAnalyzing(true);
+      try {
+        const response = await api.post('/ai/analyze-review', { text: comment });
+        setSentiment(response.data);
+      } catch (err) {
+        console.error('Sentiment analysis failed:', err);
+      } finally {
+        setAnalyzing(false);
+      }
+    }, 500);
+    
+    return () => clearTimeout(timeout);
+  }, [comment]);
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (rating === 0) {
+      setError(language === 'bg' ? 'Моля, изберете рейтинг' : 'Please select a rating');
+      return;
+    }
+    
+    setSubmitting(true);
+    setError(null);
+    
+    try {
+      const response = await api.post(`/reviews/movies/${movieId}`, {
+        rating,
+        comment: comment.trim() || null
+      });
+      
+      onReviewAdded(response.data);
+      setRating(0);
+      setComment('');
+      setSentiment(null);
+    } catch (err: any) {
+      if (err.response?.status === 400) {
+        setError(language === 'bg' ? 'Вече сте оценили този филм' : 'You have already reviewed this movie');
+      } else {
+        setError(language === 'bg' ? 'Грешка при изпращане' : 'Failed to submit review');
+      }
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  return (
+    <form onSubmit={handleSubmit} className={`p-5 rounded-lg ${theme === 'dark' ? 'bg-gray-900' : 'bg-white border'}`}>
+      <h3 className={`font-semibold mb-4 ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>
+        {language === 'bg' ? 'Напишете ревю' : 'Write a Review'}
+      </h3>
+      
+      {/* Rating */}
+      <div className="mb-4">
+        <label className={`block text-sm mb-2 ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>
+          {language === 'bg' ? 'Вашата оценка' : 'Your Rating'}
+        </label>
+        <StarRating rating={rating} onRate={setRating} size={32} />
+      </div>
+      
+      {/* Comment */}
+      <div className="mb-4">
+        <label className={`block text-sm mb-2 ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>
+          {language === 'bg' ? 'Коментар (незадължителен)' : 'Comment (optional)'}
+        </label>
+        <textarea
+          value={comment}
+          onChange={(e) => setComment(e.target.value)}
+          rows={4}
+          maxLength={2000}
+          placeholder={language === 'bg' ? 'Споделете вашето мнение...' : 'Share your thoughts...'}
+          className={`w-full px-4 py-3 rounded-lg border resize-none transition-colors ${
+            theme === 'dark' 
+              ? 'bg-gray-800 border-gray-700 text-white placeholder-gray-500 focus:border-tmdb-light-blue' 
+              : 'bg-gray-50 border-gray-200 text-gray-900 placeholder-gray-400 focus:border-tmdb-light-blue'
+          } focus:outline-none focus:ring-1 focus:ring-tmdb-light-blue`}
+        />
+        <div className="flex items-center justify-between mt-2">
+          <span className={`text-xs ${theme === 'dark' ? 'text-gray-500' : 'text-gray-400'}`}>
+            {comment.length}/2000
+          </span>
+          
+          {/* Sentiment indicator */}
+          {analyzing && (
+            <span className={`text-xs flex items-center gap-1 ${theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}`}>
+              <Loader2 className="w-3 h-3 animate-spin" />
+              {language === 'bg' ? 'Анализиране...' : 'Analyzing...'}
+            </span>
+          )}
+          {sentiment && !analyzing && (
+            <SentimentBadge sentiment={sentiment.sentiment} confidence={sentiment.confidence} />
+          )}
+        </div>
+      </div>
+      
+      {/* Error */}
+      {error && (
+        <p className="text-red-500 text-sm mb-4">{error}</p>
+      )}
+      
+      {/* Submit */}
+      <button
+        type="submit"
+        disabled={submitting || rating === 0}
+        className={`flex items-center justify-center gap-2 w-full py-3 rounded-lg font-medium transition-colors ${
+          rating === 0
+            ? 'bg-gray-600 text-gray-400 cursor-not-allowed'
+            : 'bg-tmdb-light-blue text-tmdb-dark-blue hover:bg-tmdb-light-blue/90'
+        }`}
+      >
+        {submitting ? (
+          <Loader2 className="w-5 h-5 animate-spin" />
+        ) : (
+          <>
+            <Send className="w-5 h-5" />
+            {language === 'bg' ? 'Изпрати' : 'Submit Review'}
+          </>
+        )}
+      </button>
+    </form>
+  );
+}
+
+function ReviewCard({ review, theme, language }: { review: ReviewWithSentiment; theme: string; language: string }) {
+  const [expanded, setExpanded] = useState(false);
+  const content = review.comment || review.content || review.review_text || "";
+  const isLong = content.length > 300;
+  
+  // Format date
+  const formatDate = (dateStr: string) => {
+    try {
+      return new Date(dateStr).toLocaleDateString(language === 'bg' ? 'bg-BG' : 'en-US', {
+        year: 'numeric', month: 'short', day: 'numeric'
+      });
+    } catch { return ''; }
+  };
+  
+  return (
+    <div className={`p-5 rounded-lg ${theme === "dark" ? "bg-gray-900" : "bg-white border"}`}>
+      <div className="flex items-start gap-4">
+        <div className={`w-12 h-12 rounded-full flex items-center justify-center flex-shrink-0 ${
+          theme === "dark" ? "bg-tmdb-light-blue/20" : "bg-tmdb-light-blue/10"
+        }`}>
+          <User className="w-6 h-6 text-tmdb-light-blue" />
+        </div>
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center gap-3 flex-wrap">
+            <span className={`font-semibold ${theme === "dark" ? "text-white" : "text-gray-900"}`}>
+              {review.author || review.user_name || (language === "bg" ? "Потребител" : "User")}
+            </span>
+            {review.rating && (
+              <span className={`flex items-center gap-1 px-2 py-0.5 rounded text-sm ${
+                theme === "dark" ? "bg-yellow-500/20 text-yellow-400" : "bg-yellow-100 text-yellow-700"
+              }`}>
+                <Star className="w-4 h-4 fill-current" />
+                {review.rating}/5
+              </span>
+            )}
+            {review.sentiment && (
+              <SentimentBadge sentiment={review.sentiment.sentiment} confidence={review.sentiment.confidence} />
+            )}
+          </div>
+          
+          {review.created_at && (
+            <p className={`text-xs mt-1 ${theme === "dark" ? "text-gray-500" : "text-gray-400"}`}>
+              {formatDate(review.created_at)}
+            </p>
+          )}
+          
+          {content && (
+            <>
+              <p className={`mt-3 leading-relaxed ${theme === "dark" ? "text-gray-300" : "text-gray-600"}`}>
+                {isLong && !expanded ? `${content.slice(0, 300)}...` : content}
+              </p>
+              {isLong && (
+                <button 
+                  onClick={() => setExpanded(!expanded)} 
+                  className="text-tmdb-light-blue font-medium mt-3 hover:underline"
+                >
+                  {expanded ? (language === "bg" ? "По-малко" : "Less") : (language === "bg" ? "Повече" : "More")}
+                </button>
+              )}
+            </>
+          )}
+        </div>
+      </div>
     </div>
   );
 }
@@ -159,9 +427,9 @@ function SimilarMoviesSection({ movies, theme, language }: { movies: Movie[]; th
           const t = language==="bg" ? m.title_bg||m.title : m.title;
           const p = m.poster_path ? `https://image.tmdb.org/t/p/w342${m.poster_path}` : m.poster_url;
           return (
-            <div key={m.id||i} onClick={() => navigate(`/movie/${m.id}`)} className="flex-shrink-0 w-[180px] cursor-pointer group" style={{scrollSnapAlign:"start"}}>
-              <div className="relative rounded-lg overflow-hidden shadow-lg">{p ? <img src={p} alt={t} className="w-full aspect-[2/3] object-cover group-hover:scale-105 transition-transform"/> : <div className={`w-full aspect-[2/3] flex items-center justify-center ${theme==="dark"?"bg-gray-800":"bg-gray-200"}`}><Film className="w-12 h-12 text-gray-500"/></div>}<div className="absolute -bottom-4 left-2"><CircularRating rating={m.average_rating??0} size={38}/></div></div>
-              <div className="pt-6 px-1"><p className={`font-semibold text-sm line-clamp-2 group-hover:text-tmdb-light-blue ${theme==="dark"?"text-white":"text-gray-900"}`}>{t}</p>{m.release_date && <p className="text-xs mt-1 text-gray-400">{new Date(m.release_date).getFullYear()}</p>}</div>
+            <div key={m.id||i} onClick={() => navigate(`/movie/${m.id}`)} className="flex-shrink-0 w-[150px] cursor-pointer group" style={{scrollSnapAlign:"start"}}>
+              <div className="relative rounded-lg overflow-hidden shadow-lg">{p ? <img src={p} alt={t} className="w-full aspect-[2/3] object-cover group-hover:scale-105 transition-transform"/> : <div className={`w-full aspect-[2/3] flex items-center justify-center ${theme==="dark"?"bg-gray-800":"bg-gray-200"}`}><Film className="w-12 h-12 text-gray-500"/></div>}<div className="absolute bottom-2 left-2"><CircularRating rating={m.average_rating??0} size={36}/></div></div>
+              <div className="pt-3 px-1"><p className={`font-semibold text-sm line-clamp-2 group-hover:text-tmdb-light-blue ${theme==="dark"?"text-white":"text-gray-900"}`}>{t}</p>{m.release_date && <p className="text-xs mt-1 text-gray-400">{new Date(m.release_date).getFullYear()}</p>}</div>
             </div>
           );
         })}
@@ -170,51 +438,52 @@ function SimilarMoviesSection({ movies, theme, language }: { movies: Movie[]; th
   );
 }
 
-function ReviewCard({ review, theme, language }: { review: Review; theme: string; language: string }) {
-  const [expanded, setExpanded] = useState(false);
-  const content = review.content || review.review_text || "";
-  const isLong = content.length > 300;
-  return (
-    <div className={`p-5 rounded-lg ${theme==="dark"?"bg-gray-900":"bg-white border"}`}>
-      <div className="flex items-start gap-4">
-        <div className={`w-12 h-12 rounded-full flex items-center justify-center flex-shrink-0 ${theme==="dark"?"bg-tmdb-light-blue/20":"bg-tmdb-light-blue/10"}`}><User className="w-6 h-6 text-tmdb-light-blue"/></div>
-        <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-3 flex-wrap"><span className={`font-semibold ${theme==="dark"?"text-white":"text-gray-900"}`}>{review.author||review.user_name||(language==="bg"?"Анонимен":"Anonymous")}</span>{review.rating && <span className={`flex items-center gap-1 px-2 py-0.5 rounded text-sm ${theme==="dark"?"bg-yellow-500/20 text-yellow-400":"bg-yellow-100 text-yellow-700"}`}><Star className="w-4 h-4 fill-current"/>{review.rating}/10</span>}</div>
-          <p className={`mt-3 leading-relaxed ${theme==="dark"?"text-gray-300":"text-gray-600"}`}>{isLong && !expanded ? `${content.slice(0,300)}...` : content}</p>
-          {isLong && <button onClick={() => setExpanded(!expanded)} className="text-tmdb-light-blue font-medium mt-3 hover:underline">{expanded ? (language==="bg"?"По-малко":"Less") : (language==="bg"?"Повече":"More")}</button>}
-        </div>
-      </div>
-    </div>
-  );
-}
-
 export default function MovieDetails() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { theme, language, isAuthenticated } = useApp();
   const [movie, setMovie] = useState<MovieDetail|null>(null);
-  const [reviews, setReviews] = useState<Review[]>([]);
+  const [reviews, setReviews] = useState<ReviewWithSentiment[]>([]);
   const [similarMovies, setSimilarMovies] = useState<Movie[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string|null>(null);
   const [watchlistStatus, setWatchlistStatus] = useState<WatchStatus|null>(null);
   const [watchlistLoading, setWatchlistLoading] = useState(false);
   const [showWatchlistMenu, setShowWatchlistMenu] = useState(false);
+  const [userHasReviewed, setUserHasReviewed] = useState(false);
 
   useEffect(() => {
-    const fetch = async () => {
+    const fetchData = async () => {
       if (!id) return;
       setLoading(true); setError(null);
       try {
         const data = await moviesApi.getById(parseInt(id));
         setMovie(data as MovieDetail);
-        try { const r = await moviesApi.getReviews(parseInt(id)); setReviews(Array.isArray(r)?r:[]); } catch { setReviews([]); }
+        try { 
+          const r = await moviesApi.getReviews(parseInt(id)); 
+          setReviews(Array.isArray(r) ? r : []); 
+        } catch { setReviews([]); }
         try { const s = await moviesApi.getSimilar(parseInt(id)); setSimilarMovies(Array.isArray(s) ? s.map((x:any) => x.movie||x).slice(0,10) : []); } catch { setSimilarMovies([]); }
       } catch (e) { console.error(e); setError(language==="bg"?"Грешка":"Failed to load"); }
       finally { setLoading(false); }
     };
-    fetch();
+    fetchData();
   }, [id, language]);
+
+  // Check if user has already reviewed
+  useEffect(() => {
+    const checkUserReview = async () => {
+      if (!isAuthenticated || !id) return;
+      try {
+        const response = await api.get('/reviews/my-reviews');
+        const myReviews = response.data || [];
+        setUserHasReviewed(myReviews.some((r: any) => r.movie_id === parseInt(id)));
+      } catch {
+        setUserHasReviewed(false);
+      }
+    };
+    checkUserReview();
+  }, [id, isAuthenticated]);
 
   useEffect(() => {
     const check = async () => {
@@ -241,6 +510,15 @@ export default function MovieDetails() {
     setWatchlistLoading(true);
     try { await api.delete(`/watchlist/${id}`); setWatchlistStatus(null); setShowWatchlistMenu(false); } catch {}
     finally { setWatchlistLoading(false); }
+  };
+
+  const handleReviewAdded = (newReview: Review) => {
+    setReviews(prev => [newReview, ...prev]);
+    setUserHasReviewed(true);
+    // Refresh movie to get updated rating
+    if (id) {
+      moviesApi.getById(parseInt(id)).then(data => setMovie(data as MovieDetail));
+    }
   };
 
   const getBtn = () => {
@@ -323,7 +601,68 @@ export default function MovieDetails() {
             <div className="flex-1 min-w-0 space-y-12">
               <section><h2 className={`text-2xl font-bold mb-5 ${theme==="dark"?"text-white":"text-gray-900"}`}>{language==="bg"?"Актьорски състав":"Top Billed Cast"}</h2><CastCarousel cast={movie.cast||[]} theme={theme} language={language}/></section>
               <VideosSection movie={movie} theme={theme} language={language}/>
-              {reviews.length > 0 && <section><h2 className={`text-2xl font-bold mb-5 ${theme==="dark"?"text-white":"text-gray-900"}`}>{language==="bg"?"Ревюта":"Reviews"} ({reviews.length})</h2><div className="space-y-4">{reviews.slice(0,3).map((r,i) => <ReviewCard key={r.id||i} review={r} theme={theme} language={language}/>)}</div></section>}
+              
+              {/* Reviews Section */}
+              <section>
+                <h2 className={`text-2xl font-bold mb-5 flex items-center gap-2 ${theme==="dark"?"text-white":"text-gray-900"}`}>
+                  <MessageSquare className="w-6 h-6" />
+                  {language==="bg"?"Ревюта":"Reviews"} 
+                  {reviews.length > 0 && <span className="text-base font-normal text-gray-500">({reviews.length})</span>}
+                </h2>
+                
+                {/* Review Form - show if logged in and hasn't reviewed */}
+                {isAuthenticated && !userHasReviewed && (
+                  <div className="mb-6">
+                    <ReviewForm 
+                      movieId={parseInt(id!)} 
+                      theme={theme} 
+                      language={language}
+                      onReviewAdded={handleReviewAdded}
+                    />
+                  </div>
+                )}
+                
+                {/* Login prompt if not authenticated */}
+                {!isAuthenticated && (
+                  <div className={`p-5 rounded-lg mb-6 text-center ${theme==="dark"?"bg-gray-900":"bg-white border"}`}>
+                    <p className={`mb-3 ${theme==="dark"?"text-gray-300":"text-gray-600"}`}>
+                      {language==="bg"?"Влезте, за да напишете ревю":"Log in to write a review"}
+                    </p>
+                    <button 
+                      onClick={() => navigate('/login', { state: { from: `/movie/${id}` } })}
+                      className="px-6 py-2 bg-tmdb-light-blue text-tmdb-dark-blue rounded-lg font-medium hover:bg-tmdb-light-blue/90 transition-colors"
+                    >
+                      {language==="bg"?"Вход":"Log In"}
+                    </button>
+                  </div>
+                )}
+                
+                {/* Already reviewed message */}
+                {isAuthenticated && userHasReviewed && (
+                  <div className={`p-4 rounded-lg mb-6 ${theme==="dark"?"bg-green-500/10 border border-green-500/20":"bg-green-50 border border-green-200"}`}>
+                    <p className="text-green-500 flex items-center gap-2">
+                      <Check className="w-5 h-5" />
+                      {language==="bg"?"Вече сте оценили този филм":"You have already reviewed this movie"}
+                    </p>
+                  </div>
+                )}
+                
+                {/* Reviews List */}
+                {reviews.length > 0 ? (
+                  <div className="space-y-4">
+                    {reviews.map((r, i) => (
+                      <ReviewCard key={r.id || i} review={r} theme={theme} language={language} />
+                    ))}
+                  </div>
+                ) : (
+                  <div className={`text-center py-8 rounded-lg ${theme==="dark"?"bg-gray-900 text-gray-500":"bg-gray-100 text-gray-400"}`}>
+                    <MessageSquare className="w-12 h-12 mx-auto mb-3 opacity-50" />
+                    <p>{language==="bg"?"Все още няма ревюта":"No reviews yet"}</p>
+                    <p className="text-sm mt-1">{language==="bg"?"Бъдете първият!":"Be the first to review!"}</p>
+                  </div>
+                )}
+              </section>
+              
               <SimilarMoviesSection movies={similarMovies} theme={theme} language={language}/>
             </div>
             <aside className="lg:w-[320px] flex-shrink-0"><div className="lg:sticky lg:top-24"><FactsPanel movie={movie} theme={theme} language={language}/></div></aside>

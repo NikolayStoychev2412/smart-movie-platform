@@ -12,7 +12,8 @@ import {
   User, 
   LogOut,
   Search,
-  ChevronDown
+  ChevronDown,
+  Bookmark
 } from "lucide-react";
 
 export default function Navbar() {
@@ -39,6 +40,12 @@ export default function Navbar() {
     { path: "/browse", label: language === "bg" ? "Филми" : "Movies", icon: Film },
   ];
 
+  // Add Watchlist link if user is logged in
+  const userNavLinks = user ? [
+    ...navLinks,
+    { path: "/watchlist", label: language === "bg" ? "Списък" : "Watchlist", icon: Bookmark },
+  ] : navLinks;
+
   return (
     <nav className={`sticky top-0 z-50 transition-colors ${
       theme === "dark" 
@@ -61,7 +68,7 @@ export default function Navbar() {
 
           {/* Desktop Navigation */}
           <div className="hidden md:flex items-center gap-1">
-            {navLinks.map((link) => (
+            {userNavLinks.map((link) => (
               <Link
                 key={link.path}
                 to={link.path}
@@ -188,13 +195,24 @@ export default function Navbar() {
                 )}
               </div>
             ) : (
-              <Link
-                to="/login"
-                className="hidden md:flex items-center gap-2 px-4 py-2 rounded-lg bg-tmdb-light-blue text-tmdb-dark-blue font-medium hover:bg-tmdb-light-blue/90 transition-colors"
-              >
-                <User className="w-4 h-4" />
-                {language === "bg" ? "Вход" : "Login"}
-              </Link>
+              <div className="hidden md:flex items-center gap-2">
+                <Link
+                  to="/login"
+                  className={`px-4 py-2 rounded-lg font-medium transition-colors border ${
+                    theme === "dark"
+                      ? "border-gray-600 text-gray-300 hover:text-white hover:border-gray-500"
+                      : "border-gray-300 text-gray-600 hover:text-gray-900 hover:border-gray-400"
+                  }`}
+                >
+                  {language === "bg" ? "Вход" : "Login"}
+                </Link>
+                <Link
+                  to="/register"
+                  className="px-4 py-2 rounded-lg bg-tmdb-light-blue text-tmdb-dark-blue font-medium hover:bg-tmdb-light-blue/90 transition-colors"
+                >
+                  {language === "bg" ? "Регистрация" : "Sign Up"}
+                </Link>
+              </div>
             )}
 
             {/* Mobile Menu Toggle */}
@@ -237,7 +255,7 @@ export default function Navbar() {
 
             {/* Mobile Nav Links */}
             <div className="space-y-1">
-              {navLinks.map((link) => (
+              {userNavLinks.map((link) => (
                 <Link
                   key={link.path}
                   to={link.path}
@@ -256,18 +274,28 @@ export default function Navbar() {
               ))}
               
               {!user && (
-                <Link
-                  to="/login"
-                  onClick={() => setMobileMenuOpen(false)}
-                  className={`flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${
-                    theme === "dark"
-                      ? "text-gray-300 hover:text-white hover:bg-white/10"
-                      : "text-gray-600 hover:text-gray-900 hover:bg-gray-100"
-                  }`}
-                >
-                  <User className="w-5 h-5" />
-                  {language === "bg" ? "Вход" : "Login"}
-                </Link>
+                <>
+                  <Link
+                    to="/login"
+                    onClick={() => setMobileMenuOpen(false)}
+                    className={`flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${
+                      theme === "dark"
+                        ? "text-gray-300 hover:text-white hover:bg-white/10"
+                        : "text-gray-600 hover:text-gray-900 hover:bg-gray-100"
+                    }`}
+                  >
+                    <User className="w-5 h-5" />
+                    {language === "bg" ? "Вход" : "Login"}
+                  </Link>
+                  <Link
+                    to="/register"
+                    onClick={() => setMobileMenuOpen(false)}
+                    className="flex items-center gap-3 px-4 py-3 rounded-lg bg-tmdb-light-blue text-tmdb-dark-blue font-medium"
+                  >
+                    <User className="w-5 h-5" />
+                    {language === "bg" ? "Регистрация" : "Sign Up"}
+                  </Link>
+                </>
               )}
             </div>
           </div>
