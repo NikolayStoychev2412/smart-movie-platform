@@ -8,6 +8,6 @@ from app.models.user import User
 from app.models.movie import Movie
 from app.models.review import Review
 from app.models.watchlist import Watchlist, WatchStatus  # ✨ NEW
-
+from app.models.favorite import Favorite
 # Make them available when doing: from app.models import Movie
 __all__ = ["User", "Movie", "Review", "Watchlist", "WatchStatus"]

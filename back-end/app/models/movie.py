@@ -176,7 +176,7 @@ class Movie(Base):
     # =========================================================================
     reviews = relationship("Review", back_populates="movie", cascade="all, delete")
     watchlist_entries = relationship("Watchlist", back_populates="movie", cascade="all, delete")
-    
+    favorited_by = relationship("Favorite", back_populates="movie", cascade="all, delete-orphan")
     # =========================================================================
     # COMPUTED PROPERTIES
     # =========================================================================

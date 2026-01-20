@@ -15,6 +15,8 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import ORJSONResponse  # Faster JSON serialization
 
 from app.database import init_db, close_db
+from app.routers import favorites
+
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -148,7 +150,7 @@ app.include_router(auth.router)
 app.include_router(watchlist.router)
 app.include_router(reviews.router)
 app.include_router(ai_router)
-
+app.include_router(favorites.router)
 
 # =============================================================================
 # ROOT ENDPOINT

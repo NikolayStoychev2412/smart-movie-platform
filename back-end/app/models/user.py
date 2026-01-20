@@ -16,4 +16,5 @@ class User(Base):
     preferred_genres = Column(JSON, default=list)
     # Relationships
     reviews = relationship("Review", back_populates="user", cascade="all, delete")
-    watchlist = relationship("Watchlist", back_populates="user", cascade="all, delete")  # ✨ NEW
+    watchlist = relationship("Watchlist", back_populates="user", cascade="all, delete")
+    favorites = relationship("Favorite", back_populates="user", cascade="all, delete-orphan")

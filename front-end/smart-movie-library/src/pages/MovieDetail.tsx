@@ -7,7 +7,7 @@ import type { Movie, Review, WatchStatus } from "../types";
 import { 
   Star, Calendar, Clock, Bookmark, ChevronLeft, ChevronRight, 
   User, Building2, Film, Play, ExternalLink, Check, Plus, X,
-  Send, Loader2, ThumbsUp, ThumbsDown, Minus, MessageSquare
+  Send, Loader2, ThumbsUp, ThumbsDown, Minus, MessageSquare, Heart
 } from "lucide-react";
 
 interface CastMember { id: number; name: string; character?: string; profile_path?: string; order?: number; }
@@ -451,6 +451,8 @@ export default function MovieDetails() {
   const [watchlistLoading, setWatchlistLoading] = useState(false);
   const [showWatchlistMenu, setShowWatchlistMenu] = useState(false);
   const [userHasReviewed, setUserHasReviewed] = useState(false);
+  const [isFavorite, setIsFavorite] = useState(false);
+  const [favoriteLoading, setFavoriteLoading] = useState(false);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -483,6 +485,20 @@ export default function MovieDetails() {
       }
     };
     checkUserReview();
+  }, [id, isAuthenticated]);
+
+  // Check favorite status
+  useEffect(() => {
+    const checkFavorite = async () => {
+      if (!isAuthenticated || !id) return;
+      try {
+        const response = await api.get(`/favorites/${id}/status`);
+        setIsFavorite(response.data.is_favorite);
+      } catch {
+        setIsFavorite(false);
+      }
+    };
+    checkFavorite();
   }, [id, isAuthenticated]);
 
   useEffect(() => {
@@ -518,6 +534,29 @@ export default function MovieDetails() {
     // Refresh movie to get updated rating
     if (id) {
       moviesApi.getById(parseInt(id)).then(data => setMovie(data as MovieDetail));
+    }
+  };
+
+  const toggleFavorite = async () => {
+    if (!isAuthenticated) {
+      navigate('/login', { state: { from: `/movie/${id}` } });
+      return;
+    }
+    if (!id) return;
+    
+    setFavoriteLoading(true);
+    try {
+      if (isFavorite) {
+        await api.delete(`/favorites/${id}`);
+        setIsFavorite(false);
+      } else {
+        await api.post(`/favorites/${id}`);
+        setIsFavorite(true);
+      }
+    } catch (err) {
+      console.error('Failed to toggle favorite:', err);
+    } finally {
+      setFavoriteLoading(false);
     }
   };
 
@@ -587,6 +626,24 @@ export default function MovieDetails() {
                   </>}
                 </div>
                 {watchlistStatus !== 'completed' && <button onClick={() => addToWatchlist('completed')} disabled={watchlistLoading} className="flex items-center gap-2 px-4 py-2.5 rounded-lg font-medium bg-green-600 text-white hover:bg-green-700 transition-all"><Check className="w-5 h-5"/>{language==="bg"?"Изгледан":"Completed"}</button>}
+                
+                {/* Favorite Button */}
+                <button 
+                  onClick={toggleFavorite} 
+                  disabled={favoriteLoading}
+                  className={`flex items-center justify-center w-12 h-12 rounded-full transition-all ${
+                    isFavorite 
+                      ? 'bg-pink-600 text-white hover:bg-pink-700' 
+                      : 'bg-tmdb-dark-blue/80 text-gray-300 hover:text-white hover:bg-tmdb-dark-blue'
+                  }`}
+                  title={isFavorite ? (language === "bg" ? "Премахни от любими" : "Remove from favorites") : (language === "bg" ? "Добави в любими" : "Add to favorites")}
+                >
+                  {favoriteLoading ? (
+                    <div className="w-5 h-5 border-2 border-current border-t-transparent rounded-full animate-spin"/>
+                  ) : (
+                    <Heart className={`w-6 h-6 ${isFavorite ? 'fill-current' : ''}`} />
+                  )}
+                </button>
               </div>
               {tagline && <p className="text-gray-400 italic text-lg mt-6">{tagline}</p>}
               <div className="mt-6"><h3 className="text-xl font-semibold mb-2">{language==="bg"?"Резюме":"Overview"}</h3>{summary ? <p className="text-gray-200 leading-relaxed max-w-3xl">{summary}</p> : <p className="text-gray-500 italic">{language==="bg"?"Няма":"No overview"}</p>}</div>

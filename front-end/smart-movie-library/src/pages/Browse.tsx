@@ -1,228 +1,32 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
 import { useState, useEffect, useCallback, useMemo } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import type { Movie } from "../types";
-import { moviesApi, type SearchResult } from "../api/movies";
+import { moviesApi } from "../api/movies";
+import api from "../api/client";
 import { useApp } from "../context/AppContext";
-import { Search, Sparkles, Filter, ChevronDown, X, Grid, List } from "lucide-react";
+import { Search, Sparkles, Filter, ChevronDown, X, Grid, List, ChevronLeft, ChevronRight, Film } from "lucide-react";
 
 // Cache for movies
 const movieCache = {
   all: null as Movie[] | null,
   timestamp: 0,
   TTL: 5 * 60 * 1000,
-
   get(): Movie[] | null {
-    if (this.all && Date.now() - this.timestamp < this.TTL) {
-      return this.all;
-    }
+    if (this.all && Date.now() - this.timestamp < this.TTL) return this.all;
     return null;
   },
-
   set(movies: Movie[]) {
     this.all = movies;
     this.timestamp = Date.now();
   },
 };
 
-function CircularRating({ rating, size = 40 }: { rating: number; size?: number }) {
-  const percentage = Math.round((rating || 0) * 10);
-  const radius = (size - 6) / 2;
-  const circumference = 2 * Math.PI * radius;
-  const strokeDashoffset = circumference - (percentage / 100) * circumference;
-
-  const getColor = () => {
-    if (percentage >= 70) return { stroke: "#21d07a", bg: "#204529" };
-    if (percentage >= 50) return { stroke: "#d2d531", bg: "#423d0f" };
-    return { stroke: "#db2360", bg: "#571435" };
-  };
-
-  const colors = getColor();
-
-  return (
-    <div
-      className="relative flex items-center justify-center rounded-full"
-      style={{ width: size, height: size, backgroundColor: "#081c22" }}
-    >
-      <svg className="transform -rotate-90" width={size} height={size} viewBox={`0 0 ${size} ${size}`}>
-        <circle cx={size / 2} cy={size / 2} r={radius} fill="#081c22" stroke={colors.bg} strokeWidth="3" />
-        <circle
-          cx={size / 2}
-          cy={size / 2}
-          r={radius}
-          fill="none"
-          stroke={colors.stroke}
-          strokeWidth="3"
-          strokeLinecap="round"
-          strokeDasharray={circumference}
-          strokeDashoffset={strokeDashoffset}
-        />
-      </svg>
-      <span className="absolute text-white font-bold" style={{ fontSize: size * 0.28 }}>
-        {percentage}
-        <sup style={{ fontSize: size * 0.15 }}>%</sup>
-      </span>
-    </div>
-  );
-}
-
-// Grid card view (TMDB style)
-function MovieCardGrid({ movie, onClick, language }: { movie: Movie; onClick: () => void; language: string }) {
-  const [imageLoaded, setImageLoaded] = useState(false);
-  const [imageError, setImageError] = useState(false);
-  const { theme } = useApp();
-
-  const title = language === "bg" ? movie.title_bg || movie.title : movie.title;
-  const releaseDate = movie.release_date
-    ? new Date(movie.release_date).toLocaleDateString(language === "bg" ? "bg-BG" : "en-US", {
-        year: "numeric",
-        month: "short",
-        day: "numeric",
-      })
-    : null;
-
-  const posterUrl = movie.poster_path 
-    ? `https://image.tmdb.org/t/p/w342${movie.poster_path}` 
-    : movie.poster_url;
-
-  return (
-    <div
-      className="cursor-pointer group"
-      onClick={onClick}
-    >
-      {/* Poster with rating */}
-      <div className="relative rounded-lg overflow-hidden shadow-lg">
-        {!imageLoaded && !imageError && (
-          <div className={`absolute inset-0 animate-pulse aspect-[2/3] ${theme === "dark" ? "bg-gray-700" : "bg-gray-200"}`} />
-        )}
-        {posterUrl && !imageError ? (
-          <img
-            src={posterUrl}
-            alt={title}
-            className={`w-full aspect-[2/3] object-cover transition-transform group-hover:scale-105 ${imageLoaded ? "opacity-100" : "opacity-0"}`}
-            loading="lazy"
-            onLoad={() => setImageLoaded(true)}
-            onError={() => setImageError(true)}
-          />
-        ) : (
-          <div className={`w-full aspect-[2/3] flex items-center justify-center ${theme === "dark" ? "bg-gray-800" : "bg-gray-200"}`}>
-            <span className={`text-xs text-center px-2 ${theme === "dark" ? "text-gray-400" : "text-gray-500"}`}>
-              {title}
-            </span>
-          </div>
-        )}
-        {/* Rating badge */}
-        <div className="absolute -bottom-4 left-2 z-10">
-          <CircularRating rating={movie.average_rating ?? 0} size={38} />
-        </div>
-      </div>
-
-      {/* Title and date */}
-      <div className="pt-6 px-1">
-        <h3 className={`font-bold text-sm line-clamp-2 group-hover:text-tmdb-light-blue transition-colors ${
-          theme === "dark" ? "text-white" : "text-gray-900"
-        }`}>
-          {title}
-        </h3>
-        {releaseDate && (
-          <p className={`text-sm mt-0.5 ${theme === "dark" ? "text-gray-400" : "text-gray-500"}`}>
-            {releaseDate}
-          </p>
-        )}
-      </div>
-    </div>
-  );
-}
-
-// List card view
-function MovieCardList({ movie, onClick, language, snippet }: { movie: Movie; onClick: () => void; language: string; snippet?: string }) {
-  const [imageLoaded, setImageLoaded] = useState(false);
-  const [imageError, setImageError] = useState(false);
-  const { theme } = useApp();
-
-  const title = language === "bg" ? movie.title_bg || movie.title : movie.title;
-  const summary = language === "bg" ? movie.summary_bg || movie.summary : movie.summary;
-  const releaseDate = movie.release_date
-    ? new Date(movie.release_date).toLocaleDateString(language === "bg" ? "bg-BG" : "en-US", {
-        year: "numeric",
-        month: "short",
-        day: "numeric",
-      })
-    : null;
-
-  const posterUrl = movie.poster_path 
-    ? `https://image.tmdb.org/t/p/w185${movie.poster_path}` 
-    : movie.poster_url;
-
-  return (
-    <div
-      className={`flex rounded-lg cursor-pointer transition-all overflow-hidden border ${
-        theme === "dark" 
-          ? "bg-gray-900 hover:bg-gray-800 border-gray-800" 
-          : "bg-white hover:bg-gray-50 border-gray-200 shadow-sm"
-      }`}
-      onClick={onClick}
-    >
-      {/* Poster */}
-      <div className="relative flex-shrink-0 w-[94px]">
-        {!imageLoaded && !imageError && (
-          <div className={`absolute inset-0 animate-pulse ${theme === "dark" ? "bg-gray-700" : "bg-gray-200"}`} />
-        )}
-        {posterUrl && !imageError ? (
-          <img
-            src={posterUrl}
-            alt={title}
-            className={`w-full h-full object-cover min-h-[141px] ${imageLoaded ? "opacity-100" : "opacity-0"}`}
-            loading="lazy"
-            onLoad={() => setImageLoaded(true)}
-            onError={() => setImageError(true)}
-          />
-        ) : (
-          <div className={`w-full h-full min-h-[141px] flex items-center justify-center ${theme === "dark" ? "bg-gray-800" : "bg-gray-200"}`}>
-            <span className={`text-xs text-center px-1 ${theme === "dark" ? "text-gray-500" : "text-gray-400"}`}>
-              {title}
-            </span>
-          </div>
-        )}
-      </div>
-
-      {/* Content */}
-      <div className="flex-1 p-4 flex flex-col justify-center min-w-0">
-        <div className="flex items-start gap-3">
-          <CircularRating rating={movie.average_rating ?? 0} size={40} />
-          <div className="min-w-0 flex-1">
-            <h3 className={`font-bold text-base hover:text-tmdb-light-blue transition-colors ${
-              theme === "dark" ? "text-white" : "text-gray-900"
-            }`}>
-              {title}
-            </h3>
-            {releaseDate && (
-              <p className={`text-sm ${theme === "dark" ? "text-gray-400" : "text-gray-500"}`}>
-                {releaseDate}
-              </p>
-            )}
-          </div>
-        </div>
-        {snippet ? (
-          <p className={`text-sm mt-3 line-clamp-2 ${theme === "dark" ? "text-emerald-400" : "text-emerald-600"}`}>
-            <Sparkles className="w-3 h-3 inline mr-1" />
-            {snippet}
-          </p>
-        ) : summary ? (
-          <p className={`text-sm mt-3 line-clamp-2 ${theme === "dark" ? "text-gray-400" : "text-gray-600"}`}>
-            {summary}
-          </p>
-        ) : null}
-      </div>
-    </div>
-  );
-}
-
 type SortOption = "popularity" | "rating" | "title" | "release_date";
 type ViewMode = "grid" | "list";
 type MoodOption = "all" | "funny" | "scary" | "romantic" | "exciting" | "thoughtful" | "dark" | "uplifting";
 
-// Mood to genre mapping
+const MOVIES_PER_PAGE = 20;
+
 const moodToGenres: Record<MoodOption, string[]> = {
   all: [],
   funny: ["Comedy"],
@@ -245,6 +49,171 @@ const moodLabels: Record<MoodOption, { en: string; bg: string; emoji: string }> 
   uplifting: { en: "Uplifting", bg: "Вдъхновяващо", emoji: "✨" },
 };
 
+function CircularRating({ rating, size = 36 }: { rating: number; size?: number }) {
+  const percentage = Math.round((rating || 0) * 10);
+  const radius = (size - 6) / 2;
+  const circumference = 2 * Math.PI * radius;
+  const strokeDashoffset = circumference - (percentage / 100) * circumference;
+  const colors = percentage >= 70 ? { stroke: "#21d07a", bg: "#204529" } : percentage >= 50 ? { stroke: "#d2d531", bg: "#423d0f" } : { stroke: "#db2360", bg: "#571435" };
+
+  return (
+    <div className="relative flex items-center justify-center rounded-full" style={{ width: size, height: size, backgroundColor: "#081c22" }}>
+      <svg className="transform -rotate-90" width={size} height={size} viewBox={`0 0 ${size} ${size}`}>
+        <circle cx={size/2} cy={size/2} r={radius} fill="#081c22" stroke={colors.bg} strokeWidth="3" />
+        <circle cx={size/2} cy={size/2} r={radius} fill="none" stroke={colors.stroke} strokeWidth="3" strokeLinecap="round" strokeDasharray={circumference} strokeDashoffset={strokeDashoffset} />
+      </svg>
+      <span className="absolute text-white font-bold" style={{ fontSize: size * 0.28 }}>{percentage}<sup style={{ fontSize: size * 0.14 }}>%</sup></span>
+    </div>
+  );
+}
+
+function MovieCardGrid({ movie, onClick, language, theme, snippet }: { movie: Movie; onClick: () => void; language: string; theme: string; snippet?: string }) {
+  const title = language === "bg" ? movie.title_bg || movie.title : movie.title;
+  const posterUrl = movie.poster_path ? `https://image.tmdb.org/t/p/w342${movie.poster_path}` : movie.poster_url;
+  const releaseDate = movie.release_date ? new Date(movie.release_date).toLocaleDateString(language === "bg" ? "bg-BG" : "en-US", { year: "numeric", month: "short", day: "numeric" }) : null;
+
+  return (
+    <div className="cursor-pointer group" onClick={onClick}>
+      <div className="relative rounded-lg overflow-hidden shadow-lg">
+        {posterUrl ? (
+          <img src={posterUrl} alt={title} className="w-full aspect-[2/3] object-cover group-hover:scale-105 transition-transform duration-300" loading="lazy" />
+        ) : (
+          <div className={`w-full aspect-[2/3] flex items-center justify-center ${theme === "dark" ? "bg-gray-800" : "bg-gray-200"}`}>
+            <Film className="w-10 h-10 text-gray-500" />
+          </div>
+        )}
+        <div className="absolute bottom-2 left-2">
+          <CircularRating rating={movie.average_rating ?? 0} size={36} />
+        </div>
+      </div>
+      <div className="pt-3 px-1">
+        <h3 className={`font-bold text-sm line-clamp-2 group-hover:text-tmdb-light-blue transition-colors ${theme === "dark" ? "text-white" : "text-gray-900"}`}>{title}</h3>
+        {releaseDate && <p className={`text-sm mt-0.5 ${theme === "dark" ? "text-gray-400" : "text-gray-500"}`}>{releaseDate}</p>}
+        {snippet && <p className="text-xs mt-1 text-purple-400 line-clamp-2 italic">{snippet}</p>}
+      </div>
+    </div>
+  );
+}
+
+function MovieCardList({ movie, onClick, language, theme, snippet }: { movie: Movie; onClick: () => void; language: string; theme: string; snippet?: string }) {
+  const title = language === "bg" ? movie.title_bg || movie.title : movie.title;
+  const summary = language === "bg" ? movie.summary_bg || movie.summary : movie.summary;
+  const posterUrl = movie.poster_path ? `https://image.tmdb.org/t/p/w185${movie.poster_path}` : movie.poster_url;
+  const releaseDate = movie.release_date ? new Date(movie.release_date).toLocaleDateString(language === "bg" ? "bg-BG" : "en-US", { year: "numeric", month: "short", day: "numeric" }) : null;
+
+  return (
+    <div className={`flex rounded-lg cursor-pointer transition-all overflow-hidden border ${theme === "dark" ? "bg-gray-900 hover:bg-gray-800 border-gray-800" : "bg-white hover:bg-gray-50 border-gray-200 shadow-sm"}`} onClick={onClick}>
+      <div className="relative flex-shrink-0 w-[94px]">
+        {posterUrl ? (
+          <img src={posterUrl} alt={title} className="w-full h-full object-cover min-h-[141px]" loading="lazy" />
+        ) : (
+          <div className={`w-full h-full min-h-[141px] flex items-center justify-center ${theme === "dark" ? "bg-gray-800" : "bg-gray-200"}`}>
+            <Film className="w-8 h-8 text-gray-500" />
+          </div>
+        )}
+      </div>
+      <div className="flex-1 p-4 flex flex-col justify-center min-w-0">
+        <div className="flex items-start gap-3">
+          <CircularRating rating={movie.average_rating ?? 0} size={40} />
+          <div className="flex-1 min-w-0">
+            <h3 className={`font-bold line-clamp-1 ${theme === "dark" ? "text-white" : "text-gray-900"}`}>{title}</h3>
+            {releaseDate && <p className={`text-sm ${theme === "dark" ? "text-gray-400" : "text-gray-500"}`}>{releaseDate}</p>}
+          </div>
+        </div>
+        {snippet ? (
+          <p className="text-sm mt-2 text-purple-400 line-clamp-2 italic">{snippet}</p>
+        ) : summary ? (
+          <p className={`text-sm mt-2 line-clamp-2 ${theme === "dark" ? "text-gray-400" : "text-gray-600"}`}>{summary}</p>
+        ) : null}
+      </div>
+    </div>
+  );
+}
+
+// Pagination Component
+function Pagination({ currentPage, totalPages, onPageChange, theme, language }: { currentPage: number; totalPages: number; onPageChange: (page: number) => void; theme: string; language: string }) {
+  if (totalPages <= 1) return null;
+
+  const getPageNumbers = () => {
+    const pages: (number | string)[] = [];
+    const showPages = 5;
+    
+    if (totalPages <= showPages + 2) {
+      for (let i = 1; i <= totalPages; i++) pages.push(i);
+    } else {
+      pages.push(1);
+      
+      if (currentPage > 3) pages.push("...");
+      
+      const start = Math.max(2, currentPage - 1);
+      const end = Math.min(totalPages - 1, currentPage + 1);
+      
+      for (let i = start; i <= end; i++) pages.push(i);
+      
+      if (currentPage < totalPages - 2) pages.push("...");
+      
+      pages.push(totalPages);
+    }
+    
+    return pages;
+  };
+
+  return (
+    <div className="flex items-center justify-center gap-2 mt-8">
+      {/* Previous */}
+      <button
+        onClick={() => onPageChange(currentPage - 1)}
+        disabled={currentPage === 1}
+        className={`p-2 rounded-lg transition-colors ${
+          currentPage === 1
+            ? "opacity-50 cursor-not-allowed"
+            : theme === "dark"
+            ? "bg-gray-800 text-white hover:bg-gray-700"
+            : "bg-white text-gray-900 hover:bg-gray-100 border"
+        }`}
+      >
+        <ChevronLeft className="w-5 h-5" />
+      </button>
+
+      {/* Page Numbers */}
+      {getPageNumbers().map((page, idx) => (
+        page === "..." ? (
+          <span key={`ellipsis-${idx}`} className={`px-2 ${theme === "dark" ? "text-gray-500" : "text-gray-400"}`}>...</span>
+        ) : (
+          <button
+            key={page}
+            onClick={() => onPageChange(page as number)}
+            className={`min-w-[40px] h-10 rounded-lg font-medium transition-colors ${
+              currentPage === page
+                ? "bg-tmdb-light-blue text-tmdb-dark-blue"
+                : theme === "dark"
+                ? "bg-gray-800 text-gray-300 hover:bg-gray-700"
+                : "bg-white text-gray-700 hover:bg-gray-100 border"
+            }`}
+          >
+            {page}
+          </button>
+        )
+      ))}
+
+      {/* Next */}
+      <button
+        onClick={() => onPageChange(currentPage + 1)}
+        disabled={currentPage === totalPages}
+        className={`p-2 rounded-lg transition-colors ${
+          currentPage === totalPages
+            ? "opacity-50 cursor-not-allowed"
+            : theme === "dark"
+            ? "bg-gray-800 text-white hover:bg-gray-700"
+            : "bg-white text-gray-900 hover:bg-gray-100 border"
+        }`}
+      >
+        <ChevronRight className="w-5 h-5" />
+      </button>
+    </div>
+  );
+}
+
 export default function Browse() {
   const navigate = useNavigate();
   const { theme, language } = useApp();
@@ -266,14 +235,15 @@ export default function Browse() {
   const [showFilters, setShowFilters] = useState(false);
   const [viewMode, setViewMode] = useState<ViewMode>("grid");
 
+  // Pagination
+  const [currentPage, setCurrentPage] = useState(parseInt(params.get("page") || "1"));
+
   // Get unique genres
   const genres = useMemo(() => {
     const genreSet = new Set<string>();
     allMovies.forEach((movie) => {
       const genre = language === "bg" ? movie.genre_bg || movie.genre : movie.genre;
-      if (genre) {
-        genre.split(",").forEach((g) => genreSet.add(g.trim()));
-      }
+      if (genre) genre.split(",").forEach((g) => genreSet.add(g.trim()));
     });
     return Array.from(genreSet).sort();
   }, [allMovies, language]);
@@ -287,7 +257,6 @@ export default function Browse() {
         setLoading(false);
         return;
       }
-
       try {
         setLoading(true);
         const data = await moviesApi.getAll();
@@ -299,7 +268,6 @@ export default function Browse() {
         setLoading(false);
       }
     };
-
     fetchMovies();
   }, []);
 
@@ -321,6 +289,7 @@ export default function Browse() {
       setSearching(true);
 
       if (mode === "title") {
+        // Title search - local filtering
         const lower = q.toLowerCase();
         const filtered = allMovies.filter((m) => {
           const title = (m.title ?? "").toLowerCase();
@@ -330,15 +299,18 @@ export default function Browse() {
         setSearchResults(filtered);
         setSnippets({});
       } else {
+        // AI search - call /ai/search endpoint
         try {
-          const results: SearchResult[] = await moviesApi.search(q);
-          setSearchResults(results.map((r) => r.movie));
+          const response = await api.get('/ai/search', { params: { q, top_k: 100 } });
+          const results = response.data || [];
+          setSearchResults(results.map((r: any) => r.movie));
           const map: Record<number, string> = {};
-          results.forEach((r) => {
+          results.forEach((r: any) => {
             if (r.snippet) map[r.movie.id] = r.snippet;
           });
           setSnippets(map);
-        } catch {
+        } catch (err) {
+          console.error("AI search failed, falling back to title search:", err);
           // Fallback to title search
           const lower = q.toLowerCase();
           const filtered = allMovies.filter((m) => {
@@ -352,6 +324,7 @@ export default function Browse() {
       }
 
       setSearching(false);
+      setCurrentPage(1);
     };
 
     if (allMovies.length > 0) {
@@ -382,50 +355,62 @@ export default function Browse() {
       }
     }
 
-    // Sort
-    const sorted = [...movies];
-    switch (sortBy) {
-      case "popularity":
-        sorted.sort((a, b) => ((b as any).review_count ?? 0) - ((a as any).review_count ?? 0));
-        break;
-      case "rating":
-        sorted.sort((a, b) => ((b as any).average_rating ?? 0) - ((a as any).average_rating ?? 0));
-        break;
-      case "title":
-        sorted.sort((a, b) => {
-          const titleA = language === "bg" ? a.title_bg || a.title : a.title;
-          const titleB = language === "bg" ? b.title_bg || b.title : b.title;
-          return titleA.localeCompare(titleB);
-        });
-        break;
-      case "release_date":
-        sorted.sort((a, b) => {
-          const dateA = (a as any).release_date ? new Date((a as any).release_date).getTime() : 0;
-          const dateB = (b as any).release_date ? new Date((b as any).release_date).getTime() : 0;
-          return dateB - dateA;
-        });
-        break;
+    // Sort (only if not AI search - AI results are already sorted by relevance)
+    if (!searchQuery || searchMode === "title") {
+      const sorted = [...movies];
+      switch (sortBy) {
+        case "popularity":
+          sorted.sort((a, b) => ((b as any).review_count ?? 0) - ((a as any).review_count ?? 0));
+          break;
+        case "rating":
+          sorted.sort((a, b) => ((b as any).average_rating ?? 0) - ((a as any).average_rating ?? 0));
+          break;
+        case "title":
+          sorted.sort((a, b) => {
+            const titleA = language === "bg" ? a.title_bg || a.title : a.title;
+            const titleB = language === "bg" ? b.title_bg || b.title : b.title;
+            return titleA.localeCompare(titleB);
+          });
+          break;
+        case "release_date":
+          sorted.sort((a, b) => {
+            const dateA = (a as any).release_date ? new Date((a as any).release_date).getTime() : 0;
+            const dateB = (b as any).release_date ? new Date((b as any).release_date).getTime() : 0;
+            return dateB - dateA;
+          });
+          break;
+      }
+      return sorted;
     }
 
-    return sorted;
-  }, [allMovies, searchResults, searchQuery, selectedGenre, selectedMood, sortBy, language]);
+    return movies;
+  }, [allMovies, searchResults, searchQuery, searchMode, selectedGenre, selectedMood, sortBy, language]);
 
-  const handleSearch = useCallback(
-    (e: React.FormEvent) => {
-      e.preventDefault();
-      const q = searchQuery.trim();
-      const newParams = new URLSearchParams();
-      if (q) {
-        newParams.set("q", q);
-        newParams.set("mode", searchMode);
-      }
-      if (selectedGenre !== "all") newParams.set("genre", selectedGenre);
-      if (selectedMood !== "all") newParams.set("mood", selectedMood);
-      if (sortBy !== "popularity") newParams.set("sort", sortBy);
-      setParams(newParams);
-    },
-    [searchQuery, searchMode, selectedGenre, selectedMood, sortBy, setParams]
-  );
+  // Pagination
+  const totalPages = Math.ceil(displayMovies.length / MOVIES_PER_PAGE);
+  const paginatedMovies = useMemo(() => {
+    const start = (currentPage - 1) * MOVIES_PER_PAGE;
+    return displayMovies.slice(start, start + MOVIES_PER_PAGE);
+  }, [displayMovies, currentPage]);
+
+  const handlePageChange = (page: number) => {
+    setCurrentPage(page);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  const handleSearch = useCallback((e: React.FormEvent) => {
+    e.preventDefault();
+    const q = searchQuery.trim();
+    const newParams = new URLSearchParams();
+    if (q) {
+      newParams.set("q", q);
+      newParams.set("mode", searchMode);
+    }
+    if (selectedGenre !== "all") newParams.set("genre", selectedGenre);
+    if (selectedMood !== "all") newParams.set("mood", selectedMood);
+    if (sortBy !== "popularity") newParams.set("sort", sortBy);
+    setParams(newParams);
+  }, [searchQuery, searchMode, selectedGenre, selectedMood, sortBy, setParams]);
 
   const clearSearch = () => {
     setSearchQuery("");
@@ -450,175 +435,124 @@ export default function Browse() {
       <div className={`border-b ${theme === "dark" ? "bg-tmdb-dark-blue border-gray-800" : "bg-white border-gray-200"}`}>
         <div className="max-w-7xl mx-auto px-4 md:px-8 py-6">
           <h1 className={`text-2xl font-bold ${theme === "dark" ? "text-white" : "text-gray-900"}`}>
-            {language === "bg" ? "Популярни филми" : "Popular Movies"}
+            {language === "bg" ? "Разгледай филми" : "Browse Movies"}
           </h1>
+
+          {/* Search */}
+          <form onSubmit={handleSearch} className="mt-4">
+            <div className="flex gap-2">
+              <div className="relative flex-1">
+                <input
+                  type="text"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  placeholder={searchMode === "ai" 
+                    ? (language === "bg" ? "Опиши какъв филм търсиш..." : "Describe what movie you're looking for...")
+                    : (language === "bg" ? "Търси по заглавие..." : "Search by title...")}
+                  className={`w-full pl-12 pr-4 py-3 rounded-xl border focus:outline-none focus:ring-2 focus:ring-tmdb-light-blue ${
+                    theme === "dark" ? "bg-gray-900 border-gray-700 text-white placeholder-gray-500" : "bg-white border-gray-300 text-gray-900 placeholder-gray-400"
+                  }`}
+                />
+                {searchMode === "ai" ? (
+                  <Sparkles className={`absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 ${theme === "dark" ? "text-purple-400" : "text-purple-500"}`} />
+                ) : (
+                  <Search className={`absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 ${theme === "dark" ? "text-gray-500" : "text-gray-400"}`} />
+                )}
+                {searchQuery && (
+                  <button type="button" onClick={clearSearch} className={`absolute right-4 top-1/2 -translate-y-1/2 ${theme === "dark" ? "text-gray-500 hover:text-gray-300" : "text-gray-400 hover:text-gray-600"}`}>
+                    <X className="w-5 h-5" />
+                  </button>
+                )}
+              </div>
+
+              {/* Search Mode Toggle */}
+              <div className={`flex rounded-xl border overflow-hidden ${theme === "dark" ? "border-gray-700" : "border-gray-300"}`}>
+                <button
+                  type="button"
+                  onClick={() => setSearchMode("ai")}
+                  className={`px-4 py-3 flex items-center gap-2 font-medium transition-colors ${
+                    searchMode === "ai"
+                      ? "bg-gradient-to-r from-purple-600 to-pink-600 text-white"
+                      : theme === "dark" ? "bg-gray-900 text-gray-400 hover:text-white" : "bg-white text-gray-500 hover:text-gray-700"
+                  }`}
+                >
+                  <Sparkles className="w-4 h-4" />
+                  <span className="hidden sm:inline">AI</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setSearchMode("title")}
+                  className={`px-4 py-3 flex items-center gap-2 font-medium transition-colors ${
+                    searchMode === "title"
+                      ? "bg-tmdb-light-blue text-tmdb-dark-blue"
+                      : theme === "dark" ? "bg-gray-900 text-gray-400 hover:text-white" : "bg-white text-gray-500 hover:text-gray-700"
+                  }`}
+                >
+                  <Search className="w-4 h-4" />
+                  <span className="hidden sm:inline">{language === "bg" ? "Заглавие" : "Title"}</span>
+                </button>
+              </div>
+            </div>
+          </form>
         </div>
       </div>
 
+      {/* Main Content */}
       <div className="max-w-7xl mx-auto px-4 md:px-8 py-6">
         <div className="flex flex-col lg:flex-row gap-6">
-          {/* Sidebar Filters */}
-          <aside className="lg:w-64 flex-shrink-0">
-            {/* Sort */}
-            <div className={`rounded-lg overflow-hidden border mb-4 ${
-              theme === "dark" ? "bg-gray-900 border-gray-800" : "bg-white border-gray-200 shadow-sm"
-            }`}>
-              <button
-                onClick={() => setShowFilters(!showFilters)}
-                className={`w-full px-4 py-3 flex items-center justify-between font-semibold ${
-                  theme === "dark" ? "text-white hover:bg-gray-800" : "text-gray-900 hover:bg-gray-50"
-                }`}
-              >
-                <span>{language === "bg" ? "Сортиране" : "Sort"}</span>
-                <ChevronDown className={`w-5 h-5 transition-transform ${showFilters ? "rotate-180" : ""}`} />
-              </button>
-              {showFilters && (
-                <div className={`px-4 pb-4 border-t ${theme === "dark" ? "border-gray-800" : "border-gray-200"}`}>
-                  <div className="pt-4 space-y-2">
-                    {(Object.keys(sortLabels) as SortOption[]).map((option) => (
-                      <label
-                        key={option}
-                        className={`flex items-center gap-2 cursor-pointer ${
-                          theme === "dark" ? "text-gray-300" : "text-gray-700"
-                        }`}
-                      >
-                        <input
-                          type="radio"
-                          name="sort"
-                          checked={sortBy === option}
-                          onChange={() => setSortBy(option)}
-                          className="accent-tmdb-light-blue"
-                        />
-                        {language === "bg" ? sortLabels[option].bg : sortLabels[option].en}
-                      </label>
-                    ))}
-                  </div>
-                </div>
-              )}
-            </div>
-
-            {/* Filters */}
-            <div className={`rounded-lg overflow-hidden border ${
-              theme === "dark" ? "bg-gray-900 border-gray-800" : "bg-white border-gray-200 shadow-sm"
-            }`}>
-              <div className={`px-4 py-3 font-semibold border-b ${
-                theme === "dark" ? "text-white border-gray-800" : "text-gray-900 border-gray-200"
-              }`}>
-                <Filter className="w-4 h-4 inline mr-2" />
+          {/* Sidebar */}
+          <aside className={`lg:w-60 flex-shrink-0 ${showFilters ? "block" : "hidden lg:block"}`}>
+            <div className={`rounded-xl border overflow-hidden sticky top-24 ${theme === "dark" ? "bg-gray-900 border-gray-800" : "bg-white border-gray-200"}`}>
+              <div className={`px-4 py-3 border-b font-semibold flex items-center gap-2 ${theme === "dark" ? "border-gray-800 text-white" : "border-gray-200 text-gray-900"}`}>
+                <Filter className="w-4 h-4" />
                 {language === "bg" ? "Филтри" : "Filters"}
               </div>
-              
-              {/* Search */}
-              <div className={`px-4 py-3 border-b ${theme === "dark" ? "border-gray-800" : "border-gray-200"}`}>
-                <form onSubmit={handleSearch}>
-                  <div className="flex gap-2 mb-3">
-                    <button
-                      type="button"
-                      onClick={() => setSearchMode("title")}
-                      className={`flex-1 px-2 py-1.5 text-xs font-medium rounded transition-colors flex items-center justify-center gap-1 ${
-                        searchMode === "title"
-                          ? "bg-tmdb-light-blue text-tmdb-dark-blue"
-                          : theme === "dark"
-                          ? "bg-gray-800 text-gray-300 hover:bg-gray-700"
-                          : "bg-gray-100 text-gray-600 hover:bg-gray-200"
-                      }`}
-                    >
-                      <Search className="w-3 h-3" />
-                      {language === "bg" ? "Заглавие" : "Title"}
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setSearchMode("ai")}
-                      className={`flex-1 px-2 py-1.5 text-xs font-medium rounded transition-colors flex items-center justify-center gap-1 ${
-                        searchMode === "ai"
-                          ? "bg-gradient-to-r from-emerald-500 to-cyan-500 text-white"
-                          : theme === "dark"
-                          ? "bg-gray-800 text-gray-300 hover:bg-gray-700"
-                          : "bg-gray-100 text-gray-600 hover:bg-gray-200"
-                      }`}
-                    >
-                      <Sparkles className="w-3 h-3" />
-                      AI
-                    </button>
-                  </div>
-                  <div className="relative">
-                    <input
-                      type="text"
-                      value={searchQuery}
-                      onChange={(e) => setSearchQuery(e.target.value)}
-                      placeholder={
-                        searchMode === "ai"
-                          ? language === "bg" ? "Търси с AI..." : "AI search..."
-                          : language === "bg" ? "Търси..." : "Search..."
-                      }
-                      className={`w-full px-3 py-2 pr-8 text-sm rounded-lg border focus:outline-none focus:ring-2 focus:ring-tmdb-light-blue ${
-                        theme === "dark"
-                          ? "bg-gray-800 border-gray-700 text-white placeholder:text-gray-500"
-                          : "bg-gray-50 border-gray-300 text-gray-900 placeholder:text-gray-400"
-                      }`}
-                    />
-                    {searchQuery ? (
-                      <button
-                        type="button"
-                        onClick={clearSearch}
-                        className={`absolute right-2 top-1/2 -translate-y-1/2 ${
-                          theme === "dark" ? "text-gray-400 hover:text-white" : "text-gray-400 hover:text-gray-600"
-                        }`}
-                      >
-                        <X className="w-4 h-4" />
-                      </button>
-                    ) : (
-                      <Search className={`absolute right-2 top-1/2 -translate-y-1/2 w-4 h-4 ${
-                        theme === "dark" ? "text-gray-500" : "text-gray-400"
-                      }`} />
-                    )}
-                  </div>
-                </form>
-              </div>
 
-              {/* Genre Filter */}
-              <div className="px-4 py-3">
-                <label className={`block text-sm font-medium mb-2 ${
-                  theme === "dark" ? "text-gray-300" : "text-gray-700"
-                }`}>
-                  {language === "bg" ? "Жанр" : "Genre"}
+              {/* Sort */}
+              <div className={`px-4 py-3 border-b ${theme === "dark" ? "border-gray-800" : "border-gray-200"}`}>
+                <label className={`block text-sm font-medium mb-2 ${theme === "dark" ? "text-gray-300" : "text-gray-700"}`}>
+                  {language === "bg" ? "Сортирай" : "Sort by"}
                 </label>
                 <select
-                  value={selectedGenre}
-                  onChange={(e) => setSelectedGenre(e.target.value)}
-                  className={`w-full px-3 py-2 text-sm rounded-lg border focus:outline-none focus:ring-2 focus:ring-tmdb-light-blue ${
-                    theme === "dark"
-                      ? "bg-gray-800 border-gray-700 text-white"
-                      : "bg-gray-50 border-gray-300 text-gray-900"
-                  }`}
+                  value={sortBy}
+                  onChange={(e) => setSortBy(e.target.value as SortOption)}
+                  className={`w-full px-3 py-2 rounded-lg border ${theme === "dark" ? "bg-gray-800 border-gray-700 text-white" : "bg-gray-50 border-gray-200 text-gray-900"}`}
                 >
-                  <option value="all">{language === "bg" ? "Всички" : "All"}</option>
-                  {genres.map((genre) => (
-                    <option key={genre} value={genre}>
-                      {genre}
-                    </option>
+                  {(Object.keys(sortLabels) as SortOption[]).map((s) => (
+                    <option key={s} value={s}>{language === "bg" ? sortLabels[s].bg : sortLabels[s].en}</option>
                   ))}
                 </select>
               </div>
 
-              {/* Mood Filter */}
+              {/* Genre */}
+              <div className={`px-4 py-3 border-b ${theme === "dark" ? "border-gray-800" : "border-gray-200"}`}>
+                <label className={`block text-sm font-medium mb-2 ${theme === "dark" ? "text-gray-300" : "text-gray-700"}`}>
+                  {language === "bg" ? "Жанр" : "Genre"}
+                </label>
+                <select
+                  value={selectedGenre}
+                  onChange={(e) => { setSelectedGenre(e.target.value); setCurrentPage(1); }}
+                  className={`w-full px-3 py-2 rounded-lg border ${theme === "dark" ? "bg-gray-800 border-gray-700 text-white" : "bg-gray-50 border-gray-200 text-gray-900"}`}
+                >
+                  <option value="all">{language === "bg" ? "Всички" : "All"}</option>
+                  {genres.map((g) => <option key={g} value={g}>{g}</option>)}
+                </select>
+              </div>
+
+              {/* Mood */}
               <div className="px-4 py-3">
-                <label className={`block text-sm font-medium mb-2 ${
-                  theme === "dark" ? "text-gray-300" : "text-gray-700"
-                }`}>
+                <label className={`block text-sm font-medium mb-2 ${theme === "dark" ? "text-gray-300" : "text-gray-700"}`}>
                   {language === "bg" ? "Настроение" : "Mood"}
                 </label>
                 <div className="grid grid-cols-2 gap-2">
                   {(Object.keys(moodLabels) as MoodOption[]).map((mood) => (
                     <button
                       key={mood}
-                      onClick={() => setSelectedMood(mood)}
+                      onClick={() => { setSelectedMood(mood); setCurrentPage(1); }}
                       className={`px-2 py-2 text-xs rounded-lg border transition-colors text-left ${
                         selectedMood === mood
                           ? "bg-tmdb-light-blue text-tmdb-dark-blue border-tmdb-light-blue font-medium"
-                          : theme === "dark"
-                          ? "bg-gray-800 border-gray-700 text-gray-300 hover:bg-gray-700"
-                          : "bg-gray-50 border-gray-200 text-gray-600 hover:bg-gray-100"
+                          : theme === "dark" ? "bg-gray-800 border-gray-700 text-gray-300 hover:bg-gray-700" : "bg-gray-50 border-gray-200 text-gray-600 hover:bg-gray-100"
                       }`}
                     >
                       <span className="mr-1">{moodLabels[mood].emoji}</span>
@@ -627,158 +561,125 @@ export default function Browse() {
                   ))}
                 </div>
               </div>
-            </div>
 
-            {/* Active Filters */}
-            {(selectedGenre !== "all" || selectedMood !== "all" || searchQuery) && (
-              <div className={`mt-4 p-3 rounded-lg border ${
-                theme === "dark" ? "bg-gray-900 border-gray-800" : "bg-white border-gray-200"
-              }`}>
-                <p className={`text-xs font-medium mb-2 ${theme === "dark" ? "text-gray-400" : "text-gray-500"}`}>
-                  {language === "bg" ? "Активни филтри:" : "Active filters:"}
-                </p>
-                <div className="flex flex-wrap gap-2">
-                  {searchQuery && (
-                    <span className={`inline-flex items-center gap-1 px-2 py-1 rounded text-xs ${
-                      theme === "dark" ? "bg-tmdb-light-blue/20 text-tmdb-light-blue" : "bg-blue-100 text-blue-700"
-                    }`}>
-                      {searchMode === "ai" ? <Sparkles className="w-3 h-3" /> : <Search className="w-3 h-3" />}
-                      "{searchQuery}"
-                      <button onClick={clearSearch} className="hover:opacity-70">
-                        <X className="w-3 h-3" />
-                      </button>
-                    </span>
-                  )}
-                  {selectedGenre !== "all" && (
-                    <span className={`inline-flex items-center gap-1 px-2 py-1 rounded text-xs ${
-                      theme === "dark" ? "bg-purple-500/20 text-purple-400" : "bg-purple-100 text-purple-700"
-                    }`}>
-                      {selectedGenre}
-                      <button onClick={() => setSelectedGenre("all")} className="hover:opacity-70">
-                        <X className="w-3 h-3" />
-                      </button>
-                    </span>
-                  )}
-                  {selectedMood !== "all" && (
-                    <span className={`inline-flex items-center gap-1 px-2 py-1 rounded text-xs ${
-                      theme === "dark" ? "bg-amber-500/20 text-amber-400" : "bg-amber-100 text-amber-700"
-                    }`}>
-                      {moodLabels[selectedMood].emoji} {language === "bg" ? moodLabels[selectedMood].bg : moodLabels[selectedMood].en}
-                      <button onClick={() => setSelectedMood("all")} className="hover:opacity-70">
-                        <X className="w-3 h-3" />
-                      </button>
-                    </span>
-                  )}
+              {/* Active Filters */}
+              {(selectedGenre !== "all" || selectedMood !== "all" || searchQuery) && (
+                <div className={`px-4 py-3 border-t ${theme === "dark" ? "border-gray-800" : "border-gray-200"}`}>
+                  <p className={`text-xs font-medium mb-2 ${theme === "dark" ? "text-gray-400" : "text-gray-500"}`}>
+                    {language === "bg" ? "Активни:" : "Active:"}
+                  </p>
+                  <div className="flex flex-wrap gap-2">
+                    {searchQuery && (
+                      <span className={`inline-flex items-center gap-1 px-2 py-1 rounded text-xs ${theme === "dark" ? "bg-purple-500/20 text-purple-400" : "bg-purple-100 text-purple-700"}`}>
+                        {searchMode === "ai" ? <Sparkles className="w-3 h-3" /> : <Search className="w-3 h-3" />}
+                        "{searchQuery.length > 15 ? searchQuery.slice(0, 15) + "..." : searchQuery}"
+                        <button onClick={clearSearch}><X className="w-3 h-3" /></button>
+                      </span>
+                    )}
+                    {selectedGenre !== "all" && (
+                      <span className={`inline-flex items-center gap-1 px-2 py-1 rounded text-xs ${theme === "dark" ? "bg-blue-500/20 text-blue-400" : "bg-blue-100 text-blue-700"}`}>
+                        {selectedGenre}
+                        <button onClick={() => setSelectedGenre("all")}><X className="w-3 h-3" /></button>
+                      </span>
+                    )}
+                    {selectedMood !== "all" && (
+                      <span className={`inline-flex items-center gap-1 px-2 py-1 rounded text-xs ${theme === "dark" ? "bg-amber-500/20 text-amber-400" : "bg-amber-100 text-amber-700"}`}>
+                        {moodLabels[selectedMood].emoji}
+                        <button onClick={() => setSelectedMood("all")}><X className="w-3 h-3" /></button>
+                      </span>
+                    )}
+                  </div>
                 </div>
-              </div>
-            )}
+              )}
+            </div>
           </aside>
 
-          {/* Main Content */}
+          {/* Main */}
           <main className="flex-1 min-w-0">
             {/* Results Header */}
             <div className="flex items-center justify-between mb-4">
-              <p className={`text-sm ${theme === "dark" ? "text-gray-400" : "text-gray-600"}`}>
-                {searchQuery ? (
-                  <>
-                    {displayMovies.length} {language === "bg" ? "резултата" : "results"}
-                  </>
-                ) : (
-                  <>
-                    {displayMovies.length} {language === "bg" ? "филма" : "movies"}
-                  </>
-                )}
-              </p>
-              
-              {/* View Toggle */}
+              <div className="flex items-center gap-3">
+                <button onClick={() => setShowFilters(!showFilters)} className={`lg:hidden p-2 rounded-lg ${theme === "dark" ? "bg-gray-800 text-white" : "bg-white text-gray-700 border"}`}>
+                  <Filter className="w-5 h-5" />
+                </button>
+                <p className={`text-sm ${theme === "dark" ? "text-gray-400" : "text-gray-600"}`}>
+                  {displayMovies.length} {language === "bg" ? "филма" : "movies"}
+                  {totalPages > 1 && ` • ${language === "bg" ? "Страница" : "Page"} ${currentPage}/${totalPages}`}
+                </p>
+              </div>
+
               <div className="flex items-center gap-1">
-                <button
-                  onClick={() => setViewMode("grid")}
-                  className={`p-2 rounded transition-colors ${
-                    viewMode === "grid"
-                      ? "bg-tmdb-light-blue text-tmdb-dark-blue"
-                      : theme === "dark"
-                      ? "text-gray-400 hover:text-white hover:bg-gray-800"
-                      : "text-gray-400 hover:text-gray-600 hover:bg-gray-100"
-                  }`}
-                >
+                <button onClick={() => setViewMode("grid")} className={`p-2 rounded ${viewMode === "grid" ? "bg-tmdb-light-blue text-tmdb-dark-blue" : theme === "dark" ? "text-gray-400 hover:bg-gray-800" : "text-gray-400 hover:bg-gray-100"}`}>
                   <Grid className="w-5 h-5" />
                 </button>
-                <button
-                  onClick={() => setViewMode("list")}
-                  className={`p-2 rounded transition-colors ${
-                    viewMode === "list"
-                      ? "bg-tmdb-light-blue text-tmdb-dark-blue"
-                      : theme === "dark"
-                      ? "text-gray-400 hover:text-white hover:bg-gray-800"
-                      : "text-gray-400 hover:text-gray-600 hover:bg-gray-100"
-                  }`}
-                >
+                <button onClick={() => setViewMode("list")} className={`p-2 rounded ${viewMode === "list" ? "bg-tmdb-light-blue text-tmdb-dark-blue" : theme === "dark" ? "text-gray-400 hover:bg-gray-800" : "text-gray-400 hover:bg-gray-100"}`}>
                   <List className="w-5 h-5" />
                 </button>
               </div>
             </div>
 
-            {/* Movies */}
-            {loading || searching ? (
-              viewMode === "grid" ? (
-                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
-                  {[...Array(20)].map((_, i) => (
-                    <div key={i} className="animate-pulse">
-                      <div className={`aspect-[2/3] rounded-lg ${theme === "dark" ? "bg-gray-800" : "bg-gray-200"}`} />
-                      <div className={`h-4 w-3/4 rounded mt-6 ${theme === "dark" ? "bg-gray-800" : "bg-gray-200"}`} />
-                      <div className={`h-3 w-1/2 rounded mt-2 ${theme === "dark" ? "bg-gray-800" : "bg-gray-200"}`} />
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                <div className="space-y-4">
-                  {[...Array(8)].map((_, i) => (
-                    <div
-                      key={i}
-                      className={`flex gap-4 p-4 rounded-lg animate-pulse ${theme === "dark" ? "bg-gray-900" : "bg-white"}`}
-                    >
-                      <div className={`w-[94px] h-[141px] rounded ${theme === "dark" ? "bg-gray-800" : "bg-gray-200"}`} />
-                      <div className="flex-1">
-                        <div className={`h-5 w-2/3 rounded ${theme === "dark" ? "bg-gray-800" : "bg-gray-200"}`} />
-                        <div className={`h-4 w-1/3 rounded mt-2 ${theme === "dark" ? "bg-gray-800" : "bg-gray-200"}`} />
-                        <div className={`h-4 w-full rounded mt-4 ${theme === "dark" ? "bg-gray-800" : "bg-gray-200"}`} />
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )
-            ) : displayMovies.length === 0 ? (
+            {/* Loading */}
+            {(loading || searching) && (
+              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
+                {[...Array(20)].map((_, i) => (
+                  <div key={i} className="animate-pulse">
+                    <div className={`aspect-[2/3] rounded-lg ${theme === "dark" ? "bg-gray-800" : "bg-gray-200"}`} />
+                    <div className={`h-4 w-3/4 rounded mt-3 ${theme === "dark" ? "bg-gray-800" : "bg-gray-200"}`} />
+                    <div className={`h-3 w-1/2 rounded mt-2 ${theme === "dark" ? "bg-gray-800" : "bg-gray-200"}`} />
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {/* Empty */}
+            {!loading && !searching && displayMovies.length === 0 && (
               <div className={`text-center py-16 ${theme === "dark" ? "text-gray-400" : "text-gray-500"}`}>
                 <Search className="w-16 h-16 mx-auto mb-4 opacity-50" />
                 <p className="text-xl font-medium">{language === "bg" ? "Няма намерени филми" : "No movies found"}</p>
-                <p className="mt-2">
-                  {language === "bg" ? "Опитайте с различно търсене или филтри" : "Try different search terms or filters"}
-                </p>
+                <p className="mt-2">{language === "bg" ? "Опитайте с различно търсене" : "Try different search"}</p>
               </div>
-            ) : viewMode === "grid" ? (
-              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-6">
-                {displayMovies.map((movie) => (
-                  <MovieCardGrid
-                    key={movie.id}
-                    movie={movie}
-                    onClick={() => handleMovieClick(movie)}
-                    language={language}
-                  />
-                ))}
-              </div>
-            ) : (
-              <div className="space-y-4">
-                {displayMovies.map((movie) => (
-                  <MovieCardList
-                    key={movie.id}
-                    movie={movie}
-                    onClick={() => handleMovieClick(movie)}
-                    language={language}
-                    snippet={snippets[movie.id]}
-                  />
-                ))}
-              </div>
+            )}
+
+            {/* Movies Grid/List */}
+            {!loading && !searching && displayMovies.length > 0 && (
+              <>
+                {viewMode === "grid" ? (
+                  <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-5">
+                    {paginatedMovies.map((movie) => (
+                      <MovieCardGrid
+                        key={movie.id}
+                        movie={movie}
+                        onClick={() => handleMovieClick(movie)}
+                        language={language}
+                        theme={theme}
+                        snippet={snippets[movie.id]}
+                      />
+                    ))}
+                  </div>
+                ) : (
+                  <div className="space-y-4">
+                    {paginatedMovies.map((movie) => (
+                      <MovieCardList
+                        key={movie.id}
+                        movie={movie}
+                        onClick={() => handleMovieClick(movie)}
+                        language={language}
+                        theme={theme}
+                        snippet={snippets[movie.id]}
+                      />
+                    ))}
+                  </div>
+                )}
+
+                {/* Pagination */}
+                <Pagination
+                  currentPage={currentPage}
+                  totalPages={totalPages}
+                  onPageChange={handlePageChange}
+                  theme={theme}
+                  language={language}
+                />
+              </>
             )}
           </main>
         </div>
