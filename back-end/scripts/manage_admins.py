@@ -1,24 +1,58 @@
 #!/usr/bin/env python3
 """
 Admin Management Tool for Movie Platform
-Run: python manage_admins.py
+Run from backend root: python scripts/manage_admins.py
+Or from scripts folder: python manage_admins.py
 
 This script uses your existing database.py and security.py
-No code duplication - just imports what you already have!
 """
 
 import sys
 import os
-sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '../..')))
 
-from app.database import SessionLocal, Base, engine
+# Get the directory where this script is located
+script_dir = os.path.dirname(os.path.abspath(__file__))
+
+# Go up one level to backend root (since script is in scripts/ folder)
+backend_root = os.path.abspath(os.path.join(script_dir, '..'))
+
+# Add backend root to path so we can import app modules
+sys.path.insert(0, backend_root)
+
+from app.database import SyncSessionLocal, Base, sync_engine
 from app.models.user import User
-from app.models.review import Review  # Import Review to register it
-from app.models.movie import Movie    # Import Movie to register it
-from app.utils.security import hash_password
+
+# Try to import hash_password from different locations
+try:
+    from app.utils.security import hash_password
+except ImportError:
+    try:
+        from app.core.security import hash_password
+    except ImportError:
+        try:
+            from app.auth import hash_password
+        except ImportError:
+            # Fallback: use passlib directly
+            from passlib.context import CryptContext
+            pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+            def hash_password(password: str) -> str:
+                return pwd_context.hash(password)
+
+# Alias for cleaner code
+SessionLocal = SyncSessionLocal
+engine = sync_engine
+
+# Import other models to ensure they're registered
+try:
+    from app.models.review import Review
+    from app.models.movie import Movie
+    from app.models.watchlist import WatchlistItem
+except ImportError:
+    pass  # Some models might not exist
 
 # Ensure all tables are created
 Base.metadata.create_all(bind=engine)
+
 
 def list_all_users():
     """Display all users with their admin status"""
@@ -38,13 +72,16 @@ def list_all_users():
         
         for user in users:
             status = "👑 ADMIN" if user.is_admin else "👤 USER"
-            print(f"{user.id:<5} {status:<15} {user.name:<25} {user.email:<35}")
+            name = (user.name or "")[:24]
+            email = (user.email or "")[:34]
+            print(f"{user.id:<5} {status:<15} {name:<25} {email:<35}")
         
         print("="*80 + "\n")
     except Exception as e:
         print(f"❌ Error: {e}")
     finally:
         db.close()
+
 
 def promote_to_admin():
     """Make a user an admin by email"""
@@ -69,7 +106,7 @@ def promote_to_admin():
             return
         
         # Confirm action
-        print(f"\n📝 User Details:")
+        print(f"\n📝 User Detail:")
         print(f"   ID: {user.id}")
         print(f"   Name: {user.name}")
         print(f"   Email: {user.email}")
@@ -89,6 +126,7 @@ def promote_to_admin():
         db.rollback()
     finally:
         db.close()
+
 
 def revoke_admin_privileges():
     """Revoke admin privileges from a user"""
@@ -112,7 +150,7 @@ def revoke_admin_privileges():
             return
         
         # Confirm action
-        print(f"\n📝 Admin Details:")
+        print(f"\n📝 Admin Detail:")
         print(f"   ID: {user.id}")
         print(f"   Name: {user.name}")
         print(f"   Email: {user.email}")
@@ -131,6 +169,7 @@ def revoke_admin_privileges():
         db.rollback()
     finally:
         db.close()
+
 
 def create_new_admin():
     """Create a brand new admin user"""
@@ -186,6 +225,7 @@ def create_new_admin():
     finally:
         db.close()
 
+
 def show_menu():
     """Display the main menu"""
     print("\n" + "="*80)
@@ -197,6 +237,7 @@ def show_menu():
     print("4. ➕ Create new admin user")
     print("5. 🚪 Exit")
     print("="*80)
+
 
 def main():
     """Main program loop"""
@@ -221,6 +262,7 @@ def main():
             print("\n❌ Invalid option. Please select 1-5.\n")
         
         input("Press ENTER to continue...")
+
 
 if __name__ == "__main__":
     try:

@@ -1,0 +1,38 @@
+import { useApp } from "../context/AppContext";
+
+export default function Footer() {
+  const { theme, language } = useApp();
+
+  return (
+    <footer className={`border-t ${theme === "dark" ? "bg-tmdb-dark-blue border-gray-800" : "bg-white border-gray-200"}`}>
+      <div className="max-w-7xl mx-auto px-4 md:px-8 py-8">
+        <div className="flex flex-col items-center gap-4">
+          {/* TMDB Logo */}
+          <a
+            href="https://www.themoviedb.org/"
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            <img
+              src="https://www.themoviedb.org/assets/2/v4/logos/v2/blue_short-8e7b30f73a4020692ccca9c88bafe5dcb6f8a62a4c6bc55cd9ba82bb2cd95f6c.svg"
+              alt="TMDB Logo"
+              className="h-6"
+            />
+          </a>
+
+          {/* Required Disclaimer */}
+          <p className={`text-xs text-center max-w-lg ${theme === "dark" ? "text-gray-500" : "text-gray-600"}`}>
+            {language === "bg"
+              ? "Този продукт използва TMDB API, но не е одобрен или сертифициран от TMDB. Всички данни за филми са предоставени от The Movie Database (TMDB)."
+              : "This product uses the TMDB API but is not endorsed or certified by TMDB. All movie data is provided by The Movie Database (TMDB)."}
+          </p>
+
+          {/* Copyright */}
+          <p className={`text-xs ${theme === "dark" ? "text-gray-600" : "text-gray-400"}`}>
+            © {new Date().getFullYear()} MovieApp
+          </p>
+        </div>
+      </div>
+    </footer>
+  );
+}

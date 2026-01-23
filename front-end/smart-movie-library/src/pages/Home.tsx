@@ -113,7 +113,45 @@ function ForYouCarousel({ recommendations, language }: { recommendations: Recomm
     return () => ref?.removeEventListener("scroll", checkScroll);
   }, [recommendations]);
 
-  if (!recommendations || recommendations.length < 3) return null;
+  // Check if recommendations are actually personalized (not just generic trending/popular)
+  const isPersonalized = (rec: Recommendation): boolean => {
+    if (!rec.explanation) return false;
+    const { based_on, similar_to, reasons, reasons_bg, reason } = rec.explanation as any;
+    
+    // Check if it's a backend fallback (has "reason" field with generic text)
+    if (reason) {
+      const genericReasons = ["popular movie", "trending", "error"];
+      if (genericReasons.some(g => reason.toLowerCase().includes(g))) {
+        return false;
+      }
+    }
+    
+    // Has specific movie-based reason
+    if (based_on && based_on.length > 0) return true;
+    if (similar_to) return true;
+    
+    // Check if reasons array has personalized content (not generic)
+    const allReasons = [...(reasons || []), ...(reasons_bg || [])];
+    const genericPhrases = [
+      "trending", "popular", "top rated", "highly rated",
+      "популярен", "топ", "висок рейтинг", "trending now",
+      "popular movie", "popular choice"
+    ];
+    
+    // If no reasons at all, not personalized
+    if (allReasons.length === 0 && !reason) return false;
+    
+    return allReasons.some(r => 
+      r && !genericPhrases.some(phrase => r.toLowerCase().includes(phrase))
+    );
+  };
+
+  // Count how many recommendations are actually personalized
+  const personalizedCount = recommendations.filter(isPersonalized).length;
+  
+  // Don't show section if less than 3 personalized recommendations
+  // This prevents showing "For You" with just trending movies
+  if (!recommendations || recommendations.length < 3 || personalizedCount < 2) return null;
 
   // Get the reason for a recommendation
   const getReason = (rec: Recommendation): string | null => {

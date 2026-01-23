@@ -103,12 +103,11 @@ export default function Login() {
                 type="email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                placeholder="you@example.com"
                 autoComplete="email"
                 className={`w-full pl-11 pr-4 py-3 rounded-lg border focus:outline-none focus:ring-2 focus:ring-tmdb-light-blue ${
                   theme === "dark"
-                    ? "bg-gray-800 border-gray-700 text-white placeholder:text-gray-500"
-                    : "bg-gray-50 border-gray-300 text-gray-900 placeholder:text-gray-400"
+                    ? "bg-gray-800 border-gray-700 text-white"
+                    : "bg-gray-50 border-gray-300 text-gray-900"
                 }`}
               />
             </div>
@@ -129,18 +128,17 @@ export default function Login() {
                 type={showPassword ? "text" : "password"}
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                placeholder="••••••••"
                 autoComplete="current-password"
                 className={`w-full pl-11 pr-12 py-3 rounded-lg border focus:outline-none focus:ring-2 focus:ring-tmdb-light-blue ${
                   theme === "dark"
-                    ? "bg-gray-800 border-gray-700 text-white placeholder:text-gray-500"
-                    : "bg-gray-50 border-gray-300 text-gray-900 placeholder:text-gray-400"
+                    ? "bg-gray-800 border-gray-700 text-white"
+                    : "bg-gray-50 border-gray-300 text-gray-900"
                 }`}
               />
               <button
                 type="button"
                 onClick={() => setShowPassword(!showPassword)}
-                className={`absolute right-3 top-1/2 -translate-y-1/2 ${
+                className={`absolute right-3 top-0 bottom-0 flex items-center ${
                   theme === "dark" ? "text-gray-500 hover:text-gray-300" : "text-gray-400 hover:text-gray-600"
                 }`}
               >

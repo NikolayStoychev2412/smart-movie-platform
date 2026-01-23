@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import { useState, useEffect, useCallback, useMemo } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import type { Movie } from "../types";
@@ -21,7 +22,7 @@ const movieCache = {
   },
 };
 
-type SortOption = "popularity" | "rating" | "title" | "release_date";
+type SortOption = "popularity" | "rating" | "title" | "release_date" | "relevance";
 type ViewMode = "grid" | "list";
 type MoodOption = "all" | "funny" | "scary" | "romantic" | "exciting" | "thoughtful" | "dark" | "uplifting";
 
@@ -231,7 +232,7 @@ export default function Browse() {
   const [searchMode, setSearchMode] = useState<"ai" | "title">(params.get("mode") === "title" ? "title" : "ai");
   const [selectedGenre, setSelectedGenre] = useState(params.get("genre") || "all");
   const [selectedMood, setSelectedMood] = useState<MoodOption>((params.get("mood") as MoodOption) || "all");
-  const [sortBy, setSortBy] = useState<SortOption>((params.get("sort") as SortOption) || "popularity");
+  const [sortBy, setSortBy] = useState<SortOption>((params.get("sort") as SortOption) || "rating");
   const [showFilters, setShowFilters] = useState(false);
   const [viewMode, setViewMode] = useState<ViewMode>("grid");
 
@@ -301,7 +302,7 @@ export default function Browse() {
       } else {
         // AI search - call /ai/search endpoint
         try {
-          const response = await api.get('/ai/search', { params: { q, top_k: 100 } });
+          const response = await api.get('/ai/search', { params: { q, top_k: 50 } });
           const results = response.data || [];
           setSearchResults(results.map((r: any) => r.movie));
           const map: Record<number, string> = {};
@@ -309,6 +310,8 @@ export default function Browse() {
             if (r.snippet) map[r.movie.id] = r.snippet;
           });
           setSnippets(map);
+          // Default to relevance sort for AI search
+          if (sortBy !== "relevance") setSortBy("relevance");
         } catch (err) {
           console.error("AI search failed, falling back to title search:", err);
           // Fallback to title search
@@ -355,36 +358,35 @@ export default function Browse() {
       }
     }
 
-    // Sort (only if not AI search - AI results are already sorted by relevance)
-    if (!searchQuery || searchMode === "title") {
-      const sorted = [...movies];
-      switch (sortBy) {
-        case "popularity":
-          sorted.sort((a, b) => ((b as any).review_count ?? 0) - ((a as any).review_count ?? 0));
-          break;
-        case "rating":
-          sorted.sort((a, b) => ((b as any).average_rating ?? 0) - ((a as any).average_rating ?? 0));
-          break;
-        case "title":
-          sorted.sort((a, b) => {
-            const titleA = language === "bg" ? a.title_bg || a.title : a.title;
-            const titleB = language === "bg" ? b.title_bg || b.title : b.title;
-            return titleA.localeCompare(titleB);
-          });
-          break;
-        case "release_date":
-          sorted.sort((a, b) => {
-            const dateA = (a as any).release_date ? new Date((a as any).release_date).getTime() : 0;
-            const dateB = (b as any).release_date ? new Date((b as any).release_date).getTime() : 0;
-            return dateB - dateA;
-          });
-          break;
-      }
-      return sorted;
+    // Sort - always apply sorting (even for AI search if user changes sort)
+    const sorted = [...movies];
+    switch (sortBy) {
+      case "popularity":
+        sorted.sort((a, b) => ((b as any).review_count ?? 0) - ((a as any).review_count ?? 0));
+        break;
+      case "rating":
+        sorted.sort((a, b) => ((b as any).average_rating ?? 0) - ((a as any).average_rating ?? 0));
+        break;
+      case "title":
+        sorted.sort((a, b) => {
+          const titleA = language === "bg" ? a.title_bg || a.title : a.title;
+          const titleB = language === "bg" ? b.title_bg || b.title : b.title;
+          return titleA.localeCompare(titleB);
+        });
+        break;
+      case "release_date":
+        sorted.sort((a, b) => {
+          const dateA = (a as any).release_date ? new Date((a as any).release_date).getTime() : 0;
+          const dateB = (b as any).release_date ? new Date((b as any).release_date).getTime() : 0;
+          return dateB - dateA;
+        });
+        break;
+      case "relevance":
+        // Keep original order (AI relevance) - don't sort
+        return movies;
     }
-
-    return movies;
-  }, [allMovies, searchResults, searchQuery, searchMode, selectedGenre, selectedMood, sortBy, language]);
+    return sorted;
+  }, [allMovies, searchResults, searchQuery, selectedGenre, selectedMood, sortBy, language]);
 
   // Pagination
   const totalPages = Math.ceil(displayMovies.length / MOVIES_PER_PAGE);
@@ -423,10 +425,11 @@ export default function Browse() {
   const handleMovieClick = (movie: Movie) => navigate(`/movie/${movie.id}`);
 
   const sortLabels: Record<SortOption, { en: string; bg: string }> = {
-    popularity: { en: "Popularity", bg: "Популярност" },
+    relevance: { en: "Relevance", bg: "Релевантност" },
     rating: { en: "Rating", bg: "Рейтинг" },
-    title: { en: "Title", bg: "Заглавие" },
+    popularity: { en: "Popularity", bg: "Популярност" },
     release_date: { en: "Release Date", bg: "Дата" },
+    title: { en: "Title", bg: "Заглавие" },
   };
 
   return (
