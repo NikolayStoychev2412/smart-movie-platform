@@ -1,293 +1,156 @@
 # app/models/movie.py
 """
-Enhanced Movie model with full TMDb support:
-- Cast & Crew
-- Videos (trailers, teasers)
-- Release dates
-- Production details
-- Multiple images (posters, backdrops)
+Movie model with quality flags for diploma project.
+
+New flags:
+- has_bg_translation: True if Bulgarian translation is valid
+- has_text_for_embedding: True if summary exists for AI features
+- is_popular_seed: True if imported from popular/trending lists
 """
-from sqlalchemy import Column, Integer, String, Float, Text, JSON, Date, Boolean
+
+from sqlalchemy import Column, Integer, String, Float, Text, Boolean, Date, DateTime, JSON
 from sqlalchemy.orm import relationship
+from sqlalchemy.sql import func
 from app.database import Base
-from typing import List, Dict, Optional
 
 
 class Movie(Base):
     __tablename__ = "movies"
     
-    # =========================================================================
-    # PRIMARY KEY
-    # =========================================================================
+    # === PRIMARY KEY ===
     id = Column(Integer, primary_key=True, index=True)
     
-    # =========================================================================
-    # CORE FIELDS (English)
-    # =========================================================================
-    title = Column(String, nullable=False, index=True)
-    genre = Column(String, nullable=False, index=True)
-    summary = Column(Text)  # overview from TMDb
-    tagline = Column(String, nullable=True)  # Short catchy tagline
+    # === EXTERNAL IDs ===
+    tmdb_id = Column(Integer, unique=True, index=True)
+    imdb_id = Column(String(20), index=True)
     
-    # =========================================================================
-    # BULGARIAN TRANSLATIONS
-    # =========================================================================
-    title_bg = Column(String, nullable=True)
-    genre_bg = Column(String, nullable=True)
-    summary_bg = Column(Text, nullable=True)
-    tagline_bg = Column(String, nullable=True)
+    # === ENGLISH CONTENT ===
+    title = Column(String(500), nullable=False, index=True)
+    original_title = Column(String(500))
+    tagline = Column(String(500))
+    summary = Column(Text)  # English overview
     
-    # =========================================================================
-    # TMDB IDENTIFIERS
-    # =========================================================================
-    tmdb_id = Column(Integer, unique=True, index=True, nullable=True)
-    imdb_id = Column(String, unique=True, index=True, nullable=True)
+    # === BULGARIAN CONTENT ===
+    title_bg = Column(String(500))  # Validated Bulgarian title
+    tagline_bg = Column(String(500))
+    summary_bg = Column(Text)  # Validated Bulgarian overview
     
-    # =========================================================================
-    # IMAGES
-    # =========================================================================
-    poster_url = Column(String)  # Main poster (w500)
-    poster_path = Column(String)  # TMDb path (for different sizes)
-    backdrop_url = Column(String)  # Wide background image
-    backdrop_path = Column(String)  # TMDb path
+    # === GENRES ===
+    genre = Column(String(500))  # English genres (comma-separated)
+    genre_bg = Column(String(500))  # Bulgarian genres
+    genres = Column(JSON)  # [{id, name}] - structured genre data
     
-    # =========================================================================
-    # RATINGS & POPULARITY
-    # =========================================================================
-    average_rating = Column(Float, default=0.0, index=True)  # Our platform rating
-    tmdb_rating = Column(Float, nullable=True)  # TMDb vote_average
-    tmdb_vote_count = Column(Integer, nullable=True)  # Number of TMDb votes
-    popularity = Column(Float, nullable=True, index=True)  # TMDb popularity score
+    # === DATES & DURATION ===
+    release_date = Column(Date)
+    release_year = Column(Integer, index=True)
+    runtime = Column(Integer)  # Minutes
     
-    # =========================================================================
-    # RELEASE INFORMATION
-    # =========================================================================
-    release_date = Column(Date, nullable=True, index=True)
-    release_year = Column(Integer, nullable=True, index=True)
-    status = Column(String, nullable=True)  # Released, Post Production, etc.
+    # === RATINGS ===
+    # TMDb ratings (source of truth for cold start)
+    tmdb_rating = Column(Float, default=0)  # 0-10 scale
+    tmdb_vote_count = Column(Integer, default=0)
+    popularity = Column(Float, default=0, index=True)  # TMDb popularity score
     
-    # =========================================================================
-    # RUNTIME & CONTENT
-    # =========================================================================
-    runtime = Column(Integer, nullable=True)  # Minutes
-    adult = Column(Boolean, default=False)  # Adult content flag
+    # Community ratings (your app)
+    average_rating = Column(Float, default=0)  # 0-10 scale (same as TMDb)
+    review_count = Column(Integer, default=0)
     
-    # =========================================================================
-    # PRODUCTION DETAILS
-    # =========================================================================
-    budget = Column(Integer, nullable=True)
-    revenue = Column(Integer, nullable=True)
-    original_language = Column(String, nullable=True)
-    original_title = Column(String, nullable=True)
+    # === IMAGES ===
+    poster_path = Column(String(200))  # TMDb path: /abc123.jpg
+    poster_url = Column(String(500))   # Full URL
+    backdrop_path = Column(String(200))
+    backdrop_url = Column(String(500))
     
-    # Production companies as JSON array
-    # Example: [{"id": 123, "name": "Warner Bros."}]
-    production_companies = Column(JSON, nullable=True)
+    # === CAST & CREW (JSON) ===
+    cast = Column(JSON)  # [{id, name, character, profile_path, order}]
+    crew = Column(JSON)  # [{id, name, job, department}]
+    main_actors = Column(JSON)  # ["Actor 1", "Actor 2", ...]
+    director = Column(String(200))
     
-    # Production countries as JSON array
-    # Example: [{"iso_3166_1": "US", "name": "United States"}]
-    production_countries = Column(JSON, nullable=True)
+    # === VIDEOS ===
+    videos = Column(JSON)  # [{key, name, type, official}]
+    trailer_youtube_key = Column(String(50))
     
-    # Spoken languages as JSON array
-    # Example: [{"iso_639_1": "en", "name": "English"}]
-    spoken_languages = Column(JSON, nullable=True)
+    # === METADATA ===
+    status = Column(String(50))  # Released, Post Production, etc.
+    adult = Column(Boolean, default=False)
+    original_language = Column(String(10))
+    budget = Column(Integer, default=0)
+    revenue = Column(Integer, default=0)
+    homepage = Column(String(500))
+    keywords = Column(JSON)  # ["keyword1", "keyword2", ...]
     
-    # =========================================================================
-    # CAST & CREW (JSON)
-    # =========================================================================
-    # Cast as JSON array (top actors)
-    # Example: [
-    #   {
-    #     "id": 123,
-    #     "name": "Leonardo DiCaprio",
-    #     "character": "Dom Cobb",
-    #     "profile_path": "/abc.jpg",
-    #     "order": 0
-    #   }
-    # ]
-    cast = Column(JSON, nullable=True)
+    # === PRODUCTION INFO ===
+    production_companies = Column(JSON)  # [{id, name, logo_path, origin_country}]
+    production_countries = Column(JSON)  # [{iso_3166_1, name}]
+    spoken_languages = Column(JSON)  # [{iso_639_1, name}]
+    belongs_to_collection = Column(JSON)  # {id, name, poster_path, backdrop_path}
     
-    # Crew as JSON array (director, writers, etc.)
-    # Example: [
-    #   {
-    #     "id": 456,
-    #     "name": "Christopher Nolan",
-    #     "job": "Director",
-    #     "department": "Directing",
-    #     "profile_path": "/def.jpg"
-    #   }
-    # ]
-    crew = Column(JSON, nullable=True)
+    # === EMBEDDINGS ===
+    embedding = Column(JSON)  # Vector for semantic search
+    embedding_model = Column(String(100))
+    embedding_generated_at = Column(Float)
     
-    # Quick access fields (denormalized for performance)
-    director = Column(String, nullable=True)  # Main director name
-    main_actors = Column(JSON, nullable=True)  # Top 5 actor names as array
+    # === QUALITY FLAGS ===
+    has_bg_translation = Column(Boolean, default=False, index=True)
+    has_text_for_embedding = Column(Boolean, default=True, index=True)
+    is_popular_seed = Column(Boolean, default=False, index=True)
     
-    # =========================================================================
-    # VIDEOS (Trailers, Teasers, Clips)
-    # =========================================================================
-    # Videos as JSON array
-    # Example: [
-    #   {
-    #     "id": "abc123",
-    #     "key": "dQw4w9WgXcQ",  # YouTube video ID
-    #     "name": "Official Trailer",
-    #     "site": "YouTube",
-    #     "type": "Trailer",
-    #     "size": 1080
-    #   }
-    # ]
-    videos = Column(JSON, nullable=True)
+    # === TIMESTAMPS ===
+    created_at = Column(DateTime, server_default=func.now())
+    updated_at = Column(DateTime, server_default=func.now(), onupdate=func.now())
+    tmdb_last_updated = Column(Float)  # Unix timestamp of last TMDb sync
     
-    # Quick access to main trailer
-    trailer_youtube_key = Column(String, nullable=True)  # YouTube ID
-    
-    # =========================================================================
-    # GENRES (Detailed)
-    # =========================================================================
-    # Genres as JSON array with IDs
-    # Example: [{"id": 28, "name": "Action"}, {"id": 12, "name": "Adventure"}]
-    genres = Column(JSON, nullable=True)
-    
-    # =========================================================================
-    # COLLECTIONS
-    # =========================================================================
-    # If movie is part of a collection (e.g., Marvel Cinematic Universe)
-    # Example: {"id": 123, "name": "The Avengers Collection"}
-    belongs_to_collection = Column(JSON, nullable=True)
-    
-    # =========================================================================
-    # AI / EMBEDDINGS
-    # =========================================================================
-    embedding = Column(JSON, nullable=True)
-    embedding_model = Column(String, default="paraphrase-multilingual-MiniLM-L12-v2")
-    embedding_generated_at = Column(Float, nullable=True)
-    
-    # =========================================================================
-    # METADATA
-    # =========================================================================
-    homepage = Column(String, nullable=True)  # Official movie website
-    
-    # Last time TMDb data was fetched
-    tmdb_last_updated = Column(Float, nullable=True)
-    
-    # =========================================================================
-    # RELATIONSHIPS
-    # =========================================================================
-    reviews = relationship("Review", back_populates="movie", cascade="all, delete")
-    watchlist_entries = relationship("Watchlist", back_populates="movie", cascade="all, delete")
+    # === RELATIONSHIPS ===
+    # Must match back_populates in Review, Watchlist, Favorite models
+    reviews = relationship("Review", back_populates="movie", cascade="all, delete-orphan")
+    watchlist_entries = relationship("Watchlist", back_populates="movie", cascade="all, delete-orphan")
     favorited_by = relationship("Favorite", back_populates="movie", cascade="all, delete-orphan")
-    # =========================================================================
-    # COMPUTED PROPERTIES
-    # =========================================================================
-    
-    @property
-    def review_count(self) -> int:
-        """Get number of reviews"""
-        if hasattr(self, 'reviews') and self.reviews is not None:
-            try:
-                return len(self.reviews)
-            except:
-                pass
-        return 0
-    
-    @property
-    def poster_url_large(self) -> Optional[str]:
-        """Get large poster (w780)"""
-        if self.poster_path:
-            return f"https://image.tmdb.org/t/p/w780{self.poster_path}"
-        return self.poster_url
-    
-    @property
-    def poster_url_small(self) -> Optional[str]:
-        """Get small poster (w185)"""
-        if self.poster_path:
-            return f"https://image.tmdb.org/t/p/w185{self.poster_path}"
-        return self.poster_url
-    
-    @property
-    def backdrop_url_large(self) -> Optional[str]:
-        """Get large backdrop (w1280)"""
-        if self.backdrop_path:
-            return f"https://image.tmdb.org/t/p/w1280{self.backdrop_path}"
-        return self.backdrop_url
-    
-    @property
-    def trailer_url(self) -> Optional[str]:
-        """Get YouTube trailer URL"""
-        if self.trailer_youtube_key:
-            return f"https://www.youtube.com/watch?v={self.trailer_youtube_key}"
-        return None
-    
-    @property
-    def trailer_embed_url(self) -> Optional[str]:
-        """Get embeddable YouTube URL"""
-        if self.trailer_youtube_key:
-            return f"https://www.youtube.com/embed/{self.trailer_youtube_key}"
-        return None
-    
-    @property
-    def get_director(self) -> Optional[str]:
-        """Extract director from crew"""
-        if self.director:
-            return self.director
-        
-        if self.crew:
-            for person in self.crew:
-                if person.get('job') == 'Director':
-                    return person.get('name')
-        
-        return None
-    
-    @property
-    def get_top_actors(self) -> List[str]:
-        """Get list of top actor names"""
-        if self.main_actors:
-            return self.main_actors
-        
-        if self.cast:
-            return [person.get('name') for person in self.cast[:5] if person.get('name')]
-        
-        return []
-    
-    @property
-    def runtime_formatted(self) -> Optional[str]:
-        """Format runtime as 'Xh Ym'"""
-        if not self.runtime:
-            return None
-        
-        hours = self.runtime // 60
-        minutes = self.runtime % 60
-        
-        if hours > 0:
-            return f"{hours}h {minutes}m"
-        return f"{minutes}m"
-    
-    @property
-    def budget_formatted(self) -> Optional[str]:
-        """Format budget with $ and M/B"""
-        if not self.budget or self.budget == 0:
-            return None
-        
-        if self.budget >= 1_000_000_000:
-            return f"${self.budget / 1_000_000_000:.1f}B"
-        elif self.budget >= 1_000_000:
-            return f"${self.budget / 1_000_000:.0f}M"
-        else:
-            return f"${self.budget:,}"
-    
-    @property
-    def revenue_formatted(self) -> Optional[str]:
-        """Format revenue with $ and M/B"""
-        if not self.revenue or self.revenue == 0:
-            return None
-        
-        if self.revenue >= 1_000_000_000:
-            return f"${self.revenue / 1_000_000_000:.1f}B"
-        elif self.revenue >= 1_000_000:
-            return f"${self.revenue / 1_000_000:.0f}M"
-        else:
-            return f"${self.revenue:,}"
     
     def __repr__(self):
-        return f"<Movie(id={self.id}, title='{self.title}', year={self.release_year})>"
+        return f"<Movie {self.id}: {self.title} ({self.release_year})>"
+    
+    @property
+    def poster_url_full(self) -> str:
+        """Get full poster URL"""
+        if self.poster_path:
+            return f"https://image.tmdb.org/t/p/w500{self.poster_path}"
+        return self.poster_url or ""
+    
+    @property
+    def backdrop_url_full(self) -> str:
+        """Get full backdrop URL"""
+        if self.backdrop_path:
+            return f"https://image.tmdb.org/t/p/w1280{self.backdrop_path}"
+        return self.backdrop_url or ""
+    
+    @property
+    def display_rating(self) -> float:
+        """
+        Get best available rating for display.
+        Uses community rating if enough reviews, else TMDb.
+        """
+        if self.review_count >= 3:
+            return self.average_rating
+        return self.tmdb_rating
+    
+    @property
+    def embedding_text(self) -> str:
+        """Get text for generating embeddings"""
+        parts = []
+        
+        # Prefer English summary for embeddings (more consistent)
+        if self.summary:
+            parts.append(self.summary)
+        elif self.summary_bg:
+            parts.append(self.summary_bg)
+        
+        # Add genres
+        if self.genre:
+            parts.append(f"Genres: {self.genre}")
+        
+        # Add director
+        if self.director:
+            parts.append(f"Directed by {self.director}")
+        
+        return " ".join(parts)

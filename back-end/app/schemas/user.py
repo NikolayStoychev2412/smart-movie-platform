@@ -1,7 +1,9 @@
-from pydantic import BaseModel, EmailStr, Field,validator
-from typing import Optional
+# app/schemas/user.py
+from pydantic import BaseModel, EmailStr, Field, validator
+from typing import Optional, List
 from datetime import datetime
 import re
+
 
 class UserBase(BaseModel):
     name: str = Field(..., min_length=1, max_length=100)
@@ -64,6 +66,9 @@ class UserOut(UserBase):
     id: int
     is_admin: bool
     created_at: datetime
+    # Include preferences in user output
+    preferred_genres: Optional[List[str]] = []
+    preferred_mood: Optional[str] = None
 
     class Config:
         from_attributes = True

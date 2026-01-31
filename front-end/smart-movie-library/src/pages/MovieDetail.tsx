@@ -451,8 +451,10 @@ export default function MovieDetails() {
   const [watchlistLoading, setWatchlistLoading] = useState(false);
   const [showWatchlistMenu, setShowWatchlistMenu] = useState(false);
   const [userHasReviewed, setUserHasReviewed] = useState(false);
+  const [userReviewId, setUserReviewId] = useState<number | null>(null);
   const [isFavorite, setIsFavorite] = useState(false);
   const [favoriteLoading, setFavoriteLoading] = useState(false);
+  const [userRating, setUserRating] = useState(0);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -472,16 +474,27 @@ export default function MovieDetails() {
     fetchData();
   }, [id, language]);
 
-  // Check if user has already reviewed
+  // Check if user has already reviewed and load their rating
   useEffect(() => {
     const checkUserReview = async () => {
       if (!isAuthenticated || !id) return;
       try {
         const response = await api.get('/reviews/my-reviews');
         const myReviews = response.data || [];
-        setUserHasReviewed(myReviews.some((r: any) => r.movie_id === parseInt(id)));
+        const existingReview = myReviews.find((r: any) => r.movie_id === parseInt(id));
+        if (existingReview) {
+          setUserHasReviewed(true);
+          setUserReviewId(existingReview.id);
+          setUserRating(existingReview.rating || 0);
+        } else {
+          setUserHasReviewed(false);
+          setUserReviewId(null);
+          setUserRating(0);
+        }
       } catch {
         setUserHasReviewed(false);
+        setUserReviewId(null);
+        setUserRating(0);
       }
     };
     checkUserReview();
@@ -528,9 +541,44 @@ export default function MovieDetails() {
     finally { setWatchlistLoading(false); }
   };
 
+  // Quick rate from header stars (creates/updates review without comment)
+  const handleQuickRate = async (newRating: number) => {
+    if (!isAuthenticated) {
+      navigate('/login', { state: { from: `/movie/${id}` } });
+      return;
+    }
+    if (!id) return;
+    
+    const previousRating = userRating;
+    setUserRating(newRating); // Optimistic update
+    
+    try {
+      if (userHasReviewed && userReviewId) {
+        // Update existing review using stored review_id
+        await api.put(`/reviews/${userReviewId}`, { rating: newRating });
+      } else {
+        // Create new review (rating only, no comment)
+        const response = await api.post(`/reviews/movies/${id}`, { rating: newRating, comment: null });
+        setUserHasReviewed(true);
+        setUserReviewId(response.data.id);
+      }
+      // Refresh movie data to get updated average rating
+      const data = await moviesApi.getById(parseInt(id));
+      setMovie(data as MovieDetail);
+      // Refresh reviews list
+      const reviewsData = await moviesApi.getReviews(parseInt(id));
+      setReviews(Array.isArray(reviewsData) ? reviewsData : []);
+    } catch (err: any) {
+      console.error('Failed to rate:', err);
+      setUserRating(previousRating); // Revert on error
+    }
+  };
+
   const handleReviewAdded = (newReview: Review) => {
     setReviews(prev => [newReview, ...prev]);
     setUserHasReviewed(true);
+    setUserReviewId(newReview.id);
+    setUserRating(newReview.rating || 0);
     // Refresh movie to get updated rating
     if (id) {
       moviesApi.getById(parseInt(id)).then(data => setMovie(data as MovieDetail));
@@ -584,7 +632,6 @@ export default function MovieDetails() {
   const releaseYear = movie.release_year || (movie.release_date ? new Date(movie.release_date).getFullYear() : null);
   const runtimeDisplay = movie.runtime_formatted || (movie.runtime ? `${Math.floor(movie.runtime/60)}h ${movie.runtime%60}m` : null);
   const director = movie.director || movie.crew?.find(c => c.job === "Director")?.name;
-  const rating = movie.average_rating || movie.tmdb_rating || 0;
 
   return (
     <div className={`min-h-screen ${theme==="dark"?"bg-tmdb-dark":"bg-gray-50"}`}>
@@ -606,8 +653,71 @@ export default function MovieDetails() {
                 {genre && <span className="px-2 py-0.5 bg-white/10 rounded">{genre}</span>}
                 {runtimeDisplay && <span className="flex items-center gap-1.5"><Clock className="w-4 h-4"/>{runtimeDisplay}</span>}
               </div>
+              
+              {/* Ratings Block */}
+              <div className="flex flex-wrap items-start gap-6 mt-6">
+                {/* TMDB Rating */}
+                <div className="flex items-center gap-3">
+                  <CircularRating rating={movie.tmdb_rating || 0} size={60}/>
+                  <div>
+                    <p className="font-semibold text-sm text-gray-300">TMDB</p>
+                    <p className="text-lg font-bold">{movie.tmdb_rating ? movie.tmdb_rating.toFixed(1) : '—'}<span className="text-sm text-gray-400">/10</span></p>
+                  </div>
+                </div>
+                
+                {/* Community Rating */}
+                <div className="flex items-center gap-3">
+                  <div className="relative flex items-center justify-center rounded-full" style={{ width: 60, height: 60, backgroundColor: "#1a1a2e" }}>
+                    {(movie.review_count || 0) > 0 ? (
+                      <>
+                        <svg className="transform -rotate-90" width={60} height={60} viewBox="0 0 60 60">
+                          <circle cx={30} cy={30} r={26} fill="none" stroke="#2d2d44" strokeWidth="4" />
+                          <circle cx={30} cy={30} r={26} fill="none" stroke="#8b5cf6" strokeWidth="4" strokeLinecap="round" 
+                            strokeDasharray={2 * Math.PI * 26} 
+                            strokeDashoffset={2 * Math.PI * 26 * (1 - ((movie.average_rating || 0) / 5))} />
+                        </svg>
+                        <span className="absolute text-white font-bold text-lg">{(movie.average_rating || 0).toFixed(1)}</span>
+                      </>
+                    ) : (
+                      <span className="text-gray-500 text-xs text-center">{language === "bg" ? "Няма" : "No\nratings"}</span>
+                    )}
+                  </div>
+                  <div>
+                    <p className="font-semibold text-sm text-purple-400">{language === "bg" ? "Общност" : "Community"}</p>
+                    {(movie.review_count || 0) > 0 ? (
+                      <p className="text-lg font-bold">{(movie.average_rating || 0).toFixed(1)}<span className="text-sm text-gray-400">/5</span>
+                        <span className="text-xs text-gray-500 ml-1">({movie.review_count})</span>
+                      </p>
+                    ) : (
+                      <p className="text-sm text-gray-500">{language === "bg" ? "Бъди първи!" : "Be the first!"}</p>
+                    )}
+                  </div>
+                </div>
+                
+                {/* Your Rating - Interactive Stars */}
+                {isAuthenticated && (
+                  <div className="flex items-center gap-3">
+                    <div className="flex flex-col items-center">
+                      <p className="font-semibold text-sm text-yellow-400 mb-1">{language === "bg" ? "Твоята оценка" : "Your Rating"}</p>
+                      <StarRating 
+                        rating={userRating} 
+                        onRate={handleQuickRate} 
+                        size={28}
+                      />
+                      {userRating > 0 && (
+                        <p className="text-xs text-gray-400 mt-1">
+                          {userHasReviewed 
+                            ? (language === "bg" ? "Кликни за промяна" : "Click to change") 
+                            : (language === "bg" ? "Запазено!" : "Saved!")}
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                )}
+              </div>
+              
+              {/* Action Buttons */}
               <div className="flex items-center gap-4 mt-6 flex-wrap">
-                <div className="flex items-center gap-3"><CircularRating rating={rating} size={70}/><div><p className="font-semibold text-lg">{language==="bg"?"Рейтинг":"User"}</p><p className="text-sm text-gray-400">{language==="bg"?"от потребители":"Score"}</p></div></div>
                 <div className="relative">
                   <button onClick={() => setShowWatchlistMenu(!showWatchlistMenu)} disabled={watchlistLoading} className={`flex items-center gap-2 px-4 py-2.5 rounded-lg font-medium transition-all ${btn.cls}`}>
                     {watchlistLoading ? <div className="w-5 h-5 border-2 border-current border-t-transparent rounded-full animate-spin"/> : btn.icon}{btn.text}

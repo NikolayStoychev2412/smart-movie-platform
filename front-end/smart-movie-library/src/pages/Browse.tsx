@@ -1,11 +1,10 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
 import { useState, useEffect, useCallback, useMemo } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import type { Movie } from "../types";
 import { moviesApi } from "../api/movies";
 import api from "../api/client";
 import { useApp } from "../context/AppContext";
-import { Search, Sparkles, Filter, ChevronDown, X, Grid, List, ChevronLeft, ChevronRight, Film } from "lucide-react";
+import { Search, Sparkles, Filter, ChevronDown, X, Grid, List, ChevronLeft, ChevronRight, Film, TrendingUp } from "lucide-react";
 
 // Cache for movies
 const movieCache = {
@@ -22,11 +21,12 @@ const movieCache = {
   },
 };
 
-type SortOption = "popularity" | "rating" | "title" | "release_date" | "relevance";
+type SortOption = "best" | "rating" | "popularity" | "release_date" | "title" | "relevance";
 type ViewMode = "grid" | "list";
 type MoodOption = "all" | "funny" | "scary" | "romantic" | "exciting" | "thoughtful" | "dark" | "uplifting";
 
 const MOVIES_PER_PAGE = 20;
+const CONFIDENCE_K = 20; // Reviews needed for full confidence
 
 const moodToGenres: Record<MoodOption, string[]> = {
   all: [],
@@ -50,8 +50,115 @@ const moodLabels: Record<MoodOption, { en: string; bg: string; emoji: string }> 
   uplifting: { en: "Uplifting", bg: "Вдъхновяващо", emoji: "✨" },
 };
 
-function CircularRating({ rating, size = 36 }: { rating: number; size?: number }) {
-  const percentage = Math.round((rating || 0) * 10);
+// ============================================================================
+// GRADE CALCULATION SYSTEM
+// ============================================================================
+
+interface MovieWithGrade extends Movie {
+  _grade?: number;
+  _combinedRating?: number;
+  _relevance?: number;
+  favorite_count?: number;
+  completed_count?: number;
+}
+
+// Utility: clamp value to 0-1 range
+const clamp01 = (x: number): number => Math.max(0, Math.min(1, x));
+
+/**
+ * Normalize any rating to 0..1.
+ * Auto-detects scale: <=5 treated as 5-star, >5 treated as 10-scale
+ */
+const normRating01 = (rating: number | null | undefined): number => {
+  const r = Number(rating) || 0;
+  if (r <= 0) return 0;
+  // auto-detect scale: <=5 => 5-star, >5 => 10-scale
+  return clamp01(r <= 5 ? r / 5 : r / 10);
+};
+
+function calculateCombinedRating(movie: Movie): number {
+  const tmdbRating = (movie as any).tmdb_rating;
+  const appRating = (movie as any).average_rating;
+  const reviewCount = (movie as any).review_count || 0;
+
+  const tmdbNorm = normRating01(tmdbRating);
+  const appNorm = normRating01(appRating);
+
+  // Handle missing sources
+  const hasTmdb = tmdbNorm > 0;
+  const hasApp = reviewCount > 0 && appNorm > 0;
+
+  if (hasApp && !hasTmdb) return appNorm;
+  if (!hasApp && hasTmdb) return tmdbNorm;
+  if (!hasApp && !hasTmdb) return 0.5; // neutral fallback
+
+  // Confidence curve: at K reviews, confidence = 50%
+  const confidence = clamp01(reviewCount / (reviewCount + CONFIDENCE_K));
+
+  return clamp01(confidence * appNorm + (1 - confidence) * tmdbNorm);
+}
+
+function calculatePopularityNorm(movie: Movie, maxPopularity: number): number {
+  const popularity = (movie as any).popularity || 0;
+  if (maxPopularity <= 0) return 0;
+  return clamp01(Math.log(1 + popularity) / Math.log(1 + maxPopularity));
+}
+
+function calculateEngagementNorm(movie: MovieWithGrade, maxFavorites: number, maxCompleted: number): number {
+  const favoriteCount = movie.favorite_count || 0;
+  const completedCount = movie.completed_count || 0;
+  
+  // Log normalization to prevent outliers from dominating
+  const favNorm = maxFavorites > 0 ? Math.log(1 + favoriteCount) / Math.log(1 + maxFavorites) : 0;
+  const compNorm = maxCompleted > 0 ? Math.log(1 + completedCount) / Math.log(1 + maxCompleted) : 0;
+  
+  // Favorites are slightly stronger signal than completed (more intentional)
+  // 60% favorites + 40% completed
+  return clamp01(0.6 * favNorm + 0.4 * compNorm);
+}
+
+function calculateGrade(
+  movie: MovieWithGrade,
+  maxPopularity: number,
+  maxFavorites: number,
+  maxCompleted: number,
+  relevanceScores: Record<number, number>,
+  isSearching: boolean
+): number {
+  const combinedRating = calculateCombinedRating(movie);
+  const popNorm = calculatePopularityNorm(movie, maxPopularity);
+  const engagementNorm = calculateEngagementNorm(movie, maxFavorites, maxCompleted);
+  const searchNorm = relevanceScores[movie.id] || 0;
+
+  movie._combinedRating = combinedRating;
+  movie._relevance = searchNorm;
+
+  if (isSearching && searchNorm > 0) {
+    // SEARCH: relevance dominates; no wasted weight
+    return clamp01(
+      0.50 * searchNorm +
+      0.30 * combinedRating +
+      0.15 * engagementNorm +
+      0.05 * popNorm
+    );
+  }
+
+  // BROWSE: quality + engagement + popularity (weights sum to 100%)
+  return clamp01(
+    0.50 * combinedRating +
+    0.30 * engagementNorm +
+    0.20 * popNorm
+  );
+}
+
+// ============================================================================
+// COMPONENTS
+// ============================================================================
+
+function CircularRating({ rating, size = 36, isTmdb = false }: { rating: number; size?: number; isTmdb?: boolean }) {
+  // Handle both 0-10 and 0-5 scales
+  const normalizedRating = rating > 5 ? rating : rating * 2; // Convert 5-scale to 10-scale
+  const percentage = Math.round((normalizedRating || 0) * 10);
   const radius = (size - 6) / 2;
   const circumference = 2 * Math.PI * radius;
   const strokeDashoffset = circumference - (percentage / 100) * circumference;
@@ -68,10 +175,13 @@ function CircularRating({ rating, size = 36 }: { rating: number; size?: number }
   );
 }
 
-function MovieCardGrid({ movie, onClick, language, theme, snippet }: { movie: Movie; onClick: () => void; language: string; theme: string; snippet?: string }) {
+function MovieCardGrid({ movie, onClick, language, theme, snippet }: { movie: MovieWithGrade; onClick: () => void; language: string; theme: string; snippet?: string }) {
   const title = language === "bg" ? movie.title_bg || movie.title : movie.title;
   const posterUrl = movie.poster_path ? `https://image.tmdb.org/t/p/w342${movie.poster_path}` : movie.poster_url;
   const releaseDate = movie.release_date ? new Date(movie.release_date).toLocaleDateString(language === "bg" ? "bg-BG" : "en-US", { year: "numeric", month: "short", day: "numeric" }) : null;
+  
+  // Use TMDB rating for display (more reliable)
+  const displayRating = (movie as any).tmdb_rating || (movie as any).average_rating || 0;
 
   return (
     <div className="cursor-pointer group" onClick={onClick}>
@@ -84,7 +194,7 @@ function MovieCardGrid({ movie, onClick, language, theme, snippet }: { movie: Mo
           </div>
         )}
         <div className="absolute bottom-2 left-2">
-          <CircularRating rating={movie.average_rating ?? 0} size={36} />
+          <CircularRating rating={displayRating} size={36} isTmdb={true} />
         </div>
       </div>
       <div className="pt-3 px-1">
@@ -96,11 +206,14 @@ function MovieCardGrid({ movie, onClick, language, theme, snippet }: { movie: Mo
   );
 }
 
-function MovieCardList({ movie, onClick, language, theme, snippet }: { movie: Movie; onClick: () => void; language: string; theme: string; snippet?: string }) {
+function MovieCardList({ movie, onClick, language, theme, snippet }: { movie: MovieWithGrade; onClick: () => void; language: string; theme: string; snippet?: string }) {
   const title = language === "bg" ? movie.title_bg || movie.title : movie.title;
   const summary = language === "bg" ? movie.summary_bg || movie.summary : movie.summary;
   const posterUrl = movie.poster_path ? `https://image.tmdb.org/t/p/w185${movie.poster_path}` : movie.poster_url;
   const releaseDate = movie.release_date ? new Date(movie.release_date).toLocaleDateString(language === "bg" ? "bg-BG" : "en-US", { year: "numeric", month: "short", day: "numeric" }) : null;
+  
+  // Use TMDB rating for display
+  const displayRating = (movie as any).tmdb_rating || (movie as any).average_rating || 0;
 
   return (
     <div className={`flex rounded-lg cursor-pointer transition-all overflow-hidden border ${theme === "dark" ? "bg-gray-900 hover:bg-gray-800 border-gray-800" : "bg-white hover:bg-gray-50 border-gray-200 shadow-sm"}`} onClick={onClick}>
@@ -115,7 +228,7 @@ function MovieCardList({ movie, onClick, language, theme, snippet }: { movie: Mo
       </div>
       <div className="flex-1 p-4 flex flex-col justify-center min-w-0">
         <div className="flex items-start gap-3">
-          <CircularRating rating={movie.average_rating ?? 0} size={40} />
+          <CircularRating rating={displayRating} size={40} isTmdb={true} />
           <div className="flex-1 min-w-0">
             <h3 className={`font-bold line-clamp-1 ${theme === "dark" ? "text-white" : "text-gray-900"}`}>{title}</h3>
             {releaseDate && <p className={`text-sm ${theme === "dark" ? "text-gray-400" : "text-gray-500"}`}>{releaseDate}</p>}
@@ -224,6 +337,7 @@ export default function Browse() {
   const [allMovies, setAllMovies] = useState<Movie[]>([]);
   const [searchResults, setSearchResults] = useState<Movie[]>([]);
   const [snippets, setSnippets] = useState<Record<number, string>>({});
+  const [relevanceScores, setRelevanceScores] = useState<Record<number, number>>({});
   const [loading, setLoading] = useState(true);
   const [searching, setSearching] = useState(false);
 
@@ -232,12 +346,22 @@ export default function Browse() {
   const [searchMode, setSearchMode] = useState<"ai" | "title">(params.get("mode") === "title" ? "title" : "ai");
   const [selectedGenre, setSelectedGenre] = useState(params.get("genre") || "all");
   const [selectedMood, setSelectedMood] = useState<MoodOption>((params.get("mood") as MoodOption) || "all");
-  const [sortBy, setSortBy] = useState<SortOption>((params.get("sort") as SortOption) || "rating");
+  const [sortBy, setSortBy] = useState<SortOption>((params.get("sort") as SortOption) || "best");
   const [showFilters, setShowFilters] = useState(false);
   const [viewMode, setViewMode] = useState<ViewMode>("grid");
 
   // Pagination
   const [currentPage, setCurrentPage] = useState(parseInt(params.get("page") || "1"));
+  
+  // Is AI search active with results?
+  const isAISearchActive = searchQuery.trim() !== "" && searchMode === "ai" && searchResults.length > 0;
+
+  // Auto-switch away from relevance if not valid
+  useEffect(() => {
+    if (sortBy === "relevance" && !isAISearchActive) {
+      setSortBy("best");
+    }
+  }, [isAISearchActive, sortBy]);
 
   // Get unique genres
   const genres = useMemo(() => {
@@ -280,6 +404,7 @@ export default function Browse() {
     if (!q) {
       setSearchResults([]);
       setSnippets({});
+      setRelevanceScores({});
       return;
     }
 
@@ -299,19 +424,33 @@ export default function Browse() {
         });
         setSearchResults(filtered);
         setSnippets({});
+        setRelevanceScores({});
       } else {
         // AI search - call /ai/search endpoint
         try {
           const response = await api.get('/ai/search', { params: { q, top_k: 50 } });
           const results = response.data || [];
           setSearchResults(results.map((r: any) => r.movie));
-          const map: Record<number, string> = {};
+          
+          // Store snippets
+          const snippetMap: Record<number, string> = {};
           results.forEach((r: any) => {
-            if (r.snippet) map[r.movie.id] = r.snippet;
+            if (r.snippet) snippetMap[r.movie.id] = r.snippet;
           });
-          setSnippets(map);
-          // Default to relevance sort for AI search
-          if (sortBy !== "relevance") setSortBy("relevance");
+          setSnippets(snippetMap);
+          
+          // Store relevance scores for grade calculation (min-max normalized)
+          const raw = results.map((r: any) => Number(r.relevance) || 0);
+          const minRel = Math.min(...raw, 0);
+          const maxRel = Math.max(...raw, 1);
+          const denom = maxRel - minRel || 1;
+
+          const relevanceMap: Record<number, number> = {};
+          results.forEach((r: any) => {
+            const rel = Number(r.relevance) || 0;
+            relevanceMap[r.movie.id] = clamp01((rel - minRel) / denom);
+          });
+          setRelevanceScores(relevanceMap);
         } catch (err) {
           console.error("AI search failed, falling back to title search:", err);
           // Fallback to title search
@@ -323,6 +462,7 @@ export default function Browse() {
           });
           setSearchResults(filtered);
           setSnippets({});
+          setRelevanceScores({});
         }
       }
 
@@ -337,7 +477,7 @@ export default function Browse() {
 
   // Get filtered and sorted movies
   const displayMovies = useMemo(() => {
-    let movies = searchQuery ? searchResults : allMovies;
+    let movies: MovieWithGrade[] = searchQuery ? [...searchResults] : [...allMovies];
 
     // Filter by genre
     if (selectedGenre !== "all") {
@@ -358,35 +498,57 @@ export default function Browse() {
       }
     }
 
-    // Sort - always apply sorting (even for AI search if user changes sort)
-    const sorted = [...movies];
+    // Calculate max values for normalization
+    const maxPopularity = Math.max(...movies.map(m => (m as any).popularity || 0), 1);
+    const maxFavorites = Math.max(...movies.map(m => (m as MovieWithGrade).favorite_count || 0), 1);
+    const maxCompleted = Math.max(...movies.map(m => (m as MovieWithGrade).completed_count || 0), 1);
+    const isSearching = searchQuery.trim() !== "" && searchMode === "ai";
+
+    // Calculate grades for all movies
+    movies.forEach(m => {
+      m._grade = calculateGrade(m, maxPopularity, maxFavorites, maxCompleted, relevanceScores, isSearching);
+    });
+
+    // Sort based on selected option
     switch (sortBy) {
-      case "popularity":
-        sorted.sort((a, b) => ((b as any).review_count ?? 0) - ((a as any).review_count ?? 0));
+      case "best":
+        // Sort by grade (combines rating, favorites, popularity, personalization, and relevance if searching)
+        movies.sort((a, b) => (b._grade || 0) - (a._grade || 0));
         break;
       case "rating":
-        sorted.sort((a, b) => ((b as any).average_rating ?? 0) - ((a as any).average_rating ?? 0));
+        // Sort by combined rating (TMDB + community with confidence weighting)
+        movies.sort((a, b) => {
+          const ratingA = calculateCombinedRating(a);
+          const ratingB = calculateCombinedRating(b);
+          return ratingB - ratingA;
+        });
+        break;
+      case "popularity":
+        movies.sort((a, b) => ((b as any).popularity ?? 0) - ((a as any).popularity ?? 0));
         break;
       case "title":
-        sorted.sort((a, b) => {
+        movies.sort((a, b) => {
           const titleA = language === "bg" ? a.title_bg || a.title : a.title;
           const titleB = language === "bg" ? b.title_bg || b.title : b.title;
           return titleA.localeCompare(titleB);
         });
         break;
       case "release_date":
-        sorted.sort((a, b) => {
+        movies.sort((a, b) => {
           const dateA = (a as any).release_date ? new Date((a as any).release_date).getTime() : 0;
           const dateB = (b as any).release_date ? new Date((b as any).release_date).getTime() : 0;
           return dateB - dateA;
         });
         break;
       case "relevance":
-        // Keep original order (AI relevance) - don't sort
-        return movies;
+        // Keep original AI order (already sorted by relevance from API)
+        // Just ensure movies with relevance scores come first
+        movies.sort((a, b) => (relevanceScores[b.id] || 0) - (relevanceScores[a.id] || 0));
+        break;
     }
-    return sorted;
-  }, [allMovies, searchResults, searchQuery, selectedGenre, selectedMood, sortBy, language]);
+    
+    return movies;
+  }, [allMovies, searchResults, searchQuery, searchMode, selectedGenre, selectedMood, sortBy, language, relevanceScores]);
 
   // Pagination
   const totalPages = Math.ceil(displayMovies.length / MOVIES_PER_PAGE);
@@ -410,7 +572,7 @@ export default function Browse() {
     }
     if (selectedGenre !== "all") newParams.set("genre", selectedGenre);
     if (selectedMood !== "all") newParams.set("mood", selectedMood);
-    if (sortBy !== "popularity") newParams.set("sort", sortBy);
+    if (sortBy !== "best") newParams.set("sort", sortBy);
     setParams(newParams);
   }, [searchQuery, searchMode, selectedGenre, selectedMood, sortBy, setParams]);
 
@@ -424,13 +586,20 @@ export default function Browse() {
 
   const handleMovieClick = (movie: Movie) => navigate(`/movie/${movie.id}`);
 
-  const sortLabels: Record<SortOption, { en: string; bg: string }> = {
-    relevance: { en: "Relevance", bg: "Релевантност" },
-    rating: { en: "Rating", bg: "Рейтинг" },
-    popularity: { en: "Popularity", bg: "Популярност" },
-    release_date: { en: "Release Date", bg: "Дата" },
-    title: { en: "Title", bg: "Заглавие" },
+  // Sort options - conditionally show relevance only for AI search
+  const sortLabels: Record<SortOption, { en: string; bg: string; icon?: string }> = {
+    best: { en: "Best for you", bg: "Най-добри за теб", icon: "✨" },
+    rating: { en: "Rating", bg: "Рейтинг", icon: "⭐" },
+    popularity: { en: "Popularity", bg: "Популярност", icon: "🔥" },
+    release_date: { en: "Release Date", bg: "Дата", icon: "📅" },
+    title: { en: "Title", bg: "Заглавие", icon: "🔤" },
+    relevance: { en: "Relevance", bg: "Релевантност", icon: "🎯" },
   };
+  
+  // Available sort options (relevance only for AI search)
+  const availableSortOptions: SortOption[] = isAISearchActive 
+    ? ["relevance", "best", "rating", "popularity", "release_date", "title"]
+    : ["best", "rating", "popularity", "release_date", "title"];
 
   return (
     <div className={`min-h-screen transition-colors ${theme === "dark" ? "bg-tmdb-dark" : "bg-gray-50"}`}>
@@ -521,8 +690,10 @@ export default function Browse() {
                   onChange={(e) => setSortBy(e.target.value as SortOption)}
                   className={`w-full px-3 py-2 rounded-lg border ${theme === "dark" ? "bg-gray-800 border-gray-700 text-white" : "bg-gray-50 border-gray-200 text-gray-900"}`}
                 >
-                  {(Object.keys(sortLabels) as SortOption[]).map((s) => (
-                    <option key={s} value={s}>{language === "bg" ? sortLabels[s].bg : sortLabels[s].en}</option>
+                  {availableSortOptions.map((s) => (
+                    <option key={s} value={s}>
+                      {sortLabels[s].icon} {language === "bg" ? sortLabels[s].bg : sortLabels[s].en}
+                    </option>
                   ))}
                 </select>
               </div>

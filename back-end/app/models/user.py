@@ -13,7 +13,11 @@ class User(Base):
     hashed_password = Column(String, nullable=False)
     is_admin = Column(Boolean, default=False)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
-    preferred_genres = Column(JSON, default=list)
+    
+    # User preferences for cold-start recommendations
+    preferred_genres = Column(JSON, default=list)  # ["action", "comedy", "drama"]
+    preferred_mood = Column(String, nullable=True)  # "happy", "thrilling", "thoughtful", etc.
+    
     # Relationships
     reviews = relationship("Review", back_populates="user", cascade="all, delete")
     watchlist = relationship("Watchlist", back_populates="user", cascade="all, delete")
