@@ -606,75 +606,93 @@ export default function Home() {
       setLoading(true);
       try {
         const allMovies = await moviesApi.getAll();
-        
-        const maxPopularity = Math.max(...allMovies.map((m: any) => Number(m.popularity) || 0), 1);
-        const maxReviews = Math.max(...allMovies.map((m: any) => Number(m.review_count) || 0), 1);
-        const maxFav = Math.max(...allMovies.map((m: any) => Number(m.favorite_count) || 0), 1);
-        const maxComp = Math.max(...allMovies.map((m: any) => Number(m.completed_count) || 0), 1);
+        const usedIds = new Set<number>(); // Cascade exclusion tracker
 
-        // FEATURED: Best quality with backdrop (70% rating + 30% popularity)
+        // Helper: get popularity proxy (TMDB popularity → vote_count → review_count)
+        const getPopProxy = (m: any): number => {
+          return Number(m.popularity) || Number(m.tmdb_vote_count) || Number(m.review_count) || 0;
+        };
+        const maxPop = Math.max(...allMovies.map((m: any) => getPopProxy(m)), 1);
+
+        // ==============================================================
+        // 1. FEATURED (5) — Best quality with backdrop
+        //    Highest quality, must have backdrop image
+        // ==============================================================
         const featured = [...allMovies]
           .filter((m: any) => m.backdrop_path || m.backdrop_url)
           .sort((a: any, b: any) => {
             const qa = combinedRating01(a, 30);
             const qb = combinedRating01(b, 30);
-            const pa = logNorm(Number(a.popularity) || 0, maxPopularity);
-            const pb = logNorm(Number(b.popularity) || 0, maxPopularity);
+            const pa = logNorm(getPopProxy(a), maxPop);
+            const pb = logNorm(getPopProxy(b), maxPop);
             return (0.7 * qb + 0.3 * pb) - (0.7 * qa + 0.3 * pa);
           })
           .slice(0, 5);
+        featured.forEach((m: any) => usedIds.add(m.id));
         setFeaturedMovies(featured);
 
-        // ===============================================================
-        // TRENDING: Popularity × TIME DECAY + Activity
-        // TIME DECAY is the KEY FIX - removes old classics like Shawshank
-        // ===============================================================
+        // ==============================================================
+        // 2. TRENDING (20) — "Hot right now" 
+        //    Recency + popularity + activity. Even a 7.0 movie can trend.
+        //    Excludes: Featured
+        // ==============================================================
         const trending = [...allMovies]
+          .filter((m: any) => !usedIds.has(m.id))
           .map((m: any) => {
-            const pop = logNorm(Number(m.popularity) || 0, maxPopularity);
             const decay = getTimeDecay(m.release_date);
-            const act = 0.50 * logNorm(Number(m.review_count) || 0, maxReviews) +
-                       0.30 * logNorm(Number(m.favorite_count) || 0, maxFav) +
-                       0.20 * logNorm(Number(m.completed_count) || 0, maxComp);
-            const trendingScore = (0.70 * pop * decay) + (0.30 * act);
-            return { ...m, _trendingScore: trendingScore, _decay: decay, _pop: pop };
+            const pop = logNorm(getPopProxy(m), maxPop);
+            const rating = combinedRating01(m, 30);
+
+            // Recency is king: decay is the primary differentiator
+            // A mediocre recent movie beats an amazing old one
+            const trendingScore = (0.45 * decay) + (0.30 * pop * decay) + (0.25 * rating * decay);
+
+            return { ...m, _trendingScore: trendingScore };
           })
           .sort((a: any, b: any) => b._trendingScore - a._trendingScore)
           .slice(0, 20);
-        
-        // DEBUG: Log first 5 trending movies to see decay working
-        console.log("🔥 TRENDING (with time decay):");
-        trending.slice(0, 5).forEach((m: any, i: number) => {
-          console.log(`  ${i+1}. ${m.title} (${m.release_date?.slice(0,4) || 'N/A'}) - decay: ${m._decay?.toFixed(2)}, pop: ${m._pop?.toFixed(2)}, score: ${m._trendingScore?.toFixed(3)}`);
-        });
-        
+        trending.forEach((m: any) => usedIds.add(m.id));
         setTrendingMovies(trending);
 
-        // TOP RATED: Quality ranking (stable, timeless - NO time decay)
+        // ==============================================================
+        // 3. TOP RATED (20) — "Best of all time"
+        //    Quality + enough votes. Stable, slow to change.
+        //    Excludes: Featured + Trending
+        // ==============================================================
+        const MIN_VOTES = 10; // Minimum votes to qualify (prevents 1-vote 10/10)
         const topRated = [...allMovies]
-          .filter((m: any) => (Number(m.tmdb_rating) || 0) > 0 || (Number(m.average_rating) || 0) > 0)
+          .filter((m: any) => !usedIds.has(m.id))
+          .filter((m: any) => {
+            // Must have a meaningful rating
+            const hasRating = (Number(m.tmdb_rating) || 0) > 0;
+            // Must have enough votes (TMDB votes or local reviews)
+            const votes = Number(m.tmdb_vote_count) || Number(m.review_count) || 0;
+            return hasRating && votes >= MIN_VOTES;
+          })
           .sort((a: any, b: any) => {
             const ra = combinedRating01(a, 30);
             const rb = combinedRating01(b, 30);
-            if (rb !== ra) return rb - ra;
-            return (Number(b.review_count) || 0) - (Number(a.review_count) || 0);
+            if (Math.abs(rb - ra) > 0.01) return rb - ra;
+            // Tiebreak: more votes = more trustworthy
+            const va = Number(a.tmdb_vote_count) || Number(a.review_count) || 0;
+            const vb = Number(b.tmdb_vote_count) || Number(b.review_count) || 0;
+            return vb - va;
           })
           .slice(0, 20);
-        
-        // DEBUG: Log first 5 top rated movies
-        console.log("⭐ TOP RATED (no time decay):");
-        topRated.slice(0, 5).forEach((m: any, i: number) => {
-          console.log(`  ${i+1}. ${m.title} (${m.release_date?.slice(0,4) || 'N/A'}) - rating: ${m.tmdb_rating?.toFixed(1)}`);
-        });
-        
+        topRated.forEach((m: any) => usedIds.add(m.id));
         setTopRatedMovies(topRated);
 
-        // RECENTLY RELEASED: By release date
+        // ==============================================================
+        // 4. RECENTLY RELEASED (20) — Newest by release date
+        //    Excludes: Featured + Trending + Top Rated
+        // ==============================================================
         const recent = [...allMovies]
+          .filter((m: any) => !usedIds.has(m.id))
           .filter((m: any) => m.release_date)
           .sort((a: any, b: any) => new Date(b.release_date).getTime() - new Date(a.release_date).getTime())
           .slice(0, 20);
         setRecentMovies(recent);
+
       } catch (err) {
         console.error("Failed to fetch movies:", err);
       } finally {

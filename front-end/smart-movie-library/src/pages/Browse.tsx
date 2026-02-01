@@ -4,7 +4,7 @@ import type { Movie } from "../types";
 import { moviesApi } from "../api/movies";
 import api from "../api/client";
 import { useApp } from "../context/AppContext";
-import { Search, Sparkles, Filter, ChevronDown, X, Grid, List, ChevronLeft, ChevronRight, Film, TrendingUp } from "lucide-react";
+import { Search, Sparkles, Filter, ChevronDown, X, Grid, List, ChevronLeft, ChevronRight, Film, TrendingUp, Heart } from "lucide-react";
 
 // Cache for movies
 const movieCache = {
@@ -58,6 +58,9 @@ interface MovieWithGrade extends Movie {
   _grade?: number;
   _combinedRating?: number;
   _relevance?: number;
+  _personalScore?: number;
+  _popularityNorm?: number;
+  _badge?: "best_for_you" | "matches_search" | "trending" | null;
   favorite_count?: number;
   completed_count?: number;
 }
@@ -98,8 +101,23 @@ function calculateCombinedRating(movie: Movie): number {
   return clamp01(confidence * appNorm + (1 - confidence) * tmdbNorm);
 }
 
+/**
+ * Get a popularity proxy value with fallback chain:
+ *   1. popularity (TMDb popularity score — best)
+ *   2. tmdb_vote_count (how many TMDb users rated it)
+ *   3. review_count (our app's review count)
+ *   4. 0
+ */
+function getPopProxy(movie: Movie): number {
+  const m = movie as any;
+  if (m.popularity && m.popularity > 0) return m.popularity;
+  if (m.tmdb_vote_count && m.tmdb_vote_count > 0) return m.tmdb_vote_count;
+  if (m.review_count && m.review_count > 0) return m.review_count;
+  return 0;
+}
+
 function calculatePopularityNorm(movie: Movie, maxPopularity: number): number {
-  const popularity = (movie as any).popularity || 0;
+  const popularity = getPopProxy(movie);
   if (maxPopularity <= 0) return 0;
   return clamp01(Math.log(1 + popularity) / Math.log(1 + maxPopularity));
 }
@@ -123,32 +141,55 @@ function calculateGrade(
   maxFavorites: number,
   maxCompleted: number,
   relevanceScores: Record<number, number>,
-  isSearching: boolean
+  personalScores: Record<number, number>,
+  isAISearch: boolean
 ): number {
   const combinedRating = calculateCombinedRating(movie);
   const popNorm = calculatePopularityNorm(movie, maxPopularity);
   const engagementNorm = calculateEngagementNorm(movie, maxFavorites, maxCompleted);
   const searchNorm = relevanceScores[movie.id] || 0;
+  const personalNorm = personalScores[movie.id] || 0;
 
   movie._combinedRating = combinedRating;
   movie._relevance = searchNorm;
+  movie._personalScore = personalNorm;
+  movie._popularityNorm = popNorm;
 
-  if (isSearching && searchNorm > 0) {
-    // SEARCH: relevance dominates; no wasted weight
-    return clamp01(
-      0.50 * searchNorm +
-      0.30 * combinedRating +
-      0.15 * engagementNorm +
-      0.05 * popNorm
+  let grade: number;
+
+  if (isAISearch && searchNorm > 0) {
+    // AI SEARCH: Semantic dominates, personal score boosts "best for you" movies
+    // FinalScore = 0.55 Semantic + 0.25 Personal + 0.15 Popularity + 0.05 Quality
+    grade = clamp01(
+      0.55 * searchNorm +
+      0.25 * personalNorm +
+      0.15 * popNorm +
+      0.05 * combinedRating
+    );
+  } else {
+    // BROWSE (no search): quality + engagement + popularity
+    grade = clamp01(
+      0.50 * combinedRating +
+      0.30 * engagementNorm +
+      0.20 * popNorm
     );
   }
 
-  // BROWSE: quality + engagement + popularity (weights sum to 100%)
-  return clamp01(
-    0.50 * combinedRating +
-    0.30 * engagementNorm +
-    0.20 * popNorm
-  );
+  // Assign badge (only during AI search)
+  movie._badge = null;
+  if (isAISearch && searchNorm > 0) {
+    if (personalNorm >= 0.7) {
+      movie._badge = "best_for_you";
+    } else if (searchNorm >= 0.8) {
+      movie._badge = "matches_search";
+    } else if (popNorm >= 0.75 && searchNorm >= 0.4) {
+      // Trending requires BOTH high popularity AND decent query match
+      // Prevents badging popular movies that barely match the search
+      movie._badge = "trending";
+    }
+  }
+
+  return grade;
 }
 
 // ============================================================================
@@ -175,6 +216,36 @@ function CircularRating({ rating, size = 36, isTmdb = false }: { rating: number;
   );
 }
 
+function MovieBadge({ badge, language }: { badge: MovieWithGrade["_badge"]; language: string }) {
+  if (!badge) return null;
+
+  const config = {
+    best_for_you: { 
+      label: language === "bg" ? "За теб" : "Best for you",
+      icon: <Heart className="w-3 h-3" />,
+      classes: "bg-gradient-to-r from-purple-600 to-pink-600 text-white"
+    },
+    matches_search: { 
+      label: language === "bg" ? "Точно съвпадение" : "Great match",
+      icon: <Sparkles className="w-3 h-3" />,
+      classes: "bg-gradient-to-r from-blue-600 to-cyan-600 text-white"
+    },
+    trending: { 
+      label: language === "bg" ? "Trending" : "Trending",
+      icon: <TrendingUp className="w-3 h-3" />,
+      classes: "bg-gradient-to-r from-orange-500 to-amber-500 text-white"
+    },
+  };
+
+  const c = config[badge];
+  return (
+    <div className={`absolute top-2 left-2 flex items-center gap-1 px-2 py-1 rounded-md text-[10px] font-bold shadow-lg ${c.classes}`}>
+      {c.icon}
+      {c.label}
+    </div>
+  );
+}
+
 function MovieCardGrid({ movie, onClick, language, theme, snippet }: { movie: MovieWithGrade; onClick: () => void; language: string; theme: string; snippet?: string }) {
   const title = language === "bg" ? movie.title_bg || movie.title : movie.title;
   const posterUrl = movie.poster_path ? `https://image.tmdb.org/t/p/w342${movie.poster_path}` : movie.poster_url;
@@ -182,6 +253,8 @@ function MovieCardGrid({ movie, onClick, language, theme, snippet }: { movie: Mo
   
   // Use TMDB rating for display (more reliable)
   const displayRating = (movie as any).tmdb_rating || (movie as any).average_rating || 0;
+  const appRating = (movie as any).average_rating;
+  const reviewCount = (movie as any).review_count || 0;
 
   return (
     <div className="cursor-pointer group" onClick={onClick}>
@@ -196,10 +269,16 @@ function MovieCardGrid({ movie, onClick, language, theme, snippet }: { movie: Mo
         <div className="absolute bottom-2 left-2">
           <CircularRating rating={displayRating} size={36} isTmdb={true} />
         </div>
+        <MovieBadge badge={movie._badge} language={language} />
       </div>
       <div className="pt-3 px-1">
         <h3 className={`font-bold text-sm line-clamp-2 group-hover:text-tmdb-light-blue transition-colors ${theme === "dark" ? "text-white" : "text-gray-900"}`}>{title}</h3>
         {releaseDate && <p className={`text-sm mt-0.5 ${theme === "dark" ? "text-gray-400" : "text-gray-500"}`}>{releaseDate}</p>}
+        {reviewCount > 0 && appRating > 0 && (
+          <p className={`text-xs mt-0.5 ${theme === "dark" ? "text-gray-500" : "text-gray-400"}`}>
+            ★ {Number(appRating).toFixed(1)}/5 · {reviewCount} {reviewCount === 1 ? (language === "bg" ? "ревю" : "review") : (language === "bg" ? "ревюта" : "reviews")}
+          </p>
+        )}
         {snippet && <p className="text-xs mt-1 text-purple-400 line-clamp-2 italic">{snippet}</p>}
       </div>
     </div>
@@ -214,6 +293,8 @@ function MovieCardList({ movie, onClick, language, theme, snippet }: { movie: Mo
   
   // Use TMDB rating for display
   const displayRating = (movie as any).tmdb_rating || (movie as any).average_rating || 0;
+  const appRating = (movie as any).average_rating;
+  const reviewCount = (movie as any).review_count || 0;
 
   return (
     <div className={`flex rounded-lg cursor-pointer transition-all overflow-hidden border ${theme === "dark" ? "bg-gray-900 hover:bg-gray-800 border-gray-800" : "bg-white hover:bg-gray-50 border-gray-200 shadow-sm"}`} onClick={onClick}>
@@ -225,13 +306,25 @@ function MovieCardList({ movie, onClick, language, theme, snippet }: { movie: Mo
             <Film className="w-8 h-8 text-gray-500" />
           </div>
         )}
+        {movie._badge && (
+          <div className="absolute top-1 left-1 right-1">
+            <MovieBadge badge={movie._badge} language={language} />
+          </div>
+        )}
       </div>
       <div className="flex-1 p-4 flex flex-col justify-center min-w-0">
         <div className="flex items-start gap-3">
           <CircularRating rating={displayRating} size={40} isTmdb={true} />
           <div className="flex-1 min-w-0">
             <h3 className={`font-bold line-clamp-1 ${theme === "dark" ? "text-white" : "text-gray-900"}`}>{title}</h3>
-            {releaseDate && <p className={`text-sm ${theme === "dark" ? "text-gray-400" : "text-gray-500"}`}>{releaseDate}</p>}
+            <div className="flex items-center gap-2 flex-wrap">
+              {releaseDate && <p className={`text-sm ${theme === "dark" ? "text-gray-400" : "text-gray-500"}`}>{releaseDate}</p>}
+              {reviewCount > 0 && appRating > 0 && (
+                <p className={`text-xs ${theme === "dark" ? "text-gray-500" : "text-gray-400"}`}>
+                  · ★ {Number(appRating).toFixed(1)}/5 ({reviewCount})
+                </p>
+              )}
+            </div>
           </div>
         </div>
         {snippet ? (
@@ -330,7 +423,7 @@ function Pagination({ currentPage, totalPages, onPageChange, theme, language }: 
 
 export default function Browse() {
   const navigate = useNavigate();
-  const { theme, language } = useApp();
+  const { theme, language, isAuthenticated } = useApp();
   const [params, setParams] = useSearchParams();
 
   // State
@@ -338,6 +431,7 @@ export default function Browse() {
   const [searchResults, setSearchResults] = useState<Movie[]>([]);
   const [snippets, setSnippets] = useState<Record<number, string>>({});
   const [relevanceScores, setRelevanceScores] = useState<Record<number, number>>({});
+  const [personalScores, setPersonalScores] = useState<Record<number, number>>({});
   const [loading, setLoading] = useState(true);
   const [searching, setSearching] = useState(false);
 
@@ -362,6 +456,41 @@ export default function Browse() {
       setSortBy("best");
     }
   }, [isAISearchActive, sortBy]);
+
+  // Auto-default to relevance when AI search activates
+  useEffect(() => {
+    if (isAISearchActive && sortBy !== "relevance") {
+      setSortBy("relevance");
+    }
+  }, [isAISearchActive]);
+
+  // Fetch personal scores (for-me recommendations) — used to boost "Best for you" in AI search
+  useEffect(() => {
+    const fetchPersonalScores = async () => {
+      const token = localStorage.getItem("token");
+      if (!token) {
+        setPersonalScores({});
+        return;
+      }
+      try {
+        const response = await api.get("/ai/recommend/for-me", { params: { top_k: 50 } });
+        const recs = response.data || [];
+        // Normalize scores 0..1 based on rank position (top=1.0, bottom=0.0)
+        const scoreMap: Record<number, number> = {};
+        recs.forEach((rec: any, idx: number) => {
+          const movieId = rec.movie?.id;
+          if (movieId) {
+            // Rank-based: top recommendation = 1.0, linearly decreasing
+            scoreMap[movieId] = clamp01(1 - idx / Math.max(recs.length, 1));
+          }
+        });
+        setPersonalScores(scoreMap);
+      } catch {
+        setPersonalScores({});
+      }
+    };
+    fetchPersonalScores();
+  }, [isAuthenticated]);
 
   // Get unique genres
   const genres = useMemo(() => {
@@ -498,33 +627,49 @@ export default function Browse() {
       }
     }
 
-    // Calculate max values for normalization
-    const maxPopularity = Math.max(...movies.map(m => (m as any).popularity || 0), 1);
+    // Calculate max values for normalization (popularity uses fallback chain)
+    const maxPopularity = Math.max(...movies.map(m => getPopProxy(m)), 1);
     const maxFavorites = Math.max(...movies.map(m => (m as MovieWithGrade).favorite_count || 0), 1);
     const maxCompleted = Math.max(...movies.map(m => (m as MovieWithGrade).completed_count || 0), 1);
-    const isSearching = searchQuery.trim() !== "" && searchMode === "ai";
+    const isAISearch = searchQuery.trim() !== "" && searchMode === "ai";
 
-    // Calculate grades for all movies
+    // Calculate grades for all movies (includes personal score + badges)
     movies.forEach(m => {
-      m._grade = calculateGrade(m, maxPopularity, maxFavorites, maxCompleted, relevanceScores, isSearching);
+      m._grade = calculateGrade(m, maxPopularity, maxFavorites, maxCompleted, relevanceScores, personalScores, isAISearch);
     });
 
     // Sort based on selected option
     switch (sortBy) {
       case "best":
-        // Sort by grade (combines rating, favorites, popularity, personalization, and relevance if searching)
+        // Blended: quality + engagement + popularity (the "smart" default)
         movies.sort((a, b) => (b._grade || 0) - (a._grade || 0));
         break;
       case "rating":
-        // Sort by combined rating (TMDB + community with confidence weighting)
+        // PURE QUALITY: highest rated first, regardless of popularity
+        // Uses TMDB rating directly (not the blended combinedRating which mixes in app ratings)
+        // Tiebreak by vote count (more votes = more trustworthy rating)
         movies.sort((a, b) => {
-          const ratingA = calculateCombinedRating(a);
-          const ratingB = calculateCombinedRating(b);
-          return ratingB - ratingA;
+          const rA = (a as any).tmdb_rating || (a as any).average_rating || 0;
+          const rB = (b as any).tmdb_rating || (b as any).average_rating || 0;
+          if (rB !== rA) return rB - rA;
+          // Tiebreak: more votes = more credible
+          const vA = (a as any).tmdb_vote_count || (a as any).review_count || 0;
+          const vB = (b as any).tmdb_vote_count || (b as any).review_count || 0;
+          return vB - vA;
         });
         break;
       case "popularity":
-        movies.sort((a, b) => ((b as any).popularity ?? 0) - ((a as any).popularity ?? 0));
+        // PURE TRENDING: most popular/viral first, regardless of quality
+        // Uses fallback chain: popularity → tmdb_vote_count → review_count
+        // Tiebreak by rating (if equally popular, show the better one)
+        movies.sort((a, b) => {
+          const pA = getPopProxy(a);
+          const pB = getPopProxy(b);
+          if (pB !== pA) return pB - pA;
+          const rA = (a as any).tmdb_rating || 0;
+          const rB = (b as any).tmdb_rating || 0;
+          return rB - rA;
+        });
         break;
       case "title":
         movies.sort((a, b) => {
@@ -541,14 +686,13 @@ export default function Browse() {
         });
         break;
       case "relevance":
-        // Keep original AI order (already sorted by relevance from API)
-        // Just ensure movies with relevance scores come first
-        movies.sort((a, b) => (relevanceScores[b.id] || 0) - (relevanceScores[a.id] || 0));
+        // AI search: FinalScore (semantic + personal + popularity + quality)
+        movies.sort((a, b) => (b._grade || 0) - (a._grade || 0));
         break;
     }
     
     return movies;
-  }, [allMovies, searchResults, searchQuery, searchMode, selectedGenre, selectedMood, sortBy, language, relevanceScores]);
+  }, [allMovies, searchResults, searchQuery, searchMode, selectedGenre, selectedMood, sortBy, language, relevanceScores, personalScores]);
 
   // Pagination
   const totalPages = Math.ceil(displayMovies.length / MOVIES_PER_PAGE);
@@ -588,7 +732,7 @@ export default function Browse() {
 
   // Sort options - conditionally show relevance only for AI search
   const sortLabels: Record<SortOption, { en: string; bg: string; icon?: string }> = {
-    best: { en: "Best for you", bg: "Най-добри за теб", icon: "✨" },
+    best: { en: "Best", bg: "Най-добри", icon: "✨" },
     rating: { en: "Rating", bg: "Рейтинг", icon: "⭐" },
     popularity: { en: "Popularity", bg: "Популярност", icon: "🔥" },
     release_date: { en: "Release Date", bg: "Дата", icon: "📅" },
@@ -621,18 +765,18 @@ export default function Browse() {
                   placeholder={searchMode === "ai" 
                     ? (language === "bg" ? "Опиши какъв филм търсиш..." : "Describe what movie you're looking for...")
                     : (language === "bg" ? "Търси по заглавие..." : "Search by title...")}
-                  className={`w-full pl-12 pr-4 py-3 rounded-xl border focus:outline-none focus:ring-2 focus:ring-tmdb-light-blue ${
+                  className={`w-full pl-12 pr-12 py-3 rounded-xl border focus:outline-none focus:ring-2 focus:ring-tmdb-light-blue ${
                     theme === "dark" ? "bg-gray-900 border-gray-700 text-white placeholder-gray-500" : "bg-white border-gray-300 text-gray-900 placeholder-gray-400"
                   }`}
                 />
                 {searchMode === "ai" ? (
-                  <Sparkles className={`absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 ${theme === "dark" ? "text-purple-400" : "text-purple-500"}`} />
+                  <Sparkles className={`absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 pointer-events-none ${theme === "dark" ? "text-purple-400" : "text-purple-500"}`} />
                 ) : (
-                  <Search className={`absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 ${theme === "dark" ? "text-gray-500" : "text-gray-400"}`} />
+                  <Search className={`absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 pointer-events-none ${theme === "dark" ? "text-gray-500" : "text-gray-400"}`} />
                 )}
                 {searchQuery && (
-                  <button type="button" onClick={clearSearch} className={`absolute right-4 top-1/2 -translate-y-1/2 ${theme === "dark" ? "text-gray-500 hover:text-gray-300" : "text-gray-400 hover:text-gray-600"}`}>
-                    <X className="w-5 h-5" />
+                  <button type="button" onClick={clearSearch} className={`absolute right-2 top-1/2 -translate-y-1/2 w-8 h-8 flex items-center justify-center rounded-md flex-shrink-0 transition-colors ${theme === "dark" ? "text-gray-500 hover:text-gray-300 hover:bg-gray-800" : "text-gray-400 hover:text-gray-600 hover:bg-gray-100"}`}>
+                    <X className="w-4 h-4" />
                   </button>
                 )}
               </div>
@@ -744,22 +888,22 @@ export default function Browse() {
                   </p>
                   <div className="flex flex-wrap gap-2">
                     {searchQuery && (
-                      <span className={`inline-flex items-center gap-1 px-2 py-1 rounded text-xs ${theme === "dark" ? "bg-purple-500/20 text-purple-400" : "bg-purple-100 text-purple-700"}`}>
-                        {searchMode === "ai" ? <Sparkles className="w-3 h-3" /> : <Search className="w-3 h-3" />}
-                        "{searchQuery.length > 15 ? searchQuery.slice(0, 15) + "..." : searchQuery}"
-                        <button onClick={clearSearch}><X className="w-3 h-3" /></button>
+                      <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs ${theme === "dark" ? "bg-purple-500/20 text-purple-400" : "bg-purple-100 text-purple-700"}`}>
+                        {searchMode === "ai" ? <Sparkles className="w-3 h-3 flex-shrink-0" /> : <Search className="w-3 h-3 flex-shrink-0" />}
+                        <span className="truncate max-w-[120px]">"{searchQuery.length > 15 ? searchQuery.slice(0, 15) + "..." : searchQuery}"</span>
+                        <button onClick={clearSearch} className="flex-shrink-0 w-4 h-4 flex items-center justify-center rounded hover:bg-purple-500/30 transition-colors"><X className="w-3 h-3" /></button>
                       </span>
                     )}
                     {selectedGenre !== "all" && (
-                      <span className={`inline-flex items-center gap-1 px-2 py-1 rounded text-xs ${theme === "dark" ? "bg-blue-500/20 text-blue-400" : "bg-blue-100 text-blue-700"}`}>
+                      <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs ${theme === "dark" ? "bg-blue-500/20 text-blue-400" : "bg-blue-100 text-blue-700"}`}>
                         {selectedGenre}
-                        <button onClick={() => setSelectedGenre("all")}><X className="w-3 h-3" /></button>
+                        <button onClick={() => setSelectedGenre("all")} className="flex-shrink-0 w-4 h-4 flex items-center justify-center rounded hover:bg-blue-500/30 transition-colors"><X className="w-3 h-3" /></button>
                       </span>
                     )}
                     {selectedMood !== "all" && (
-                      <span className={`inline-flex items-center gap-1 px-2 py-1 rounded text-xs ${theme === "dark" ? "bg-amber-500/20 text-amber-400" : "bg-amber-100 text-amber-700"}`}>
+                      <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs ${theme === "dark" ? "bg-amber-500/20 text-amber-400" : "bg-amber-100 text-amber-700"}`}>
                         {moodLabels[selectedMood].emoji}
-                        <button onClick={() => setSelectedMood("all")}><X className="w-3 h-3" /></button>
+                        <button onClick={() => setSelectedMood("all")} className="flex-shrink-0 w-4 h-4 flex items-center justify-center rounded hover:bg-amber-500/30 transition-colors"><X className="w-3 h-3" /></button>
                       </span>
                     )}
                   </div>

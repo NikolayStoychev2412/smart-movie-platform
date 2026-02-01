@@ -142,7 +142,7 @@ app.add_middleware(
 # INCLUDE ROUTERS
 # =============================================================================
 
-from app.routers import movies, auth, watchlist, reviews,users
+from app.routers import movies, auth, watchlist, reviews,users,admin
 from app.routers.ai_router import router as ai_router
 
 app.include_router(movies.router)
@@ -152,7 +152,7 @@ app.include_router(reviews.router)
 app.include_router(ai_router)
 app.include_router(favorites.router)
 app.include_router(users.router)
-
+app.include_router(admin.router)
 # =============================================================================
 # ROOT ENDPOINT
 # =============================================================================

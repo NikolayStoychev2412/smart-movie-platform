@@ -6,12 +6,14 @@ from datetime import datetime, timedelta
 from typing import List, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
-from sqlalchemy import select, func
+from sqlalchemy import select, func, and_
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_async_db
 from app.models.movie import Movie
 from app.models.review import Review
+from app.models.favorite import Favorite
+from app.models.watchlist import Watchlist, WatchStatus
 from app.schemas.movie import MovieOut, MovieDetailOut
 
 router = APIRouter(prefix="/movies", tags=["Movies"])
@@ -107,10 +109,23 @@ async def get_all_movies(
         if cached:
             return cached
     
-    # Query movies with review count using subquery
+    # Query movies with review count + favorite count using subqueries
     review_count_subq = (
         select(Review.movie_id, func.count(Review.id).label("review_count"))
         .group_by(Review.movie_id)
+        .subquery()
+    )
+    
+    favorite_count_subq = (
+        select(Favorite.movie_id, func.count(Favorite.id).label("favorite_count"))
+        .group_by(Favorite.movie_id)
+        .subquery()
+    )
+    
+    completed_count_subq = (
+        select(Watchlist.movie_id, func.count(Watchlist.id).label("completed_count"))
+        .where(Watchlist.status == WatchStatus.COMPLETED)
+        .group_by(Watchlist.movie_id)
         .subquery()
     )
     
@@ -128,15 +143,22 @@ async def get_all_movies(
             Movie.poster_url,
             Movie.poster_path,
             Movie.backdrop_url,
+            Movie.backdrop_path,
             Movie.average_rating,
             Movie.tmdb_rating,
+            Movie.tmdb_vote_count,
             Movie.release_date,
             Movie.release_year,
             Movie.runtime,
-            func.coalesce(review_count_subq.c.review_count, 0).label("review_count")
+            Movie.popularity,
+            func.coalesce(review_count_subq.c.review_count, 0).label("review_count"),
+            func.coalesce(favorite_count_subq.c.favorite_count, 0).label("favorite_count"),
+            func.coalesce(completed_count_subq.c.completed_count, 0).label("completed_count"),
         )
         .outerjoin(review_count_subq, Movie.id == review_count_subq.c.movie_id)
-        .order_by(Movie.average_rating.desc())
+        .outerjoin(favorite_count_subq, Movie.id == favorite_count_subq.c.movie_id)
+        .outerjoin(completed_count_subq, Movie.id == completed_count_subq.c.movie_id)
+        .order_by(Movie.popularity.desc())
         .offset(skip)
         .limit(limit)
     )
@@ -157,14 +179,20 @@ async def get_all_movies(
             "tagline": row.tagline,
             "tagline_bg": row.tagline_bg,
             "poster_url": row.poster_url,
+            "poster_path": row.poster_path,
             "backdrop_url": row.backdrop_url,
+            "backdrop_path": row.backdrop_path,
             "average_rating": float(row.average_rating) if row.average_rating else 0.0,
             "tmdb_rating": float(row.tmdb_rating) if row.tmdb_rating else None,
             "release_date": row.release_date,
             "release_year": row.release_year,
             "runtime": row.runtime,
             "runtime_formatted": format_runtime(row.runtime),
+            "popularity": float(row.popularity) if row.popularity else 0.0,
+            "tmdb_vote_count": row.tmdb_vote_count or 0,
             "review_count": row.review_count or 0,
+            "favorite_count": row.favorite_count or 0,
+            "completed_count": row.completed_count or 0,
         }
         for row in rows
     ]
