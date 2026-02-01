@@ -635,17 +635,25 @@ export default function MovieDetails() {
 
   return (
     <div className={`min-h-screen ${theme==="dark"?"bg-tmdb-dark":"bg-gray-50"}`}>
-      <div className="relative">
-        <div className="absolute inset-0 h-[500px] md:h-[600px] overflow-hidden">
-          {backdropUrl ? <img src={backdropUrl} alt={title} className="w-full h-full object-cover object-top"/> : <div className={`w-full h-full ${theme==="dark"?"bg-gray-800":"bg-gray-300"}`}/>}
-          <div className="absolute inset-0 bg-gradient-to-r from-black/95 via-black/70 to-black/30"/>
-          <div className="absolute inset-0 bg-gradient-to-t from-black via-black/30 to-transparent"/>
+      {/* Hero Section - backdrop stretches to fit ALL content */}
+      <div className={`relative ${theme === "dark" ? "bg-gray-900" : "bg-gray-800"}`}>
+        {/* Backdrop Image - covers the entire hero area */}
+        <div className="absolute inset-0 overflow-hidden">
+          {backdropUrl ? <img src={backdropUrl} alt="" className="w-full h-full object-cover object-top"/> : <div className={`w-full h-full ${theme==="dark"?"bg-gray-800":"bg-gray-700"}`}/>}
+          {/* Dark overlays for readability */}
+          <div className="absolute inset-0 bg-gradient-to-r from-black/95 via-black/80 to-black/50"/>
+          <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/40 to-black/20"/>
         </div>
-        <div className="relative z-10 max-w-7xl mx-auto px-4 md:px-8 pt-8 pb-16">
+
+        {/* Content - positioned over backdrop */}
+        <div className="relative z-10 max-w-7xl mx-auto px-4 md:px-8 pt-8 pb-12">
           <div className="flex flex-col md:flex-row gap-8">
+            {/* Poster */}
             <div className="w-full max-w-[300px] md:w-[300px] mx-auto md:mx-0 flex-shrink-0">
               <div className="rounded-xl shadow-2xl overflow-hidden">{posterUrl ? <img src={posterUrl} alt={title} className="w-full aspect-[2/3] object-cover"/> : <div className="w-full aspect-[2/3] bg-gray-700 flex items-center justify-center"><Film className="w-16 h-16 text-gray-500"/></div>}</div>
             </div>
+
+            {/* Info */}
             <div className="flex-1 text-white">
               <h1 className="text-3xl md:text-4xl lg:text-5xl font-bold">{title}{releaseYear && <span className="font-normal text-gray-300 ml-3">({releaseYear})</span>}</h1>
               <div className="flex flex-wrap items-center gap-x-4 gap-y-2 mt-4 text-sm text-gray-300">
@@ -744,7 +752,7 @@ export default function MovieDetails() {
                   className={`flex items-center justify-center w-12 h-12 rounded-full transition-all ${
                     isFavorite 
                       ? 'bg-pink-600 text-white hover:bg-pink-700' 
-                      : 'bg-tmdb-dark-blue/80 text-gray-300 hover:text-white hover:bg-tmdb-dark-blue'
+                      : 'bg-white/10 text-gray-300 hover:text-white hover:bg-white/20'
                   }`}
                   title={isFavorite ? (language === "bg" ? "Премахни от любими" : "Remove from favorites") : (language === "bg" ? "Добави в любими" : "Add to favorites")}
                 >
@@ -755,13 +763,29 @@ export default function MovieDetails() {
                   )}
                 </button>
               </div>
+
+              {/* Tagline */}
               {tagline && <p className="text-gray-400 italic text-lg mt-6">{tagline}</p>}
-              <div className="mt-6"><h3 className="text-xl font-semibold mb-2">{language==="bg"?"Резюме":"Overview"}</h3>{summary ? <p className="text-gray-200 leading-relaxed max-w-3xl">{summary}</p> : <p className="text-gray-500 italic">{language==="bg"?"Няма":"No overview"}</p>}</div>
-              {director && <div className="mt-6 pt-6 border-t border-white/10"><p className="font-semibold text-lg">{director}</p><p className="text-sm text-gray-400">{language==="bg"?"Режисьор":"Director"}</p></div>}
+
+              {/* Overview */}
+              <div className="mt-6">
+                <h3 className="text-xl font-semibold mb-2">{language==="bg"?"Резюме":"Overview"}</h3>
+                {summary ? <p className="text-gray-200 leading-relaxed max-w-3xl">{summary}</p> : <p className="text-gray-500 italic">{language==="bg"?"Няма":"No overview"}</p>}
+              </div>
+
+              {/* Director */}
+              {director && (
+                <div className="mt-6 pt-6 border-t border-white/10">
+                  <p className="font-semibold text-lg">{director}</p>
+                  <p className="text-sm text-gray-400">{language==="bg"?"Режисьор":"Director"}</p>
+                </div>
+              )}
             </div>
           </div>
         </div>
       </div>
+
+      {/* Body Section - clean background, no overlap */}
       <div className={theme==="dark"?"bg-tmdb-dark":"bg-gray-50"}>
         <div className="max-w-7xl mx-auto px-4 md:px-8 py-10">
           <div className="flex flex-col lg:flex-row gap-10">
