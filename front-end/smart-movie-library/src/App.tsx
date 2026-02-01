@@ -10,6 +10,7 @@ import Login from "./pages/Login";
 import Register from "./pages/Register";
 import Profile from "./pages/Profile";
 import Watchlist from "./pages/Watchlist";
+import Admin from "./pages/Admin";
 
 function App() {
   return (
@@ -27,6 +28,7 @@ function App() {
               <Route path="/register" element={<Register />} />
               <Route path="/profile" element={<Profile />} />
               <Route path="/watchlist" element={<Watchlist />} />
+              <Route path="/admin" element={<Admin />} />
               <Route path="*" element={<div className="p-8 text-center text-white">404 - Page Not Found</div>} />
             </Routes>
           </main>

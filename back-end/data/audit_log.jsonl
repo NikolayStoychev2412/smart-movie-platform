@@ -1,0 +1,2 @@
+{"timestamp": "2026-02-01T18:18:29.370693Z", "event_type": "user_deleted", "user_id": 10, "user_email": "niki.stoychev0566@gmail.com", "ip_address": "127.0.0.1", "success": true, "details": {"deleted_user_id": 16, "deleted_user_email": "Ime123@gmail.com"}}
+{"timestamp": "2026-02-01T18:18:32.281762Z", "event_type": "user_deleted", "user_id": 10, "user_email": "niki.stoychev0566@gmail.com", "ip_address": "127.0.0.1", "success": true, "details": {"deleted_user_id": 15, "deleted_user_email": "niki.stoychev0123@gmail.com"}}

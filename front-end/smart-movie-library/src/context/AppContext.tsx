@@ -104,14 +104,40 @@ export function AppProvider({ children }: { children: ReactNode }) {
     }
   }, [theme]);
 
-  // Sync auth state - if token is gone but user exists, clear user
+  // Validate token on app startup — if expired/invalid, clear everything
   useEffect(() => {
     const token = localStorage.getItem('token');
-    if (!token && user) {
-      setUserState(null);
-      localStorage.removeItem('user');
+
+    if (!token) {
+      // No token at all — make sure user state is clean
+      if (user) {
+        setUserState(null);
+        localStorage.removeItem('user');
+      }
+      return;
     }
-  }, [user]);
+
+    // Token exists — verify it's still valid with the backend
+    fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:8000'}/users/me`, {
+      headers: { Authorization: `Bearer ${token}` },
+    })
+      .then(res => {
+        if (!res.ok) throw new Error('Token invalid');
+        return res.json();
+      })
+      .then((freshUser: User) => {
+        // Update local user data in case name/admin status changed
+        setUserState(freshUser);
+        localStorage.setItem('user', JSON.stringify(freshUser));
+      })
+      .catch(() => {
+        // Token expired or server unreachable — clear auth state
+        setUserState(null);
+        localStorage.removeItem('user');
+        localStorage.removeItem('token');
+      });
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []); // Run once on mount only
 
   const t = translations[language];
 

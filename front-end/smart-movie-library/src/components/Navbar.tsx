@@ -13,7 +13,8 @@ import {
   LogOut,
   Search,
   ChevronDown,
-  Bookmark
+  Bookmark,
+  ShieldCheck
 } from "lucide-react";
 
 export default function Navbar() {
@@ -178,6 +179,18 @@ export default function Navbar() {
                         <User className="w-4 h-4" />
                         {language === "bg" ? "Профил" : "Profile"}
                       </Link>
+                      {user.is_admin && (
+                        <Link
+                          to="/admin"
+                          onClick={() => setUserMenuOpen(false)}
+                          className={`flex items-center gap-2 px-4 py-3 transition-colors ${
+                            theme === "dark" ? "text-amber-400 hover:bg-gray-800" : "text-amber-600 hover:bg-gray-50"
+                          }`}
+                        >
+                          <ShieldCheck className="w-4 h-4" />
+                          {language === "bg" ? "Админ панел" : "Admin Panel"}
+                        </Link>
+                      )}
                       <button
                         onClick={() => {
                           logout();
