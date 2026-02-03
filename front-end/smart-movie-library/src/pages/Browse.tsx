@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useMemo } from "react";
+import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import type { Movie } from "../types";
 import { moviesApi } from "../api/movies";
@@ -27,6 +27,7 @@ type MoodOption = "all" | "funny" | "scary" | "romantic" | "exciting" | "thought
 
 const MOVIES_PER_PAGE = 20;
 const CONFIDENCE_K = 20; // Reviews needed for full confidence
+const MIN_SEARCH_LENGTH = 2; // Minimum characters before search triggers
 
 const moodToGenres: Record<MoodOption, string[]> = {
   all: [],
@@ -446,7 +447,11 @@ export default function Browse() {
 
   // Pagination
   const [currentPage, setCurrentPage] = useState(parseInt(params.get("page") || "1"));
-  
+
+  // Search refs
+  const searchTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const activeQueryRef = useRef<string>("");
+
   // Is AI search active with results?
   const isAISearchActive = searchQuery.trim() !== "" && searchMode === "ai" && searchResults.length > 0;
 
@@ -597,6 +602,7 @@ export default function Browse() {
 
       setSearching(false);
       setCurrentPage(1);
+      activeQueryRef.current = q;
     };
 
     if (allMovies.length > 0) {
@@ -606,7 +612,10 @@ export default function Browse() {
 
   // Get filtered and sorted movies
   const displayMovies = useMemo(() => {
-    let movies: MovieWithGrade[] = searchQuery ? [...searchResults] : [...allMovies];
+    // Use search results only if we actually have results from a completed search.
+    // While typing a new query (searchResults empty), keep showing all movies.
+    const hasActiveResults = searchResults.length > 0;
+    let movies: MovieWithGrade[] = hasActiveResults ? [...searchResults] : [...allMovies];
 
     // Filter by genre
     if (selectedGenre !== "all") {
@@ -706,14 +715,77 @@ export default function Browse() {
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
+  // Seamless search: clear stale results immediately when user types new text
+  const handleInputChange = (value: string) => {
+    setSearchQuery(value);
+
+    // If user is typing something new and we have old results, clear them
+    if (value.trim() !== activeQueryRef.current) {
+      if (searchMode === "ai") {
+        // AI: clear old results so user doesn't see stale movies
+        // (actual search fires on Enter)
+        if (value.trim() === "") {
+          setSearchResults([]);
+          setSnippets({});
+          setRelevanceScores({});
+          activeQueryRef.current = "";
+          // Also clear URL params
+          const newParams = new URLSearchParams(params);
+          newParams.delete("q");
+          newParams.delete("mode");
+          setParams(newParams, { replace: true });
+        } else {
+          // Still typing — clear old results so they don't mislead
+          setSearchResults([]);
+          setSnippets({});
+          setRelevanceScores({});
+        }
+      } else {
+        // Title mode: debounce and auto-search as user types
+        if (searchTimerRef.current) clearTimeout(searchTimerRef.current);
+
+        if (value.trim() === "") {
+          setSearchResults([]);
+          setSnippets({});
+          setRelevanceScores({});
+          activeQueryRef.current = "";
+          const newParams = new URLSearchParams(params);
+          newParams.delete("q");
+          newParams.delete("mode");
+          setParams(newParams, { replace: true });
+        } else {
+          searchTimerRef.current = setTimeout(() => {
+            const trimmed = value.trim();
+            if (trimmed.length < MIN_SEARCH_LENGTH) {
+              // Too short — show all movies
+              setSearchResults([]);
+              activeQueryRef.current = "";
+              return;
+            }
+            const lower = trimmed.toLowerCase();
+            const filtered = allMovies.filter((m) => {
+              const t = (m.title ?? "").toLowerCase();
+              const tBg = (m.title_bg ?? "").toLowerCase();
+              return t.includes(lower) || tBg.includes(lower);
+            });
+            setSearchResults(filtered);
+            setSnippets({});
+            setRelevanceScores({});
+            activeQueryRef.current = value.trim();
+            setCurrentPage(1);
+          }, 250);
+        }
+      }
+    }
+  };
+
   const handleSearch = useCallback((e: React.FormEvent) => {
     e.preventDefault();
     const q = searchQuery.trim();
+    if (q.length < MIN_SEARCH_LENGTH) return;
     const newParams = new URLSearchParams();
-    if (q) {
-      newParams.set("q", q);
-      newParams.set("mode", searchMode);
-    }
+    newParams.set("q", q);
+    newParams.set("mode", searchMode);
     if (selectedGenre !== "all") newParams.set("genre", selectedGenre);
     if (selectedMood !== "all") newParams.set("mood", selectedMood);
     if (sortBy !== "best") newParams.set("sort", sortBy);
@@ -722,10 +794,15 @@ export default function Browse() {
 
   const clearSearch = () => {
     setSearchQuery("");
+    setSearchResults([]);
+    setSnippets({});
+    setRelevanceScores({});
+    activeQueryRef.current = "";
+    if (searchTimerRef.current) clearTimeout(searchTimerRef.current);
     const newParams = new URLSearchParams(params);
     newParams.delete("q");
     newParams.delete("mode");
-    setParams(newParams);
+    setParams(newParams, { replace: true });
   };
 
   const handleMovieClick = (movie: Movie) => navigate(`/movie/${movie.id}`);
@@ -761,7 +838,7 @@ export default function Browse() {
                 <input
                   type="text"
                   value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
+                  onChange={(e) => handleInputChange(e.target.value)}
                   placeholder={searchMode === "ai" 
                     ? (language === "bg" ? "Опиши какъв филм търсиш..." : "Describe what movie you're looking for...")
                     : (language === "bg" ? "Търси по заглавие..." : "Search by title...")}
@@ -774,22 +851,29 @@ export default function Browse() {
                 ) : (
                   <Search className={`absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 pointer-events-none ${theme === "dark" ? "text-gray-500" : "text-gray-400"}`} />
                 )}
-                {searchQuery && (
-                  <button type="button" onClick={clearSearch} className={`absolute right-2 top-1/2 -translate-y-1/2 w-8 h-8 flex items-center justify-center rounded-md flex-shrink-0 transition-colors ${theme === "dark" ? "text-gray-500 hover:text-gray-300 hover:bg-gray-800" : "text-gray-400 hover:text-gray-600 hover:bg-gray-100"}`}>
-                    <X className="w-4 h-4" />
-                  </button>
-                )}
+                <button
+                  type="button"
+                  onClick={clearSearch}
+                  className={`absolute right-3 top-1/2 -translate-y-1/2 flex items-center justify-center transition-colors ${
+                    searchQuery
+                      ? theme === "dark" ? "text-gray-500 hover:text-white" : "text-gray-400 hover:text-gray-700"
+                      : "pointer-events-none opacity-0"
+                  }`}
+                  tabIndex={searchQuery ? 0 : -1}
+                >
+                  <X className="w-4 h-4" />
+                </button>
               </div>
 
               {/* Search Mode Toggle */}
-              <div className={`flex rounded-xl border overflow-hidden ${theme === "dark" ? "border-gray-700" : "border-gray-300"}`}>
+              <div className={`flex rounded-xl border overflow-hidden flex-shrink-0 ${theme === "dark" ? "border-gray-700" : "border-gray-300"}`}>
                 <button
                   type="button"
-                  onClick={() => setSearchMode("ai")}
-                  className={`px-4 py-3 flex items-center gap-2 font-medium transition-colors ${
+                  onClick={() => { setSearchMode("ai"); if (searchQuery.trim() && searchMode !== "ai") { setSearchResults([]); setSnippets({}); setRelevanceScores({}); } }}
+                  className={`px-4 py-3 flex items-center gap-2 font-medium transition-colors min-w-[52px] justify-center ${
                     searchMode === "ai"
                       ? "bg-gradient-to-r from-purple-600 to-pink-600 text-white"
-                      : theme === "dark" ? "bg-gray-900 text-gray-400 hover:text-white" : "bg-white text-gray-500 hover:text-gray-700"
+                      : theme === "dark" ? "bg-gray-900 text-gray-400 hover:text-gray-200" : "bg-white text-gray-500 hover:text-gray-700"
                   }`}
                 >
                   <Sparkles className="w-4 h-4" />
@@ -797,11 +881,11 @@ export default function Browse() {
                 </button>
                 <button
                   type="button"
-                  onClick={() => setSearchMode("title")}
-                  className={`px-4 py-3 flex items-center gap-2 font-medium transition-colors ${
+                  onClick={() => { setSearchMode("title"); if (searchQuery.trim() && searchMode !== "title") { setSearchResults([]); setSnippets({}); setRelevanceScores({}); } }}
+                  className={`px-4 py-3 flex items-center gap-2 font-medium transition-colors min-w-[52px] justify-center ${
                     searchMode === "title"
                       ? "bg-tmdb-light-blue text-tmdb-dark-blue"
-                      : theme === "dark" ? "bg-gray-900 text-gray-400 hover:text-white" : "bg-white text-gray-500 hover:text-gray-700"
+                      : theme === "dark" ? "bg-gray-900 text-gray-400 hover:text-gray-200" : "bg-white text-gray-500 hover:text-gray-700"
                   }`}
                 >
                   <Search className="w-4 h-4" />
@@ -809,6 +893,12 @@ export default function Browse() {
                 </button>
               </div>
             </div>
+            {/* AI mode hint: press Enter to search */}
+            {searchMode === "ai" && searchQuery.trim().length >= MIN_SEARCH_LENGTH && searchResults.length === 0 && !searching && (
+              <p className={`mt-2 text-xs ${theme === "dark" ? "text-gray-500" : "text-gray-400"}`}>
+                {language === "bg" ? "Натисни Enter за AI търсене" : "Press Enter to search with AI"}
+              </p>
+            )}
           </form>
         </div>
       </div>
