@@ -14,11 +14,11 @@ import {
 
 interface Stats {
   totals: { users: number; movies: number; reviews: number; watchlist_entries: number; favorites: number };
-  quality: { missing_bg_translation: number; missing_summary_bg: number; missing_backdrop: number; avg_review_rating: number | null };
+  quality: { missing_bg_translation: number; missing_summary_bg?: number; missing_backdrop: number; avg_review_rating: number | null };
   top_reviewed_movies: { id: number; title: string; poster_path: string; review_count: number; avg_rating: number | null }[];
-  popular_movies_fallback: { id: number; title: string; poster_path: string; popularity: number }[];
+  popular_movies_fallback?: { id: number; title: string; poster_path: string; popularity: number }[];
   top_active_users: { id: number; name: string; email: string; review_count: number }[];
-  recent_actions: AuditEvent[];
+  recent_actions?: AuditEvent[];
 }
 
 interface UserItem {
@@ -65,11 +65,11 @@ type Tab = "dashboard" | "users" | "movies" | "reviews" | "activity";
 function StatCard({ label, value, icon: Icon, color }: { label: string; value: number | string; icon: React.ComponentType<{ className?: string }>; color: string }) {
   const { theme } = useApp();
   return (
-    <div className={`p-5 rounded-xl ${theme === "dark" ? "bg-gray-800/60 border border-gray-700/50" : "bg-white border border-gray-200 shadow-sm"}`}>
+    <div className={`p-5 rounded-xl ${theme === "dark" ? "bg-[#2A2A4A]/60 border border-[#2A2A4A]/50" : "bg-white border border-[#E2E4F0] shadow-sm shadow-sm"}`}>
       <div className="flex items-center justify-between">
         <div>
-          <p className={`text-sm font-medium ${theme === "dark" ? "text-gray-400" : "text-gray-500"}`}>{label}</p>
-          <p className={`text-2xl font-bold mt-1 ${theme === "dark" ? "text-white" : "text-gray-900"}`}>{value}</p>
+          <p className={`text-sm font-medium ${theme === "dark" ? "text-[#A7A7C7]" : "text-[#5B5D78]"}`}>{label}</p>
+          <p className={`text-2xl font-bold mt-1 ${theme === "dark" ? "text-white" : "text-[#1A1B2E]"}`}>{value}</p>
         </div>
         <div className={`p-3 rounded-lg ${color}`}>
           <Icon className="w-6 h-6" />
@@ -101,39 +101,39 @@ const eventLabels: Record<string, { label: string; color: string }> = {
 function AuditRow({ event, compact = false }: { event: AuditEvent; compact?: boolean }) {
   const { theme } = useApp();
   const action = event.details?.action || event.event_type;
-  const config = eventLabels[action] || eventLabels[event.event_type] || { label: action, color: "text-gray-400" };
+  const config = eventLabels[action] || eventLabels[event.event_type] || { label: action, color: "text-[#A7A7C7]" };
 
   const detail = event.details?.movie_title || event.details?.deleted_user_email || event.details?.reviewer_email || "";
   const time = event.timestamp ? new Date(event.timestamp).toLocaleString() : "";
 
   if (compact) {
     return (
-      <div className={`flex items-center gap-3 py-2 ${theme === "dark" ? "border-gray-800" : "border-gray-100"}`}>
+      <div className={`flex items-center gap-3 py-2 ${theme === "dark" ? "border-[#2A2A4A]" : "border-gray-100"}`}>
         <div className={`w-2 h-2 rounded-full flex-shrink-0 ${config.color.replace("text-", "bg-")}`} />
         <div className="flex-1 min-w-0">
           <span className={`text-sm font-medium ${config.color}`}>{config.label}</span>
-          {detail && <span className={`text-sm ml-1.5 ${theme === "dark" ? "text-gray-400" : "text-gray-500"}`}>· {detail}</span>}
+          {detail && <span className={`text-sm ml-1.5 ${theme === "dark" ? "text-[#A7A7C7]" : "text-[#5B5D78]"}`}>· {detail}</span>}
         </div>
-        <span className={`text-xs flex-shrink-0 ${theme === "dark" ? "text-gray-600" : "text-gray-400"}`}>{time}</span>
+        <span className={`text-xs flex-shrink-0 ${theme === "dark" ? "text-[#5B5D78]" : "text-[#A7A7C7]"}`}>{time}</span>
       </div>
     );
   }
 
   return (
-    <tr className={theme === "dark" ? "hover:bg-gray-800/40" : "hover:bg-gray-50"}>
+    <tr className={theme === "dark" ? "hover:bg-[#2A2A4A]/40" : "hover:bg-[#F8F9FC]"}>
       <td className="px-4 py-3">
         <span className={`text-sm font-medium ${config.color}`}>{config.label}</span>
       </td>
-      <td className={`px-4 py-3 text-sm ${theme === "dark" ? "text-gray-300" : "text-gray-700"}`}>
+      <td className={`px-4 py-3 text-sm ${theme === "dark" ? "text-[#A7A7C7]" : "text-[#5B5D78]"}`}>
         {detail || "—"}
       </td>
-      <td className={`px-4 py-3 text-sm ${theme === "dark" ? "text-gray-400" : "text-gray-500"}`}>
+      <td className={`px-4 py-3 text-sm ${theme === "dark" ? "text-[#A7A7C7]" : "text-[#5B5D78]"}`}>
         {event.user_email || "—"}
       </td>
-      <td className={`px-4 py-3 text-xs ${theme === "dark" ? "text-gray-500" : "text-gray-400"}`}>
+      <td className={`px-4 py-3 text-xs ${theme === "dark" ? "text-[#A7A7C7]" : "text-[#5B5D78]"}`}>
         {time}
       </td>
-      <td className={`px-4 py-3 text-xs ${theme === "dark" ? "text-gray-600" : "text-gray-400"}`}>
+      <td className={`px-4 py-3 text-xs ${theme === "dark" ? "text-[#5B5D78]" : "text-[#A7A7C7]"}`}>
         {event.ip_address || "—"}
       </td>
     </tr>
@@ -148,10 +148,12 @@ function DashboardTab({ stats, loading }: { stats: Stats | null; loading: boolea
   const { theme, language } = useApp();
   const navigate = useNavigate();
 
-  if (loading) return <div className="flex justify-center py-20"><Loader2 className="w-8 h-8 animate-spin text-gray-500" /></div>;
-  if (!stats) return <p className="text-gray-500 text-center py-12">Failed to load stats</p>;
+  if (loading) return <div className="flex justify-center py-20"><Loader2 className="w-8 h-8 animate-spin text-[#A7A7C7]" /></div>;
+  if (!stats) return <p className="text-[#A7A7C7] text-center py-12">Failed to load stats</p>;
 
   // Use top_reviewed if available, else popular fallback
+  const popularFallback = stats.popular_movies_fallback || [];
+  const recentActions = stats.recent_actions || [];
   const hasReviews = stats.top_reviewed_movies.length > 0;
 
   return (
@@ -160,16 +162,16 @@ function DashboardTab({ stats, loading }: { stats: Stats | null; loading: boolea
       <div className="grid grid-cols-2 lg:grid-cols-5 gap-4">
         <StatCard label={language === "bg" ? "Потребители" : "Users"} value={stats.totals.users} icon={Users} color="bg-blue-500/20 text-blue-400" />
         <StatCard label={language === "bg" ? "Филми" : "Movies"} value={stats.totals.movies} icon={Film} color="bg-green-500/20 text-green-400" />
-        <StatCard label={language === "bg" ? "Ревюта" : "Reviews"} value={stats.totals.reviews} icon={MessageSquare} color="bg-purple-500/20 text-purple-400" />
+        <StatCard label={language === "bg" ? "Ревюта" : "Reviews"} value={stats.totals.reviews} icon={MessageSquare} color="bg-primary/20 text-primary" />
         <StatCard label="Watchlist" value={stats.totals.watchlist_entries} icon={Bookmark} color="bg-yellow-500/20 text-yellow-400" />
-        <StatCard label={language === "bg" ? "Любими" : "Favorites"} value={stats.totals.favorites} icon={Heart} color="bg-pink-500/20 text-pink-400" />
+        <StatCard label={language === "bg" ? "Любими" : "Favorites"} value={stats.totals.favorites} icon={Heart} color="bg-secondary/20 text-secondary" />
       </div>
 
       {/* Data quality */}
-      <div className={`rounded-xl p-5 ${theme === "dark" ? "bg-gray-800/60 border border-gray-700/50" : "bg-white border border-gray-200 shadow-sm"}`}>
+      <div className={`rounded-xl p-5 ${theme === "dark" ? "bg-[#2A2A4A]/60 border border-[#2A2A4A]/50" : "bg-white border border-[#E2E4F0] shadow-sm shadow-sm"}`}>
         <div className="flex items-center gap-2 mb-4">
           <AlertTriangle className="w-5 h-5 text-amber-400" />
-          <h3 className={`font-semibold ${theme === "dark" ? "text-white" : "text-gray-900"}`}>
+          <h3 className={`font-semibold ${theme === "dark" ? "text-white" : "text-[#1A1B2E]"}`}>
             {language === "bg" ? "Качество на данните" : "Data Quality"}
           </h3>
         </div>
@@ -178,7 +180,7 @@ function DashboardTab({ stats, loading }: { stats: Stats | null; loading: boolea
             <p className={`text-2xl font-bold ${stats.quality.missing_bg_translation > 0 ? "text-amber-400" : "text-green-400"}`}>
               {stats.quality.missing_bg_translation}
             </p>
-            <p className={`text-xs ${theme === "dark" ? "text-gray-500" : "text-gray-400"}`}>
+            <p className={`text-xs ${theme === "dark" ? "text-[#A7A7C7]" : "text-[#5B5D78]"}`}>
               {language === "bg" ? "Без BG заглавие" : "Missing BG title"}
             </p>
           </div>
@@ -186,7 +188,7 @@ function DashboardTab({ stats, loading }: { stats: Stats | null; loading: boolea
             <p className={`text-2xl font-bold ${(stats.quality.missing_summary_bg || 0) > 0 ? "text-amber-400" : "text-green-400"}`}>
               {stats.quality.missing_summary_bg || 0}
             </p>
-            <p className={`text-xs ${theme === "dark" ? "text-gray-500" : "text-gray-400"}`}>
+            <p className={`text-xs ${theme === "dark" ? "text-[#A7A7C7]" : "text-[#5B5D78]"}`}>
               {language === "bg" ? "Без BG описание" : "Missing BG summary"}
             </p>
           </div>
@@ -194,15 +196,15 @@ function DashboardTab({ stats, loading }: { stats: Stats | null; loading: boolea
             <p className={`text-2xl font-bold ${stats.quality.missing_backdrop > 0 ? "text-amber-400" : "text-green-400"}`}>
               {stats.quality.missing_backdrop}
             </p>
-            <p className={`text-xs ${theme === "dark" ? "text-gray-500" : "text-gray-400"}`}>
+            <p className={`text-xs ${theme === "dark" ? "text-[#A7A7C7]" : "text-[#5B5D78]"}`}>
               {language === "bg" ? "Без фон" : "Missing backdrop"}
             </p>
           </div>
           <div>
-            <p className={`text-2xl font-bold ${theme === "dark" ? "text-white" : "text-gray-900"}`}>
+            <p className={`text-2xl font-bold ${theme === "dark" ? "text-white" : "text-[#1A1B2E]"}`}>
               {stats.quality.avg_review_rating ? `${stats.quality.avg_review_rating}/5` : "—"}
             </p>
-            <p className={`text-xs ${theme === "dark" ? "text-gray-500" : "text-gray-400"}`}>
+            <p className={`text-xs ${theme === "dark" ? "text-[#A7A7C7]" : "text-[#5B5D78]"}`}>
               {language === "bg" ? "Среден рейтинг" : "Avg review rating"}
             </p>
           </div>
@@ -211,8 +213,8 @@ function DashboardTab({ stats, loading }: { stats: Stats | null; loading: boolea
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Top reviewed / popular fallback */}
-        <div className={`rounded-xl p-5 ${theme === "dark" ? "bg-gray-800/60 border border-gray-700/50" : "bg-white border border-gray-200 shadow-sm"}`}>
-          <h3 className={`font-semibold mb-4 ${theme === "dark" ? "text-white" : "text-gray-900"}`}>
+        <div className={`rounded-xl p-5 ${theme === "dark" ? "bg-[#2A2A4A]/60 border border-[#2A2A4A]/50" : "bg-white border border-[#E2E4F0] shadow-sm shadow-sm"}`}>
+          <h3 className={`font-semibold mb-4 ${theme === "dark" ? "text-white" : "text-[#1A1B2E]"}`}>
             {hasReviews
               ? (language === "bg" ? "Най-ревюирани филми" : "Top Reviewed Movies")
               : (language === "bg" ? "Най-популярни филми" : "Most Popular Movies")}
@@ -220,70 +222,70 @@ function DashboardTab({ stats, loading }: { stats: Stats | null; loading: boolea
           <div className="space-y-3">
             {hasReviews ? stats.top_reviewed_movies.map((m, i) => (
               <div key={m.id} className="flex items-center gap-3 cursor-pointer" onClick={() => navigate(`/movie/${m.id}`)}>
-                <span className={`w-6 text-center font-bold text-sm ${theme === "dark" ? "text-gray-500" : "text-gray-400"}`}>{i + 1}</span>
+                <span className={`w-6 text-center font-bold text-sm ${theme === "dark" ? "text-[#A7A7C7]" : "text-[#5B5D78]"}`}>{i + 1}</span>
                 <div className="w-8 h-12 rounded overflow-hidden bg-gray-700 flex-shrink-0">
                   {m.poster_path && <img src={`https://image.tmdb.org/t/p/w92${m.poster_path}`} alt="" className="w-full h-full object-cover" />}
                 </div>
                 <div className="flex-1 min-w-0">
-                  <p className={`text-sm font-medium truncate ${theme === "dark" ? "text-white" : "text-gray-900"}`}>{m.title}</p>
-                  <p className="text-xs text-gray-500">{m.review_count} reviews · {m.avg_rating?.toFixed(1)}/5</p>
+                  <p className={`text-sm font-medium truncate ${theme === "dark" ? "text-white" : "text-[#1A1B2E]"}`}>{m.title}</p>
+                  <p className="text-xs text-[#A7A7C7]">{m.review_count} reviews · {m.avg_rating?.toFixed(1)}/5</p>
                 </div>
               </div>
-            )) : stats.popular_movies_fallback.map((m, i) => (
+            )) : popularFallback.map((m, i) => (
               <div key={m.id} className="flex items-center gap-3 cursor-pointer" onClick={() => navigate(`/movie/${m.id}`)}>
-                <span className={`w-6 text-center font-bold text-sm ${theme === "dark" ? "text-gray-500" : "text-gray-400"}`}>{i + 1}</span>
+                <span className={`w-6 text-center font-bold text-sm ${theme === "dark" ? "text-[#A7A7C7]" : "text-[#5B5D78]"}`}>{i + 1}</span>
                 <div className="w-8 h-12 rounded overflow-hidden bg-gray-700 flex-shrink-0">
                   {m.poster_path && <img src={`https://image.tmdb.org/t/p/w92${m.poster_path}`} alt="" className="w-full h-full object-cover" />}
                 </div>
                 <div className="flex-1 min-w-0">
-                  <p className={`text-sm font-medium truncate ${theme === "dark" ? "text-white" : "text-gray-900"}`}>{m.title}</p>
-                  <p className="text-xs text-gray-500">Popularity: {m.popularity}</p>
+                  <p className={`text-sm font-medium truncate ${theme === "dark" ? "text-white" : "text-[#1A1B2E]"}`}>{m.title}</p>
+                  <p className="text-xs text-[#A7A7C7]">Popularity: {m.popularity}</p>
                 </div>
               </div>
             ))}
-            {!hasReviews && stats.popular_movies_fallback.length === 0 && (
-              <p className="text-gray-500 text-sm text-center py-4">{language === "bg" ? "Няма данни" : "No data yet"}</p>
+            {!hasReviews && popularFallback.length === 0 && (
+              <p className="text-[#A7A7C7] text-sm text-center py-4">{language === "bg" ? "Няма данни" : "No data yet"}</p>
             )}
           </div>
         </div>
 
         {/* Most active users */}
-        <div className={`rounded-xl p-5 ${theme === "dark" ? "bg-gray-800/60 border border-gray-700/50" : "bg-white border border-gray-200 shadow-sm"}`}>
-          <h3 className={`font-semibold mb-4 ${theme === "dark" ? "text-white" : "text-gray-900"}`}>
+        <div className={`rounded-xl p-5 ${theme === "dark" ? "bg-[#2A2A4A]/60 border border-[#2A2A4A]/50" : "bg-white border border-[#E2E4F0] shadow-sm shadow-sm"}`}>
+          <h3 className={`font-semibold mb-4 ${theme === "dark" ? "text-white" : "text-[#1A1B2E]"}`}>
             {language === "bg" ? "Най-активни потребители" : "Most Active Users"}
           </h3>
           <div className="space-y-3">
             {stats.top_active_users.map((u, i) => (
               <div key={u.id} className="flex items-center gap-3">
-                <span className={`w-6 text-center font-bold text-sm ${theme === "dark" ? "text-gray-500" : "text-gray-400"}`}>{i + 1}</span>
-                <div className="w-8 h-8 rounded-full bg-gradient-to-br from-tmdb-light-green to-tmdb-light-blue flex items-center justify-center flex-shrink-0">
-                  <span className="text-tmdb-dark-blue font-bold text-xs">{u.name?.charAt(0).toUpperCase()}</span>
+                <span className={`w-6 text-center font-bold text-sm ${theme === "dark" ? "text-[#A7A7C7]" : "text-[#5B5D78]"}`}>{i + 1}</span>
+                <div className="w-8 h-8 rounded-full bg-gradient-to-br from-[#A78BFA] to-[#2DD4BF] flex items-center justify-center flex-shrink-0">
+                  <span className="text-white font-bold text-xs">{u.name?.charAt(0).toUpperCase()}</span>
                 </div>
                 <div className="flex-1 min-w-0">
-                  <p className={`text-sm font-medium truncate ${theme === "dark" ? "text-white" : "text-gray-900"}`}>{u.name}</p>
-                  <p className="text-xs text-gray-500">{u.email}</p>
+                  <p className={`text-sm font-medium truncate ${theme === "dark" ? "text-white" : "text-[#1A1B2E]"}`}>{u.name}</p>
+                  <p className="text-xs text-[#A7A7C7]">{u.email}</p>
                 </div>
-                <span className={`text-xs font-medium px-2 py-1 rounded ${theme === "dark" ? "bg-purple-500/20 text-purple-400" : "bg-purple-100 text-purple-700"}`}>
+                <span className={`text-xs font-medium px-2 py-1 rounded ${theme === "dark" ? "bg-primary/20 text-primary" : "bg-primary/10 text-primary"}`}>
                   {u.review_count} reviews
                 </span>
               </div>
             ))}
-            {stats.top_active_users.length === 0 && <p className="text-gray-500 text-sm text-center py-4">{language === "bg" ? "Няма активност" : "No activity yet"}</p>}
+            {stats.top_active_users.length === 0 && <p className="text-[#A7A7C7] text-sm text-center py-4">{language === "bg" ? "Няма активност" : "No activity yet"}</p>}
           </div>
         </div>
       </div>
 
       {/* Recent admin actions */}
-      {(stats.recent_actions?.length || 0) > 0 && (
-        <div className={`rounded-xl p-5 ${theme === "dark" ? "bg-gray-800/60 border border-gray-700/50" : "bg-white border border-gray-200 shadow-sm"}`}>
+      {recentActions.length > 0 && (
+        <div className={`rounded-xl p-5 ${theme === "dark" ? "bg-[#2A2A4A]/60 border border-[#2A2A4A]/50" : "bg-white border border-[#E2E4F0] shadow-sm shadow-sm"}`}>
           <div className="flex items-center gap-2 mb-4">
             <Clock className="w-5 h-5 text-blue-400" />
-            <h3 className={`font-semibold ${theme === "dark" ? "text-white" : "text-gray-900"}`}>
+            <h3 className={`font-semibold ${theme === "dark" ? "text-white" : "text-[#1A1B2E]"}`}>
               {language === "bg" ? "Последни действия" : "Recent Actions"}
             </h3>
           </div>
           <div className={`divide-y ${theme === "dark" ? "divide-gray-800" : "divide-gray-100"}`}>
-            {stats.recent_actions.slice(0, 8).map((ev, i) => (
+            {recentActions.slice(0, 8).map((ev, i) => (
               <AuditRow key={i} event={ev} compact />
             ))}
           </div>
@@ -336,64 +338,64 @@ function UsersTab() {
     u.email.toLowerCase().includes(search.toLowerCase())
   );
 
-  if (loading) return <div className="flex justify-center py-20"><Loader2 className="w-8 h-8 animate-spin text-gray-500" /></div>;
+  if (loading) return <div className="flex justify-center py-20"><Loader2 className="w-8 h-8 animate-spin text-[#A7A7C7]" /></div>;
 
   return (
     <div className="space-y-4">
       <div className="relative max-w-md">
-        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500" />
+        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[#A7A7C7]" />
         <input type="text" value={search} onChange={e => setSearch(e.target.value)}
           placeholder={language === "bg" ? "Търси по име или имейл..." : "Search by name or email..."}
-          className={`w-full pl-10 pr-4 py-2.5 rounded-lg border ${theme === "dark" ? "bg-gray-800 border-gray-700 text-white placeholder:text-gray-500" : "bg-white border-gray-200 text-gray-900 placeholder:text-gray-400"} focus:outline-none focus:ring-2 focus:ring-tmdb-light-blue`}
+          className={`w-full pl-10 pr-4 py-2.5 rounded-lg border ${theme === "dark" ? "bg-[#2A2A4A] border-[#2A2A4A] text-white placeholder:text-[#A7A7C7]" : "bg-white border-[#E2E4F0] text-[#1A1B2E] placeholder:text-[#A7A7C7]"} focus:outline-none focus:ring-2 focus:ring-primary`}
         />
       </div>
 
-      <div className={`rounded-xl overflow-hidden border ${theme === "dark" ? "border-gray-700/50" : "border-gray-200"}`}>
+      <div className={`rounded-xl overflow-hidden border ${theme === "dark" ? "border-[#2A2A4A]/50" : "border-[#E2E4F0]"}`}>
         <div className="overflow-x-auto">
           <table className="w-full">
             <thead>
-              <tr className={theme === "dark" ? "bg-gray-800/80" : "bg-gray-50"}>
-                <th className={`px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider ${theme === "dark" ? "text-gray-400" : "text-gray-500"}`}>ID</th>
-                <th className={`px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider ${theme === "dark" ? "text-gray-400" : "text-gray-500"}`}>{language === "bg" ? "Потребител" : "User"}</th>
-                <th className={`px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider ${theme === "dark" ? "text-gray-400" : "text-gray-500"}`}>Email</th>
-                <th className={`px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider ${theme === "dark" ? "text-gray-400" : "text-gray-500"}`}>{language === "bg" ? "Роля" : "Role"}</th>
-                <th className={`px-4 py-3 text-right text-xs font-semibold uppercase tracking-wider ${theme === "dark" ? "text-gray-400" : "text-gray-500"}`}>{language === "bg" ? "Действия" : "Actions"}</th>
+              <tr className={theme === "dark" ? "bg-[#2A2A4A]/80" : "bg-[#F8F9FC]"}>
+                <th className={`px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider ${theme === "dark" ? "text-[#A7A7C7]" : "text-[#5B5D78]"}`}>ID</th>
+                <th className={`px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider ${theme === "dark" ? "text-[#A7A7C7]" : "text-[#5B5D78]"}`}>{language === "bg" ? "Потребител" : "User"}</th>
+                <th className={`px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider ${theme === "dark" ? "text-[#A7A7C7]" : "text-[#5B5D78]"}`}>Email</th>
+                <th className={`px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider ${theme === "dark" ? "text-[#A7A7C7]" : "text-[#5B5D78]"}`}>{language === "bg" ? "Роля" : "Role"}</th>
+                <th className={`px-4 py-3 text-right text-xs font-semibold uppercase tracking-wider ${theme === "dark" ? "text-[#A7A7C7]" : "text-[#5B5D78]"}`}>{language === "bg" ? "Действия" : "Actions"}</th>
               </tr>
             </thead>
             <tbody className={`divide-y ${theme === "dark" ? "divide-gray-700/50" : "divide-gray-100"}`}>
               {filtered.map(u => (
-                <tr key={u.id} className={theme === "dark" ? "hover:bg-gray-800/40" : "hover:bg-gray-50"}>
-                  <td className={`px-4 py-3 text-sm ${theme === "dark" ? "text-gray-400" : "text-gray-500"}`}>{u.id}</td>
+                <tr key={u.id} className={theme === "dark" ? "hover:bg-[#2A2A4A]/40" : "hover:bg-[#F8F9FC]"}>
+                  <td className={`px-4 py-3 text-sm ${theme === "dark" ? "text-[#A7A7C7]" : "text-[#5B5D78]"}`}>{u.id}</td>
                   <td className="px-4 py-3">
                     <div className="flex items-center gap-3">
-                      <div className="w-8 h-8 rounded-full bg-gradient-to-br from-tmdb-light-green to-tmdb-light-blue flex items-center justify-center flex-shrink-0">
-                        <span className="text-tmdb-dark-blue font-bold text-xs">{u.name?.charAt(0).toUpperCase()}</span>
+                      <div className="w-8 h-8 rounded-full bg-gradient-to-br from-[#A78BFA] to-[#2DD4BF] flex items-center justify-center flex-shrink-0">
+                        <span className="text-white font-bold text-xs">{u.name?.charAt(0).toUpperCase()}</span>
                       </div>
-                      <span className={`text-sm font-medium ${theme === "dark" ? "text-white" : "text-gray-900"}`}>{u.name}</span>
+                      <span className={`text-sm font-medium ${theme === "dark" ? "text-white" : "text-[#1A1B2E]"}`}>{u.name}</span>
                     </div>
                   </td>
-                  <td className={`px-4 py-3 text-sm ${theme === "dark" ? "text-gray-400" : "text-gray-500"}`}>{u.email}</td>
+                  <td className={`px-4 py-3 text-sm ${theme === "dark" ? "text-[#A7A7C7]" : "text-[#5B5D78]"}`}>{u.email}</td>
                   <td className="px-4 py-3">
                     {u.is_admin ? (
                       <span className="inline-flex items-center gap-1 text-xs font-medium px-2 py-1 rounded-full bg-amber-500/20 text-amber-400">
                         <ShieldCheck className="w-3 h-3" /> Admin
                       </span>
                     ) : (
-                      <span className={`text-xs font-medium px-2 py-1 rounded-full ${theme === "dark" ? "bg-gray-700 text-gray-400" : "bg-gray-100 text-gray-500"}`}>User</span>
+                      <span className={`text-xs font-medium px-2 py-1 rounded-full ${theme === "dark" ? "bg-gray-700 text-[#A7A7C7]" : "bg-[#F3F4FF] text-[#A7A7C7]"}`}>User</span>
                     )}
                   </td>
                   <td className="px-4 py-3">
                     <div className="flex items-center justify-end gap-2">
                       {!u.is_admin && (
                         <button onClick={() => handleToggleAdmin(u.id)} disabled={actionLoading === u.id}
-                          className={`p-2 rounded-lg transition-colors ${theme === "dark" ? "hover:bg-amber-500/20 text-gray-400 hover:text-amber-400" : "hover:bg-amber-50 text-gray-400 hover:text-amber-600"}`}
+                          className={`p-2 rounded-lg transition-colors ${theme === "dark" ? "hover:bg-amber-500/20 text-[#A7A7C7] hover:text-amber-400" : "hover:bg-amber-50 text-[#A7A7C7] hover:text-amber-600"}`}
                           title={language === "bg" ? "Направи админ" : "Make admin"}>
                           {actionLoading === u.id ? <Loader2 className="w-4 h-4 animate-spin" /> : <Shield className="w-4 h-4" />}
                         </button>
                       )}
                       {u.id !== currentUser?.id && (
                         <button onClick={() => handleDelete(u.id, u.name)} disabled={actionLoading === u.id}
-                          className={`p-2 rounded-lg transition-colors ${theme === "dark" ? "hover:bg-red-500/20 text-gray-400 hover:text-red-400" : "hover:bg-red-50 text-gray-400 hover:text-red-600"}`}
+                          className={`p-2 rounded-lg transition-colors ${theme === "dark" ? "hover:bg-red-500/20 text-[#A7A7C7] hover:text-red-400" : "hover:bg-red-50 text-[#A7A7C7] hover:text-red-600"}`}
                           title={language === "bg" ? "Изтрий" : "Delete"}>
                           <Trash2 className="w-4 h-4" />
                         </button>
@@ -406,12 +408,12 @@ function UsersTab() {
           </table>
         </div>
         {filtered.length === 0 && (
-          <p className={`text-center py-8 text-sm ${theme === "dark" ? "text-gray-500" : "text-gray-400"}`}>
+          <p className={`text-center py-8 text-sm ${theme === "dark" ? "text-[#A7A7C7]" : "text-[#5B5D78]"}`}>
             {search ? (language === "bg" ? "Няма резултати" : "No results") : (language === "bg" ? "Няма потребители" : "No users")}
           </p>
         )}
       </div>
-      <p className={`text-xs ${theme === "dark" ? "text-gray-600" : "text-gray-400"}`}>
+      <p className={`text-xs ${theme === "dark" ? "text-[#5B5D78]" : "text-[#A7A7C7]"}`}>
         {language === "bg" ? `${filtered.length} от ${users.length} потребители` : `${filtered.length} of ${users.length} users`}
       </p>
     </div>
@@ -514,50 +516,50 @@ function MoviesTab() {
   };
 
   const totalPages = Math.ceil(total / PAGE_SIZE);
-  const inputCls = `w-full px-2 py-1 rounded text-sm border ${theme === "dark" ? "bg-gray-700 border-gray-600 text-white placeholder:text-gray-500" : "bg-white border-gray-300 placeholder:text-gray-400"}`;
+  const inputCls = `w-full px-2 py-1 rounded text-sm border ${theme === "dark" ? "bg-gray-700 border-gray-600 text-white placeholder:text-[#A7A7C7]" : "bg-white border-[#E2E4F0] placeholder:text-[#A7A7C7]"}`;
 
-  if (loading && movies.length === 0) return <div className="flex justify-center py-20"><Loader2 className="w-8 h-8 animate-spin text-gray-500" /></div>;
+  if (loading && movies.length === 0) return <div className="flex justify-center py-20"><Loader2 className="w-8 h-8 animate-spin text-[#A7A7C7]" /></div>;
 
   return (
     <div className="space-y-4">
       {/* Search */}
       <form onSubmit={handleSearch} className="flex gap-2 max-w-lg">
         <div className="relative flex-1">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500" />
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[#A7A7C7]" />
           <input type="text" value={searchInput} onChange={e => setSearchInput(e.target.value)}
             placeholder={language === "bg" ? "Търси филми..." : "Search movies..."}
-            className={`w-full pl-10 pr-4 py-2.5 rounded-lg border ${theme === "dark" ? "bg-gray-800 border-gray-700 text-white placeholder:text-gray-500" : "bg-white border-gray-200 text-gray-900 placeholder:text-gray-400"} focus:outline-none focus:ring-2 focus:ring-tmdb-light-blue`}
+            className={`w-full pl-10 pr-4 py-2.5 rounded-lg border ${theme === "dark" ? "bg-[#2A2A4A] border-[#2A2A4A] text-white placeholder:text-[#A7A7C7]" : "bg-white border-[#E2E4F0] text-[#1A1B2E] placeholder:text-[#A7A7C7]"} focus:outline-none focus:ring-2 focus:ring-primary`}
           />
         </div>
-        <button type="submit" className="px-4 py-2.5 bg-tmdb-light-blue text-tmdb-dark-blue rounded-lg font-medium hover:brightness-110 transition">
+        <button type="submit" className="px-4 py-2.5 bg-primary text-white rounded-lg font-medium hover:brightness-110 transition">
           {language === "bg" ? "Търси" : "Search"}
         </button>
         {search && (
           <button type="button" onClick={() => { setSearchInput(""); setSearch(""); setPage(0); }}
-            className={`p-2.5 rounded-lg border ${theme === "dark" ? "border-gray-700 text-gray-400 hover:bg-gray-800" : "border-gray-200 text-gray-500 hover:bg-gray-50"}`}>
+            className={`p-2.5 rounded-lg border ${theme === "dark" ? "border-[#2A2A4A] text-[#A7A7C7] hover:bg-[#2A2A4A]" : "border-[#E2E4F0] text-[#A7A7C7] hover:bg-[#F8F9FC]"}`}>
             <X className="w-5 h-5" />
           </button>
         )}
       </form>
 
       {/* Table */}
-      <div className={`rounded-xl overflow-hidden border ${theme === "dark" ? "border-gray-700/50" : "border-gray-200"}`}>
+      <div className={`rounded-xl overflow-hidden border ${theme === "dark" ? "border-[#2A2A4A]/50" : "border-[#E2E4F0]"}`}>
         <div className="overflow-x-auto">
           <table className="w-full">
             <thead>
-              <tr className={theme === "dark" ? "bg-gray-800/80" : "bg-gray-50"}>
-                <th className={`px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider ${theme === "dark" ? "text-gray-400" : "text-gray-500"}`}>ID</th>
-                <th className={`px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider ${theme === "dark" ? "text-gray-400" : "text-gray-500"}`}>{language === "bg" ? "Филм" : "Movie"}</th>
-                <th className={`px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider ${theme === "dark" ? "text-gray-400" : "text-gray-500"}`}>{language === "bg" ? "Жанр" : "Genre"}</th>
-                <th className={`px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider ${theme === "dark" ? "text-gray-400" : "text-gray-500"}`}>{language === "bg" ? "Рейтинг" : "Rating"}</th>
-                <th className={`px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider ${theme === "dark" ? "text-gray-400" : "text-gray-500"}`}>{language === "bg" ? "Година" : "Year"}</th>
-                <th className={`px-4 py-3 text-right text-xs font-semibold uppercase tracking-wider ${theme === "dark" ? "text-gray-400" : "text-gray-500"}`}>{language === "bg" ? "Действия" : "Actions"}</th>
+              <tr className={theme === "dark" ? "bg-[#2A2A4A]/80" : "bg-[#F8F9FC]"}>
+                <th className={`px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider ${theme === "dark" ? "text-[#A7A7C7]" : "text-[#5B5D78]"}`}>ID</th>
+                <th className={`px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider ${theme === "dark" ? "text-[#A7A7C7]" : "text-[#5B5D78]"}`}>{language === "bg" ? "Филм" : "Movie"}</th>
+                <th className={`px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider ${theme === "dark" ? "text-[#A7A7C7]" : "text-[#5B5D78]"}`}>{language === "bg" ? "Жанр" : "Genre"}</th>
+                <th className={`px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider ${theme === "dark" ? "text-[#A7A7C7]" : "text-[#5B5D78]"}`}>{language === "bg" ? "Рейтинг" : "Rating"}</th>
+                <th className={`px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider ${theme === "dark" ? "text-[#A7A7C7]" : "text-[#5B5D78]"}`}>{language === "bg" ? "Година" : "Year"}</th>
+                <th className={`px-4 py-3 text-right text-xs font-semibold uppercase tracking-wider ${theme === "dark" ? "text-[#A7A7C7]" : "text-[#5B5D78]"}`}>{language === "bg" ? "Действия" : "Actions"}</th>
               </tr>
             </thead>
             <tbody className={`divide-y ${theme === "dark" ? "divide-gray-700/50" : "divide-gray-100"}`}>
               {movies.map(m => (
-                <tr key={m.id} className={theme === "dark" ? "hover:bg-gray-800/40" : "hover:bg-gray-50"}>
-                  <td className={`px-4 py-3 text-sm ${theme === "dark" ? "text-gray-400" : "text-gray-500"}`}>{m.id}</td>
+                <tr key={m.id} className={theme === "dark" ? "hover:bg-[#2A2A4A]/40" : "hover:bg-[#F8F9FC]"}>
+                  <td className={`px-4 py-3 text-sm ${theme === "dark" ? "text-[#A7A7C7]" : "text-[#5B5D78]"}`}>{m.id}</td>
                   <td className="px-4 py-3">
                     {editingId === m.id ? (
                       <div className="space-y-1">
@@ -572,8 +574,8 @@ function MoviesTab() {
                           )}
                         </div>
                         <div className="min-w-0">
-                          <p className={`text-sm font-medium truncate ${theme === "dark" ? "text-white" : "text-gray-900"}`}>{m.title}</p>
-                          {m.title_bg && <p className="text-xs text-gray-500 truncate">{m.title_bg}</p>}
+                          <p className={`text-sm font-medium truncate ${theme === "dark" ? "text-white" : "text-[#1A1B2E]"}`}>{m.title}</p>
+                          {m.title_bg && <p className="text-xs text-[#A7A7C7] truncate">{m.title_bg}</p>}
                         </div>
                       </div>
                     )}
@@ -585,20 +587,20 @@ function MoviesTab() {
                         <input value={editForm.genre_bg} onChange={e => setEditForm(f => ({ ...f, genre_bg: e.target.value }))} className={inputCls} placeholder="Genre (BG)" />
                       </div>
                     ) : (
-                      <span className={`text-sm ${theme === "dark" ? "text-gray-400" : "text-gray-500"}`}>{m.genre || "—"}</span>
+                      <span className={`text-sm ${theme === "dark" ? "text-[#A7A7C7]" : "text-[#5B5D78]"}`}>{m.genre || "—"}</span>
                     )}
                   </td>
                   <td className="px-4 py-3">
                     <div className="flex items-center gap-2">
                       {m.tmdb_rating ? (
-                        <span className={`text-sm font-medium ${theme === "dark" ? "text-white" : "text-gray-900"}`}>{m.tmdb_rating.toFixed(1)}</span>
-                      ) : <span className="text-gray-500 text-sm">—</span>}
+                        <span className={`text-sm font-medium ${theme === "dark" ? "text-white" : "text-[#1A1B2E]"}`}>{m.tmdb_rating.toFixed(1)}</span>
+                      ) : <span className="text-[#A7A7C7] text-sm">—</span>}
                       {(m.review_count || 0) > 0 && (
-                        <span className="text-xs text-gray-500">({m.review_count})</span>
+                        <span className="text-xs text-[#A7A7C7]">({m.review_count})</span>
                       )}
                     </div>
                   </td>
-                  <td className={`px-4 py-3 text-sm ${theme === "dark" ? "text-gray-400" : "text-gray-500"}`}>{m.release_year || "—"}</td>
+                  <td className={`px-4 py-3 text-sm ${theme === "dark" ? "text-[#A7A7C7]" : "text-[#5B5D78]"}`}>{m.release_year || "—"}</td>
                   <td className="px-4 py-3">
                     <div className="flex items-center justify-end gap-1">
                       {editingId === m.id ? (
@@ -607,22 +609,22 @@ function MoviesTab() {
                             className="p-2 rounded-lg hover:bg-green-500/20 text-green-400" title="Save">
                             {actionLoading === m.id ? <Loader2 className="w-4 h-4 animate-spin" /> : <Check className="w-4 h-4" />}
                           </button>
-                          <button onClick={() => setEditingId(null)} className="p-2 rounded-lg hover:bg-gray-500/20 text-gray-400" title="Cancel">
+                          <button onClick={() => setEditingId(null)} className="p-2 rounded-lg hover:bg-[#F8F9FC]0/20 text-[#A7A7C7]" title="Cancel">
                             <X className="w-4 h-4" />
                           </button>
                         </>
                       ) : (
                         <>
                           <button onClick={() => navigate(`/movie/${m.id}`)}
-                            className={`p-2 rounded-lg transition-colors ${theme === "dark" ? "hover:bg-blue-500/20 text-gray-400 hover:text-blue-400" : "hover:bg-blue-50 text-gray-400 hover:text-blue-600"}`} title="View">
+                            className={`p-2 rounded-lg transition-colors ${theme === "dark" ? "hover:bg-blue-500/20 text-[#A7A7C7] hover:text-blue-400" : "hover:bg-blue-50 text-[#A7A7C7] hover:text-blue-600"}`} title="View">
                             <Eye className="w-4 h-4" />
                           </button>
                           <button onClick={() => startEdit(m)}
-                            className={`p-2 rounded-lg transition-colors ${theme === "dark" ? "hover:bg-yellow-500/20 text-gray-400 hover:text-yellow-400" : "hover:bg-yellow-50 text-gray-400 hover:text-yellow-600"}`} title="Edit">
+                            className={`p-2 rounded-lg transition-colors ${theme === "dark" ? "hover:bg-yellow-500/20 text-[#A7A7C7] hover:text-yellow-400" : "hover:bg-yellow-50 text-[#A7A7C7] hover:text-yellow-600"}`} title="Edit">
                             <Pencil className="w-4 h-4" />
                           </button>
                           <button onClick={() => handleDelete(m.id, m.title)} disabled={actionLoading === m.id}
-                            className={`p-2 rounded-lg transition-colors ${theme === "dark" ? "hover:bg-red-500/20 text-gray-400 hover:text-red-400" : "hover:bg-red-50 text-gray-400 hover:text-red-600"}`} title="Delete">
+                            className={`p-2 rounded-lg transition-colors ${theme === "dark" ? "hover:bg-red-500/20 text-[#A7A7C7] hover:text-red-400" : "hover:bg-red-50 text-[#A7A7C7] hover:text-red-600"}`} title="Delete">
                             <Trash2 className="w-4 h-4" />
                           </button>
                         </>
@@ -633,31 +635,31 @@ function MoviesTab() {
               ))}
               {/* Expanded edit row for extra fields */}
               {movies.map(m => editingId === m.id ? (
-                <tr key={`edit-${m.id}`} className={theme === "dark" ? "bg-gray-800/30" : "bg-blue-50/30"}>
+                <tr key={`edit-${m.id}`} className={theme === "dark" ? "bg-[#2A2A4A]/30" : "bg-blue-50/30"}>
                   <td colSpan={6} className="px-4 py-3">
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
                       <div>
-                        <label className={`block text-xs font-medium mb-1 ${theme === "dark" ? "text-gray-400" : "text-gray-500"}`}>
+                        <label className={`block text-xs font-medium mb-1 ${theme === "dark" ? "text-[#A7A7C7]" : "text-[#5B5D78]"}`}>
                           {language === "bg" ? "Описание BG" : "Summary (BG)"}
                         </label>
                         <textarea value={editForm.summary_bg} onChange={e => setEditForm(f => ({ ...f, summary_bg: e.target.value }))}
                           rows={3} className={`${inputCls} resize-none`} placeholder={language === "bg" ? "Описание на български..." : "Bulgarian summary..."} />
                       </div>
                       <div>
-                        <label className={`block text-xs font-medium mb-1 ${theme === "dark" ? "text-gray-400" : "text-gray-500"}`}>
+                        <label className={`block text-xs font-medium mb-1 ${theme === "dark" ? "text-[#A7A7C7]" : "text-[#5B5D78]"}`}>
                           Poster path
                         </label>
                         <input value={editForm.poster_path} onChange={e => setEditForm(f => ({ ...f, poster_path: e.target.value }))}
                           className={inputCls} placeholder="/abc123.jpg" />
-                        <p className={`text-[10px] mt-1 ${theme === "dark" ? "text-gray-600" : "text-gray-400"}`}>TMDb path (e.g. /1E5baAaEse26fej7uHcjOgEERB2.jpg)</p>
+                        <p className={`text-[10px] mt-1 ${theme === "dark" ? "text-[#5B5D78]" : "text-[#A7A7C7]"}`}>TMDb path (e.g. /1E5baAaEse26fej7uHcjOgEERB2.jpg)</p>
                       </div>
                       <div>
-                        <label className={`block text-xs font-medium mb-1 ${theme === "dark" ? "text-gray-400" : "text-gray-500"}`}>
+                        <label className={`block text-xs font-medium mb-1 ${theme === "dark" ? "text-[#A7A7C7]" : "text-[#5B5D78]"}`}>
                           Backdrop path
                         </label>
                         <input value={editForm.backdrop_path} onChange={e => setEditForm(f => ({ ...f, backdrop_path: e.target.value }))}
                           className={inputCls} placeholder="/xyz789.jpg" />
-                        <p className={`text-[10px] mt-1 ${theme === "dark" ? "text-gray-600" : "text-gray-400"}`}>TMDb path for background image</p>
+                        <p className={`text-[10px] mt-1 ${theme === "dark" ? "text-[#5B5D78]" : "text-[#A7A7C7]"}`}>TMDb path for background image</p>
                       </div>
                     </div>
                   </td>
@@ -667,7 +669,7 @@ function MoviesTab() {
           </table>
         </div>
         {movies.length === 0 && !loading && (
-          <p className={`text-center py-8 text-sm ${theme === "dark" ? "text-gray-500" : "text-gray-400"}`}>
+          <p className={`text-center py-8 text-sm ${theme === "dark" ? "text-[#A7A7C7]" : "text-[#5B5D78]"}`}>
             {search ? (language === "bg" ? "Няма резултати" : "No results") : (language === "bg" ? "Няма филми" : "No movies")}
           </p>
         )}
@@ -676,16 +678,16 @@ function MoviesTab() {
       {/* Pagination */}
       {totalPages > 1 && (
         <div className="flex items-center justify-between">
-          <p className={`text-xs ${theme === "dark" ? "text-gray-600" : "text-gray-400"}`}>
+          <p className={`text-xs ${theme === "dark" ? "text-[#5B5D78]" : "text-[#A7A7C7]"}`}>
             {language === "bg" ? `Стр. ${page + 1} от ${totalPages} (${total} филми)` : `Page ${page + 1} of ${totalPages} (${total} movies)`}
           </p>
           <div className="flex gap-2">
             <button onClick={() => setPage(p => Math.max(0, p - 1))} disabled={page === 0}
-              className={`p-2 rounded-lg border ${theme === "dark" ? "border-gray-700 text-gray-400 hover:bg-gray-800 disabled:opacity-30" : "border-gray-200 text-gray-500 hover:bg-gray-50 disabled:opacity-30"}`}>
+              className={`p-2 rounded-lg border ${theme === "dark" ? "border-[#2A2A4A] text-[#A7A7C7] hover:bg-[#2A2A4A] disabled:opacity-30" : "border-[#E2E4F0] text-[#A7A7C7] hover:bg-[#F8F9FC] disabled:opacity-30"}`}>
               <ChevronLeft className="w-4 h-4" />
             </button>
             <button onClick={() => setPage(p => Math.min(totalPages - 1, p + 1))} disabled={page >= totalPages - 1}
-              className={`p-2 rounded-lg border ${theme === "dark" ? "border-gray-700 text-gray-400 hover:bg-gray-800 disabled:opacity-30" : "border-gray-200 text-gray-500 hover:bg-gray-50 disabled:opacity-30"}`}>
+              className={`p-2 rounded-lg border ${theme === "dark" ? "border-[#2A2A4A] text-[#A7A7C7] hover:bg-[#2A2A4A] disabled:opacity-30" : "border-[#E2E4F0] text-[#A7A7C7] hover:bg-[#F8F9FC] disabled:opacity-30"}`}>
               <ChevronRight className="w-4 h-4" />
             </button>
           </div>
@@ -733,52 +735,52 @@ function ReviewsTab() {
 
   const totalPages = Math.ceil(total / PAGE_SIZE);
 
-  if (loading && reviews.length === 0) return <div className="flex justify-center py-20"><Loader2 className="w-8 h-8 animate-spin text-gray-500" /></div>;
+  if (loading && reviews.length === 0) return <div className="flex justify-center py-20"><Loader2 className="w-8 h-8 animate-spin text-[#A7A7C7]" /></div>;
 
   return (
     <div className="space-y-4">
-      <div className={`rounded-xl overflow-hidden border ${theme === "dark" ? "border-gray-700/50" : "border-gray-200"}`}>
+      <div className={`rounded-xl overflow-hidden border ${theme === "dark" ? "border-[#2A2A4A]/50" : "border-[#E2E4F0]"}`}>
         <div className="overflow-x-auto">
           <table className="w-full">
             <thead>
-              <tr className={theme === "dark" ? "bg-gray-800/80" : "bg-gray-50"}>
-                <th className={`px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider ${theme === "dark" ? "text-gray-400" : "text-gray-500"}`}>{language === "bg" ? "Потребител" : "User"}</th>
-                <th className={`px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider ${theme === "dark" ? "text-gray-400" : "text-gray-500"}`}>{language === "bg" ? "Филм" : "Movie"}</th>
-                <th className={`px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider ${theme === "dark" ? "text-gray-400" : "text-gray-500"}`}>{language === "bg" ? "Оценка" : "Rating"}</th>
-                <th className={`px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider ${theme === "dark" ? "text-gray-400" : "text-gray-500"}`}>{language === "bg" ? "Коментар" : "Comment"}</th>
-                <th className={`px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider ${theme === "dark" ? "text-gray-400" : "text-gray-500"}`}>{language === "bg" ? "Дата" : "Date"}</th>
-                <th className={`px-4 py-3 text-right text-xs font-semibold uppercase tracking-wider ${theme === "dark" ? "text-gray-400" : "text-gray-500"}`}></th>
+              <tr className={theme === "dark" ? "bg-[#2A2A4A]/80" : "bg-[#F8F9FC]"}>
+                <th className={`px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider ${theme === "dark" ? "text-[#A7A7C7]" : "text-[#5B5D78]"}`}>{language === "bg" ? "Потребител" : "User"}</th>
+                <th className={`px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider ${theme === "dark" ? "text-[#A7A7C7]" : "text-[#5B5D78]"}`}>{language === "bg" ? "Филм" : "Movie"}</th>
+                <th className={`px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider ${theme === "dark" ? "text-[#A7A7C7]" : "text-[#5B5D78]"}`}>{language === "bg" ? "Оценка" : "Rating"}</th>
+                <th className={`px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider ${theme === "dark" ? "text-[#A7A7C7]" : "text-[#5B5D78]"}`}>{language === "bg" ? "Коментар" : "Comment"}</th>
+                <th className={`px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider ${theme === "dark" ? "text-[#A7A7C7]" : "text-[#5B5D78]"}`}>{language === "bg" ? "Дата" : "Date"}</th>
+                <th className={`px-4 py-3 text-right text-xs font-semibold uppercase tracking-wider ${theme === "dark" ? "text-[#A7A7C7]" : "text-[#5B5D78]"}`}></th>
               </tr>
             </thead>
             <tbody className={`divide-y ${theme === "dark" ? "divide-gray-700/50" : "divide-gray-100"}`}>
               {reviews.map(r => (
-                <tr key={r.id} className={theme === "dark" ? "hover:bg-gray-800/40" : "hover:bg-gray-50"}>
+                <tr key={r.id} className={theme === "dark" ? "hover:bg-[#2A2A4A]/40" : "hover:bg-[#F8F9FC]"}>
                   <td className="px-4 py-3">
-                    <p className={`text-sm font-medium ${theme === "dark" ? "text-white" : "text-gray-900"}`}>{r.user_name}</p>
-                    <p className="text-xs text-gray-500">{r.user_email}</p>
+                    <p className={`text-sm font-medium ${theme === "dark" ? "text-white" : "text-[#1A1B2E]"}`}>{r.user_name}</p>
+                    <p className="text-xs text-[#A7A7C7]">{r.user_email}</p>
                   </td>
                   <td className="px-4 py-3">
-                    <button onClick={() => navigate(`/movie/${r.movie_id}`)} className="text-sm text-tmdb-light-blue hover:underline text-left">
+                    <button onClick={() => navigate(`/movie/${r.movie_id}`)} className="text-sm text-primary hover:underline text-left">
                       {r.movie_title}
                     </button>
                   </td>
                   <td className="px-4 py-3">
                     <div className="flex items-center gap-1">
                       <Star className="w-4 h-4 fill-yellow-400 text-yellow-400" />
-                      <span className={`text-sm font-medium ${theme === "dark" ? "text-white" : "text-gray-900"}`}>{r.rating}/5</span>
+                      <span className={`text-sm font-medium ${theme === "dark" ? "text-white" : "text-[#1A1B2E]"}`}>{r.rating}/5</span>
                     </div>
                   </td>
                   <td className="px-4 py-3">
-                    <p className={`text-sm max-w-xs truncate ${theme === "dark" ? "text-gray-300" : "text-gray-600"}`}>
-                      {r.comment || <span className="italic text-gray-500">—</span>}
+                    <p className={`text-sm max-w-xs truncate ${theme === "dark" ? "text-[#A7A7C7]" : "text-[#5B5D78]"}`}>
+                      {r.comment || <span className="italic text-[#A7A7C7]">—</span>}
                     </p>
                   </td>
-                  <td className={`px-4 py-3 text-xs ${theme === "dark" ? "text-gray-500" : "text-gray-400"}`}>
+                  <td className={`px-4 py-3 text-xs ${theme === "dark" ? "text-[#A7A7C7]" : "text-[#5B5D78]"}`}>
                     {r.created_at ? new Date(r.created_at).toLocaleDateString() : "—"}
                   </td>
                   <td className="px-4 py-3">
                     <button onClick={() => handleDelete(r.id)} disabled={actionLoading === r.id}
-                      className={`p-2 rounded-lg transition-colors ${theme === "dark" ? "hover:bg-red-500/20 text-gray-400 hover:text-red-400" : "hover:bg-red-50 text-gray-400 hover:text-red-600"}`}
+                      className={`p-2 rounded-lg transition-colors ${theme === "dark" ? "hover:bg-red-500/20 text-[#A7A7C7] hover:text-red-400" : "hover:bg-red-50 text-[#A7A7C7] hover:text-red-600"}`}
                       title={language === "bg" ? "Изтрий" : "Delete"}>
                       {actionLoading === r.id ? <Loader2 className="w-4 h-4 animate-spin" /> : <Trash2 className="w-4 h-4" />}
                     </button>
@@ -789,7 +791,7 @@ function ReviewsTab() {
           </table>
         </div>
         {reviews.length === 0 && (
-          <p className={`text-center py-8 text-sm ${theme === "dark" ? "text-gray-500" : "text-gray-400"}`}>
+          <p className={`text-center py-8 text-sm ${theme === "dark" ? "text-[#A7A7C7]" : "text-[#5B5D78]"}`}>
             {language === "bg" ? "Няма ревюта" : "No reviews"}
           </p>
         )}
@@ -797,16 +799,16 @@ function ReviewsTab() {
 
       {totalPages > 1 && (
         <div className="flex items-center justify-between">
-          <p className={`text-xs ${theme === "dark" ? "text-gray-600" : "text-gray-400"}`}>
+          <p className={`text-xs ${theme === "dark" ? "text-[#5B5D78]" : "text-[#A7A7C7]"}`}>
             {language === "bg" ? `Стр. ${page + 1} от ${totalPages} (${total} ревюта)` : `Page ${page + 1} of ${totalPages} (${total} reviews)`}
           </p>
           <div className="flex gap-2">
             <button onClick={() => setPage(p => Math.max(0, p - 1))} disabled={page === 0}
-              className={`p-2 rounded-lg border ${theme === "dark" ? "border-gray-700 text-gray-400 hover:bg-gray-800 disabled:opacity-30" : "border-gray-200 text-gray-500 hover:bg-gray-50 disabled:opacity-30"}`}>
+              className={`p-2 rounded-lg border ${theme === "dark" ? "border-[#2A2A4A] text-[#A7A7C7] hover:bg-[#2A2A4A] disabled:opacity-30" : "border-[#E2E4F0] text-[#A7A7C7] hover:bg-[#F8F9FC] disabled:opacity-30"}`}>
               <ChevronLeft className="w-4 h-4" />
             </button>
             <button onClick={() => setPage(p => Math.min(totalPages - 1, p + 1))} disabled={page >= totalPages - 1}
-              className={`p-2 rounded-lg border ${theme === "dark" ? "border-gray-700 text-gray-400 hover:bg-gray-800 disabled:opacity-30" : "border-gray-200 text-gray-500 hover:bg-gray-50 disabled:opacity-30"}`}>
+              className={`p-2 rounded-lg border ${theme === "dark" ? "border-[#2A2A4A] text-[#A7A7C7] hover:bg-[#2A2A4A] disabled:opacity-30" : "border-[#E2E4F0] text-[#A7A7C7] hover:bg-[#F8F9FC] disabled:opacity-30"}`}>
               <ChevronRight className="w-4 h-4" />
             </button>
           </div>
@@ -831,11 +833,11 @@ function ActivityTab() {
       .catch(() => setLoading(false));
   }, []);
 
-  if (loading) return <div className="flex justify-center py-20"><Loader2 className="w-8 h-8 animate-spin text-gray-500" /></div>;
+  if (loading) return <div className="flex justify-center py-20"><Loader2 className="w-8 h-8 animate-spin text-[#A7A7C7]" /></div>;
 
   if (events.length === 0) {
     return (
-      <div className={`text-center py-16 ${theme === "dark" ? "text-gray-500" : "text-gray-400"}`}>
+      <div className={`text-center py-16 ${theme === "dark" ? "text-[#A7A7C7]" : "text-[#5B5D78]"}`}>
         <Activity className="w-12 h-12 mx-auto mb-3 opacity-50" />
         <p className="text-lg font-medium">{language === "bg" ? "Няма записи" : "No activity yet"}</p>
         <p className="text-sm mt-1">{language === "bg" ? "Действията ще се появят тук" : "Admin actions will appear here"}</p>
@@ -844,16 +846,16 @@ function ActivityTab() {
   }
 
   return (
-    <div className={`rounded-xl overflow-hidden border ${theme === "dark" ? "border-gray-700/50" : "border-gray-200"}`}>
+    <div className={`rounded-xl overflow-hidden border ${theme === "dark" ? "border-[#2A2A4A]/50" : "border-[#E2E4F0]"}`}>
       <div className="overflow-x-auto">
         <table className="w-full">
           <thead>
-            <tr className={theme === "dark" ? "bg-gray-800/80" : "bg-gray-50"}>
-              <th className={`px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider ${theme === "dark" ? "text-gray-400" : "text-gray-500"}`}>{language === "bg" ? "Действие" : "Action"}</th>
-              <th className={`px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider ${theme === "dark" ? "text-gray-400" : "text-gray-500"}`}>{language === "bg" ? "Детайли" : "Details"}</th>
-              <th className={`px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider ${theme === "dark" ? "text-gray-400" : "text-gray-500"}`}>{language === "bg" ? "От" : "By"}</th>
-              <th className={`px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider ${theme === "dark" ? "text-gray-400" : "text-gray-500"}`}>{language === "bg" ? "Кога" : "When"}</th>
-              <th className={`px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider ${theme === "dark" ? "text-gray-400" : "text-gray-500"}`}>IP</th>
+            <tr className={theme === "dark" ? "bg-[#2A2A4A]/80" : "bg-[#F8F9FC]"}>
+              <th className={`px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider ${theme === "dark" ? "text-[#A7A7C7]" : "text-[#5B5D78]"}`}>{language === "bg" ? "Действие" : "Action"}</th>
+              <th className={`px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider ${theme === "dark" ? "text-[#A7A7C7]" : "text-[#5B5D78]"}`}>{language === "bg" ? "Детайли" : "Details"}</th>
+              <th className={`px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider ${theme === "dark" ? "text-[#A7A7C7]" : "text-[#5B5D78]"}`}>{language === "bg" ? "От" : "By"}</th>
+              <th className={`px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider ${theme === "dark" ? "text-[#A7A7C7]" : "text-[#5B5D78]"}`}>{language === "bg" ? "Кога" : "When"}</th>
+              <th className={`px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider ${theme === "dark" ? "text-[#A7A7C7]" : "text-[#5B5D78]"}`}>IP</th>
             </tr>
           </thead>
           <tbody className={`divide-y ${theme === "dark" ? "divide-gray-700/50" : "divide-gray-100"}`}>
@@ -904,7 +906,7 @@ export default function Admin() {
   ];
 
   return (
-    <div className={`min-h-screen ${theme === "dark" ? "bg-tmdb-dark" : "bg-gray-50"}`}>
+    <div className={`min-h-screen ${theme === "dark" ? "bg-[#0B0B12]" : "bg-[#F8F9FC]"}`}>
       <div className="max-w-7xl mx-auto px-4 md:px-8 py-8">
         {/* Header */}
         <div className="flex items-center gap-3 mb-8">
@@ -912,23 +914,23 @@ export default function Admin() {
             <ShieldCheck className="w-7 h-7 text-amber-400" />
           </div>
           <div>
-            <h1 className={`text-2xl font-bold ${theme === "dark" ? "text-white" : "text-gray-900"}`}>
+            <h1 className={`text-2xl font-bold ${theme === "dark" ? "text-white" : "text-[#1A1B2E]"}`}>
               {language === "bg" ? "Администрация" : "Admin Panel"}
             </h1>
-            <p className={`text-sm ${theme === "dark" ? "text-gray-400" : "text-gray-500"}`}>
+            <p className={`text-sm ${theme === "dark" ? "text-[#A7A7C7]" : "text-[#5B5D78]"}`}>
               {language === "bg" ? "Управление на приложението" : "Manage your application"}
             </p>
           </div>
         </div>
 
         {/* Tabs */}
-        <div className={`flex gap-1 p-1 rounded-xl mb-8 overflow-x-auto ${theme === "dark" ? "bg-gray-800/60" : "bg-gray-100"}`}>
+        <div className={`flex gap-1 p-1 rounded-xl mb-8 overflow-x-auto ${theme === "dark" ? "bg-[#1A1A33]" : "bg-[#F3F4FF]"}`}>
           {tabs.map(tab => (
             <button key={tab.id} onClick={() => setActiveTab(tab.id)}
               className={`flex items-center gap-2 px-4 py-2.5 rounded-lg text-sm font-medium transition-all whitespace-nowrap ${
                 activeTab === tab.id
-                  ? theme === "dark" ? "bg-gray-700 text-white shadow-sm" : "bg-white text-gray-900 shadow-sm"
-                  : theme === "dark" ? "text-gray-400 hover:text-gray-300" : "text-gray-500 hover:text-gray-700"
+                  ? "bg-primary text-white shadow-sm"
+                  : theme === "dark" ? "text-[#A7A7C7] hover:text-[#EDEDF7] hover:bg-[#2A2A4A]" : "text-[#5B5D78] hover:text-[#1A1B2E] hover:bg-white"
               }`}>
               <tab.icon className="w-4 h-4" />
               {tab.label}

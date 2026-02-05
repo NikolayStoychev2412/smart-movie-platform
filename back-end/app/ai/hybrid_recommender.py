@@ -124,9 +124,10 @@ class HybridRecommender:
         user_reviews: List[Review],
         user_watchlist: List[Watchlist],
         user_favorites: List[Favorite] = None
-    ) -> Optional[str]:
+    ) -> Optional[Dict[str, str]]:
         """
-        Get the best movie title to use in "Because you watched X" explanations.
+        Get the best movie titles to use in "Because you watched X" explanations.
+        Returns dict with 'title' (English) and 'title_bg' (Bulgarian).
         Priority: highest rated review > most recent favorite > completed watchlist > watching watchlist
         """
         # First try: highest rated reviewed movie
@@ -135,16 +136,16 @@ class HybridRecommender:
             if best_review.rating >= 3:  # Only use if they liked it
                 movie = db.query(Movie).filter(Movie.id == best_review.movie_id).first()
                 if movie:
-                    return movie.title
-        
+                    return {'title': movie.title, 'title_bg': movie.title_bg or movie.title}
+
         # Second try: most recent favorite (strong signal)
         if user_favorites:
             # Sort by created_at descending (most recent first)
             sorted_favorites = sorted(user_favorites, key=lambda f: f.created_at, reverse=True)
             movie = db.query(Movie).filter(Movie.id == sorted_favorites[0].movie_id).first()
             if movie:
-                return movie.title
-        
+                return {'title': movie.title, 'title_bg': movie.title_bg or movie.title}
+
         # Third try: most recent completed movie
         completed = [w for w in user_watchlist if w.status == WatchStatus.COMPLETED]
         if completed:
@@ -152,15 +153,15 @@ class HybridRecommender:
             completed.sort(key=lambda w: w.updated_at or w.created_at, reverse=True)
             movie = db.query(Movie).filter(Movie.id == completed[0].movie_id).first()
             if movie:
-                return movie.title
-        
+                return {'title': movie.title, 'title_bg': movie.title_bg or movie.title}
+
         # Fourth try: currently watching
         watching = [w for w in user_watchlist if w.status == WatchStatus.WATCHING]
         if watching:
             movie = db.query(Movie).filter(Movie.id == watching[0].movie_id).first()
             if movie:
-                return movie.title
-        
+                return {'title': movie.title, 'title_bg': movie.title_bg or movie.title}
+
         return None
     
     def recommend_for_user(
@@ -251,11 +252,15 @@ class HybridRecommender:
                 
                 # Use specific movie title or genre-based explanation
                 if similar_to_title:
+                    # similar_to_title is now a dict with 'title' and 'title_bg'
+                    title_en = similar_to_title.get('title', similar_to_title) if isinstance(similar_to_title, dict) else similar_to_title
+                    title_bg = similar_to_title.get('title_bg', title_en) if isinstance(similar_to_title, dict) else similar_to_title
                     recommendations[movie.id]['reasons'].append({
                         'type': 'content',
-                        'text': f"Because you watched {similar_to_title}",
-                        'text_bg': f"Защото гледахте {similar_to_title}",
-                        'based_on': similar_to_title
+                        'text': f"Because you watched {title_en}",
+                        'text_bg': f"Защото гледахте {title_bg}",
+                        'based_on': title_en,
+                        'based_on_bg': title_bg
                     })
                 else:
                     # Fallback to genre similarity
@@ -346,9 +351,11 @@ class HybridRecommender:
                 'total_score': round(total_score, 3),
                 'weights_used': weights,
                 'activity_level': 'cold_start' if activity_count < MIN_ACTIVITY_FOR_BEHAVIOR else 'active',
-                # Add additional fields for frontend
+                # Add additional fields for frontend (both languages)
                 'based_on': [r.get('based_on') for r in sorted_reasons if r.get('based_on')][:1],
-                'similar_to': next((r.get('based_on') for r in sorted_reasons if r.get('based_on')), None)
+                'based_on_bg': [r.get('based_on_bg') for r in sorted_reasons if r.get('based_on_bg')][:1],
+                'similar_to': next((r.get('based_on') for r in sorted_reasons if r.get('based_on')), None),
+                'similar_to_bg': next((r.get('based_on_bg') for r in sorted_reasons if r.get('based_on_bg')), None)
             }
             
             results.append((data['movie'], total_score, explanation))
@@ -452,8 +459,8 @@ class HybridRecommender:
         user_watchlist: List[Watchlist],
         user_favorites: List[Favorite],
         limit: int,
-        top_user_movie: Optional[str] = None
-    ) -> List[Tuple[Movie, float, Optional[str]]]:
+        top_user_movie: Optional[Dict[str, str]] = None
+    ) -> List[Tuple[Movie, float, Optional[Dict[str, str]]]]:
         """Get movies similar to what user has watched/reviewed/favorited."""
         # Build user preference vector with watchlist states and favorites
         user_vector = self._build_user_vector_with_states(db, user_reviews, user_watchlist, user_favorites)
@@ -531,8 +538,8 @@ class HybridRecommender:
                     rec_vector = np.array(rec_vector)
                     
                     best_similarity = -1
-                    best_movie_title = None
-                    
+                    best_movie_titles = None
+
                     for user_movie_data in user_movies_data:
                         # Calculate cosine similarity
                         user_vec = user_movie_data['vector']
@@ -541,13 +548,17 @@ class HybridRecommender:
                         )
                         # Weight by user's rating/status
                         weighted_sim = similarity * user_movie_data['weight']
-                        
+
                         if weighted_sim > best_similarity:
                             best_similarity = weighted_sim
-                            best_movie_title = user_movie_data['movie'].title
-                    
-                    if best_movie_title and best_similarity > 0.3:  # Threshold for relevance
-                        similar_title = best_movie_title
+                            m = user_movie_data['movie']
+                            best_movie_titles = {
+                                'title': m.title,
+                                'title_bg': m.title_bg or m.title
+                            }
+
+                    if best_movie_titles and best_similarity > 0.3:  # Threshold for relevance
+                        similar_title = best_movie_titles
             
             # Fallback to top_user_movie if no specific match found
             if not similar_title:

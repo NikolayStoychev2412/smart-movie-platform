@@ -224,7 +224,7 @@ function MovieBadge({ badge, language }: { badge: MovieWithGrade["_badge"]; lang
     best_for_you: { 
       label: language === "bg" ? "За теб" : "Best for you",
       icon: <Heart className="w-3 h-3" />,
-      classes: "bg-gradient-to-r from-purple-600 to-pink-600 text-white"
+      classes: "bg-gradient-to-r from-primary to-secondary text-white"
     },
     matches_search: { 
       label: language === "bg" ? "Точно съвпадение" : "Great match",
@@ -263,8 +263,8 @@ function MovieCardGrid({ movie, onClick, language, theme, snippet }: { movie: Mo
         {posterUrl ? (
           <img src={posterUrl} alt={title} className="w-full aspect-[2/3] object-cover group-hover:scale-105 transition-transform duration-300" loading="lazy" />
         ) : (
-          <div className={`w-full aspect-[2/3] flex items-center justify-center ${theme === "dark" ? "bg-gray-800" : "bg-gray-200"}`}>
-            <Film className="w-10 h-10 text-gray-500" />
+          <div className={`w-full aspect-[2/3] flex items-center justify-center ${theme === "dark" ? "bg-[#2A2A4A]" : "bg-gray-200"}`}>
+            <Film className="w-10 h-10 text-[#A7A7C7]" />
           </div>
         )}
         <div className="absolute bottom-2 left-2">
@@ -273,14 +273,14 @@ function MovieCardGrid({ movie, onClick, language, theme, snippet }: { movie: Mo
         <MovieBadge badge={movie._badge} language={language} />
       </div>
       <div className="pt-3 px-1">
-        <h3 className={`font-bold text-sm line-clamp-2 group-hover:text-tmdb-light-blue transition-colors ${theme === "dark" ? "text-white" : "text-gray-900"}`}>{title}</h3>
-        {releaseDate && <p className={`text-sm mt-0.5 ${theme === "dark" ? "text-gray-400" : "text-gray-500"}`}>{releaseDate}</p>}
+        <h3 className={`font-bold text-sm line-clamp-2 group-hover:text-primary transition-colors ${theme === "dark" ? "text-white" : "text-[#1A1B2E]"}`}>{title}</h3>
+        {releaseDate && <p className={`text-sm mt-0.5 ${theme === "dark" ? "text-[#A7A7C7]" : "text-[#5B5D78]"}`}>{releaseDate}</p>}
         {reviewCount > 0 && appRating > 0 && (
-          <p className={`text-xs mt-0.5 ${theme === "dark" ? "text-gray-500" : "text-gray-400"}`}>
+          <p className={`text-xs mt-0.5 ${theme === "dark" ? "text-[#A7A7C7]" : "text-[#5B5D78]"}`}>
             ★ {Number(appRating).toFixed(1)}/5 · {reviewCount} {reviewCount === 1 ? (language === "bg" ? "ревю" : "review") : (language === "bg" ? "ревюта" : "reviews")}
           </p>
         )}
-        {snippet && <p className="text-xs mt-1 text-purple-400 line-clamp-2 italic">{snippet}</p>}
+        {snippet && <p className="text-xs mt-1 text-primary line-clamp-2 italic">{snippet}</p>}
       </div>
     </div>
   );
@@ -298,13 +298,13 @@ function MovieCardList({ movie, onClick, language, theme, snippet }: { movie: Mo
   const reviewCount = (movie as any).review_count || 0;
 
   return (
-    <div className={`flex rounded-lg cursor-pointer transition-all overflow-hidden border ${theme === "dark" ? "bg-gray-900 hover:bg-gray-800 border-gray-800" : "bg-white hover:bg-gray-50 border-gray-200 shadow-sm"}`} onClick={onClick}>
+    <div className={`flex rounded-lg cursor-pointer transition-all overflow-hidden border ${theme === "dark" ? "bg-[#1A1A33] hover:bg-[#2A2A4A] border-[#2A2A4A]" : "bg-white hover:bg-[#F8F9FC] border-[#E2E4F0] shadow-sm"}`} onClick={onClick}>
       <div className="relative flex-shrink-0 w-[94px]">
         {posterUrl ? (
           <img src={posterUrl} alt={title} className="w-full h-full object-cover min-h-[141px]" loading="lazy" />
         ) : (
-          <div className={`w-full h-full min-h-[141px] flex items-center justify-center ${theme === "dark" ? "bg-gray-800" : "bg-gray-200"}`}>
-            <Film className="w-8 h-8 text-gray-500" />
+          <div className={`w-full h-full min-h-[141px] flex items-center justify-center ${theme === "dark" ? "bg-[#2A2A4A]" : "bg-gray-200"}`}>
+            <Film className="w-8 h-8 text-[#A7A7C7]" />
           </div>
         )}
         {movie._badge && (
@@ -317,11 +317,11 @@ function MovieCardList({ movie, onClick, language, theme, snippet }: { movie: Mo
         <div className="flex items-start gap-3">
           <CircularRating rating={displayRating} size={40} isTmdb={true} />
           <div className="flex-1 min-w-0">
-            <h3 className={`font-bold line-clamp-1 ${theme === "dark" ? "text-white" : "text-gray-900"}`}>{title}</h3>
+            <h3 className={`font-bold line-clamp-1 ${theme === "dark" ? "text-white" : "text-[#1A1B2E]"}`}>{title}</h3>
             <div className="flex items-center gap-2 flex-wrap">
-              {releaseDate && <p className={`text-sm ${theme === "dark" ? "text-gray-400" : "text-gray-500"}`}>{releaseDate}</p>}
+              {releaseDate && <p className={`text-sm ${theme === "dark" ? "text-[#A7A7C7]" : "text-[#5B5D78]"}`}>{releaseDate}</p>}
               {reviewCount > 0 && appRating > 0 && (
-                <p className={`text-xs ${theme === "dark" ? "text-gray-500" : "text-gray-400"}`}>
+                <p className={`text-xs ${theme === "dark" ? "text-[#A7A7C7]" : "text-[#5B5D78]"}`}>
                   · ★ {Number(appRating).toFixed(1)}/5 ({reviewCount})
                 </p>
               )}
@@ -329,9 +329,9 @@ function MovieCardList({ movie, onClick, language, theme, snippet }: { movie: Mo
           </div>
         </div>
         {snippet ? (
-          <p className="text-sm mt-2 text-purple-400 line-clamp-2 italic">{snippet}</p>
+          <p className="text-sm mt-2 text-primary line-clamp-2 italic">{snippet}</p>
         ) : summary ? (
-          <p className={`text-sm mt-2 line-clamp-2 ${theme === "dark" ? "text-gray-400" : "text-gray-600"}`}>{summary}</p>
+          <p className={`text-sm mt-2 line-clamp-2 ${theme === "dark" ? "text-[#A7A7C7]" : "text-[#5B5D78]"}`}>{summary}</p>
         ) : null}
       </div>
     </div>
@@ -376,8 +376,8 @@ function Pagination({ currentPage, totalPages, onPageChange, theme, language }: 
           currentPage === 1
             ? "opacity-50 cursor-not-allowed"
             : theme === "dark"
-            ? "bg-gray-800 text-white hover:bg-gray-700"
-            : "bg-white text-gray-900 hover:bg-gray-100 border"
+            ? "bg-[#2A2A4A] text-white hover:bg-[#2A2A4A]"
+            : "bg-white text-[#1A1B2E] hover:bg-[#ECEEF8] border"
         }`}
       >
         <ChevronLeft className="w-5 h-5" />
@@ -386,17 +386,17 @@ function Pagination({ currentPage, totalPages, onPageChange, theme, language }: 
       {/* Page Numbers */}
       {getPageNumbers().map((page, idx) => (
         page === "..." ? (
-          <span key={`ellipsis-${idx}`} className={`px-2 ${theme === "dark" ? "text-gray-500" : "text-gray-400"}`}>...</span>
+          <span key={`ellipsis-${idx}`} className={`px-2 ${theme === "dark" ? "text-[#A7A7C7]" : "text-[#5B5D78]"}`}>...</span>
         ) : (
           <button
             key={page}
             onClick={() => onPageChange(page as number)}
             className={`min-w-[40px] h-10 rounded-lg font-medium transition-colors ${
               currentPage === page
-                ? "bg-tmdb-light-blue text-tmdb-dark-blue"
+                ? "bg-primary text-white"
                 : theme === "dark"
-                ? "bg-gray-800 text-gray-300 hover:bg-gray-700"
-                : "bg-white text-gray-700 hover:bg-gray-100 border"
+                ? "bg-[#2A2A4A] text-[#A7A7C7] hover:bg-[#2A2A4A]"
+                : "bg-white text-[#5B5D78] hover:bg-[#ECEEF8] border"
             }`}
           >
             {page}
@@ -412,8 +412,8 @@ function Pagination({ currentPage, totalPages, onPageChange, theme, language }: 
           currentPage === totalPages
             ? "opacity-50 cursor-not-allowed"
             : theme === "dark"
-            ? "bg-gray-800 text-white hover:bg-gray-700"
-            : "bg-white text-gray-900 hover:bg-gray-100 border"
+            ? "bg-[#2A2A4A] text-white hover:bg-[#2A2A4A]"
+            : "bg-white text-[#1A1B2E] hover:bg-[#ECEEF8] border"
         }`}
       >
         <ChevronRight className="w-5 h-5" />
@@ -562,7 +562,7 @@ export default function Browse() {
       } else {
         // AI search - call /ai/search endpoint
         try {
-          const response = await api.get('/ai/search', { params: { q, top_k: 50 } });
+          const response = await api.get('/ai/search', { params: { q, top_k: 50, language } });
           const results = response.data || [];
           setSearchResults(results.map((r: any) => r.movie));
           
@@ -823,17 +823,17 @@ export default function Browse() {
     : ["best", "rating", "popularity", "release_date", "title"];
 
   return (
-    <div className={`min-h-screen transition-colors ${theme === "dark" ? "bg-tmdb-dark" : "bg-gray-50"}`}>
+    <div className={`min-h-screen transition-colors ${theme === "dark" ? "bg-[#0B0B12]" : "bg-[#F8F9FC]"}`}>
       {/* Page Header */}
-      <div className={`border-b ${theme === "dark" ? "bg-tmdb-dark-blue border-gray-800" : "bg-white border-gray-200"}`}>
+      <div className={`border-b ${theme === "dark" ? "bg-[#121226] border-[#2A2A4A]" : "bg-white border-[#E2E4F0]"}`}>
         <div className="max-w-7xl mx-auto px-4 md:px-8 py-6">
-          <h1 className={`text-2xl font-bold ${theme === "dark" ? "text-white" : "text-gray-900"}`}>
+          <h1 className={`text-2xl font-bold ${theme === "dark" ? "text-white" : "text-[#1A1B2E]"}`}>
             {language === "bg" ? "Разгледай филми" : "Browse Movies"}
           </h1>
 
           {/* Search */}
           <form onSubmit={handleSearch} className="mt-4">
-            <div className="flex gap-2">
+            <div className="flex flex-wrap sm:flex-nowrap gap-2">
               <div className="relative flex-1">
                 <input
                   type="text"
@@ -842,21 +842,21 @@ export default function Browse() {
                   placeholder={searchMode === "ai" 
                     ? (language === "bg" ? "Опиши какъв филм търсиш..." : "Describe what movie you're looking for...")
                     : (language === "bg" ? "Търси по заглавие..." : "Search by title...")}
-                  className={`w-full pl-12 pr-12 py-3 rounded-xl border focus:outline-none focus:ring-2 focus:ring-tmdb-light-blue ${
-                    theme === "dark" ? "bg-gray-900 border-gray-700 text-white placeholder-gray-500" : "bg-white border-gray-300 text-gray-900 placeholder-gray-400"
+                  className={`w-full pl-12 pr-12 py-3 rounded-xl border focus:outline-none focus:ring-2 focus:ring-primary ${
+                    theme === "dark" ? "bg-[#1A1A33] border-[#2A2A4A] text-white placeholder-gray-500" : "bg-white border-[#E2E4F0] text-[#1A1B2E] placeholder-gray-400"
                   }`}
                 />
                 {searchMode === "ai" ? (
-                  <Sparkles className={`absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 pointer-events-none ${theme === "dark" ? "text-purple-400" : "text-purple-500"}`} />
+                  <Sparkles className={`absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 pointer-events-none ${theme === "dark" ? "text-primary" : "text-primary"}`} />
                 ) : (
-                  <Search className={`absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 pointer-events-none ${theme === "dark" ? "text-gray-500" : "text-gray-400"}`} />
+                  <Search className={`absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 pointer-events-none ${theme === "dark" ? "text-[#A7A7C7]" : "text-[#5B5D78]"}`} />
                 )}
                 <button
                   type="button"
                   onClick={clearSearch}
                   className={`absolute right-3 top-1/2 -translate-y-1/2 flex items-center justify-center transition-colors ${
                     searchQuery
-                      ? theme === "dark" ? "text-gray-500 hover:text-white" : "text-gray-400 hover:text-gray-700"
+                      ? theme === "dark" ? "text-[#A7A7C7] hover:text-[#EDEDF7]" : "text-[#A7A7C7] hover:text-[#5B5D78]"
                       : "pointer-events-none opacity-0"
                   }`}
                   tabIndex={searchQuery ? 0 : -1}
@@ -866,36 +866,36 @@ export default function Browse() {
               </div>
 
               {/* Search Mode Toggle */}
-              <div className={`flex rounded-xl border overflow-hidden flex-shrink-0 ${theme === "dark" ? "border-gray-700" : "border-gray-300"}`}>
+              <div className={`flex rounded-xl border overflow-hidden flex-shrink-0 ${theme === "dark" ? "border-[#2A2A4A]" : "border-[#E2E4F0]"}`}>
                 <button
                   type="button"
                   onClick={() => { setSearchMode("ai"); if (searchQuery.trim() && searchMode !== "ai") { setSearchResults([]); setSnippets({}); setRelevanceScores({}); } }}
-                  className={`px-4 py-3 flex items-center gap-2 font-medium transition-colors min-w-[52px] justify-center ${
+                  className={`px-3 sm:px-4 py-3 flex items-center gap-1.5 sm:gap-2 font-medium transition-colors whitespace-nowrap ${
                     searchMode === "ai"
-                      ? "bg-gradient-to-r from-purple-600 to-pink-600 text-white"
-                      : theme === "dark" ? "bg-gray-900 text-gray-400 hover:text-gray-200" : "bg-white text-gray-500 hover:text-gray-700"
+                      ? "bg-gradient-to-r from-primary to-secondary text-white"
+                      : theme === "dark" ? "bg-[#1A1A33] text-[#A7A7C7] hover:text-gray-200" : "bg-white text-[#5B5D78] hover:text-[#1A1B2E]"
                   }`}
                 >
-                  <Sparkles className="w-4 h-4" />
-                  <span className="hidden sm:inline">AI</span>
+                  <Sparkles className="w-4 h-4 flex-shrink-0" />
+                  <span className="text-sm">AI</span>
                 </button>
                 <button
                   type="button"
                   onClick={() => { setSearchMode("title"); if (searchQuery.trim() && searchMode !== "title") { setSearchResults([]); setSnippets({}); setRelevanceScores({}); } }}
-                  className={`px-4 py-3 flex items-center gap-2 font-medium transition-colors min-w-[52px] justify-center ${
+                  className={`px-3 sm:px-4 py-3 flex items-center gap-1.5 sm:gap-2 font-medium transition-colors whitespace-nowrap ${
                     searchMode === "title"
-                      ? "bg-tmdb-light-blue text-tmdb-dark-blue"
-                      : theme === "dark" ? "bg-gray-900 text-gray-400 hover:text-gray-200" : "bg-white text-gray-500 hover:text-gray-700"
+                      ? "bg-primary text-white"
+                      : theme === "dark" ? "bg-[#1A1A33] text-[#A7A7C7] hover:text-gray-200" : "bg-white text-[#5B5D78] hover:text-[#1A1B2E]"
                   }`}
                 >
-                  <Search className="w-4 h-4" />
-                  <span className="hidden sm:inline">{language === "bg" ? "Заглавие" : "Title"}</span>
+                  <Search className="w-4 h-4 flex-shrink-0" />
+                  <span className="text-sm">{language === "bg" ? "Заглавие" : "Title"}</span>
                 </button>
               </div>
             </div>
             {/* AI mode hint: press Enter to search */}
             {searchMode === "ai" && searchQuery.trim().length >= MIN_SEARCH_LENGTH && searchResults.length === 0 && !searching && (
-              <p className={`mt-2 text-xs ${theme === "dark" ? "text-gray-500" : "text-gray-400"}`}>
+              <p className={`mt-2 text-xs ${theme === "dark" ? "text-[#A7A7C7]" : "text-[#5B5D78]"}`}>
                 {language === "bg" ? "Натисни Enter за AI търсене" : "Press Enter to search with AI"}
               </p>
             )}
@@ -907,22 +907,22 @@ export default function Browse() {
       <div className="max-w-7xl mx-auto px-4 md:px-8 py-6">
         <div className="flex flex-col lg:flex-row gap-6">
           {/* Sidebar */}
-          <aside className={`lg:w-60 flex-shrink-0 ${showFilters ? "block" : "hidden lg:block"}`}>
-            <div className={`rounded-xl border overflow-hidden sticky top-24 ${theme === "dark" ? "bg-gray-900 border-gray-800" : "bg-white border-gray-200"}`}>
-              <div className={`px-4 py-3 border-b font-semibold flex items-center gap-2 ${theme === "dark" ? "border-gray-800 text-white" : "border-gray-200 text-gray-900"}`}>
+          <aside className={`lg:w-64 flex-shrink-0 ${showFilters ? "block" : "hidden lg:block"}`}>
+            <div className={`rounded-xl border overflow-hidden sticky top-24 ${theme === "dark" ? "bg-[#1A1A33] border-[#2A2A4A]" : "bg-white border-[#E2E4F0] shadow-sm"}`}>
+              <div className={`px-4 py-3 border-b font-semibold flex items-center gap-2 ${theme === "dark" ? "border-[#2A2A4A] text-white" : "border-[#E2E4F0] text-[#1A1B2E]"}`}>
                 <Filter className="w-4 h-4" />
                 {language === "bg" ? "Филтри" : "Filters"}
               </div>
 
               {/* Sort */}
-              <div className={`px-4 py-3 border-b ${theme === "dark" ? "border-gray-800" : "border-gray-200"}`}>
-                <label className={`block text-sm font-medium mb-2 ${theme === "dark" ? "text-gray-300" : "text-gray-700"}`}>
+              <div className={`px-4 py-3 border-b ${theme === "dark" ? "border-[#2A2A4A]" : "border-[#E2E4F0]"}`}>
+                <label className={`block text-sm font-medium mb-2 ${theme === "dark" ? "text-[#A7A7C7]" : "text-[#5B5D78]"}`}>
                   {language === "bg" ? "Сортирай" : "Sort by"}
                 </label>
                 <select
                   value={sortBy}
                   onChange={(e) => setSortBy(e.target.value as SortOption)}
-                  className={`w-full px-3 py-2 rounded-lg border ${theme === "dark" ? "bg-gray-800 border-gray-700 text-white" : "bg-gray-50 border-gray-200 text-gray-900"}`}
+                  className={`w-full px-3 py-2 rounded-lg border ${theme === "dark" ? "bg-[#2A2A4A] border-[#2A2A4A] text-white" : "bg-[#F8F9FC] border-[#E2E4F0] text-[#1A1B2E]"}`}
                 >
                   {availableSortOptions.map((s) => (
                     <option key={s} value={s}>
@@ -933,14 +933,14 @@ export default function Browse() {
               </div>
 
               {/* Genre */}
-              <div className={`px-4 py-3 border-b ${theme === "dark" ? "border-gray-800" : "border-gray-200"}`}>
-                <label className={`block text-sm font-medium mb-2 ${theme === "dark" ? "text-gray-300" : "text-gray-700"}`}>
+              <div className={`px-4 py-3 border-b ${theme === "dark" ? "border-[#2A2A4A]" : "border-[#E2E4F0]"}`}>
+                <label className={`block text-sm font-medium mb-2 ${theme === "dark" ? "text-[#A7A7C7]" : "text-[#5B5D78]"}`}>
                   {language === "bg" ? "Жанр" : "Genre"}
                 </label>
                 <select
                   value={selectedGenre}
                   onChange={(e) => { setSelectedGenre(e.target.value); setCurrentPage(1); }}
-                  className={`w-full px-3 py-2 rounded-lg border ${theme === "dark" ? "bg-gray-800 border-gray-700 text-white" : "bg-gray-50 border-gray-200 text-gray-900"}`}
+                  className={`w-full px-3 py-2 rounded-lg border ${theme === "dark" ? "bg-[#2A2A4A] border-[#2A2A4A] text-white" : "bg-[#F8F9FC] border-[#E2E4F0] text-[#1A1B2E]"}`}
                 >
                   <option value="all">{language === "bg" ? "Всички" : "All"}</option>
                   {genres.map((g) => <option key={g} value={g}>{g}</option>)}
@@ -949,22 +949,22 @@ export default function Browse() {
 
               {/* Mood */}
               <div className="px-4 py-3">
-                <label className={`block text-sm font-medium mb-2 ${theme === "dark" ? "text-gray-300" : "text-gray-700"}`}>
+                <label className={`block text-sm font-medium mb-2 ${theme === "dark" ? "text-[#A7A7C7]" : "text-[#5B5D78]"}`}>
                   {language === "bg" ? "Настроение" : "Mood"}
                 </label>
-                <div className="grid grid-cols-2 gap-2">
+                <div className="flex flex-col gap-1.5">
                   {(Object.keys(moodLabels) as MoodOption[]).map((mood) => (
                     <button
                       key={mood}
                       onClick={() => { setSelectedMood(mood); setCurrentPage(1); }}
-                      className={`px-2 py-2 text-xs rounded-lg border transition-colors text-left ${
+                      className={`px-3 py-2 text-sm rounded-lg border transition-colors text-left flex items-center gap-2 ${
                         selectedMood === mood
-                          ? "bg-tmdb-light-blue text-tmdb-dark-blue border-tmdb-light-blue font-medium"
-                          : theme === "dark" ? "bg-gray-800 border-gray-700 text-gray-300 hover:bg-gray-700" : "bg-gray-50 border-gray-200 text-gray-600 hover:bg-gray-100"
+                          ? "bg-primary text-white border-primary font-medium"
+                          : theme === "dark" ? "bg-[#2A2A4A] border-[#2A2A4A] text-[#A7A7C7] hover:bg-[#3A3A5A]" : "bg-[#F8F9FC] border-[#E2E4F0] text-[#5B5D78] hover:bg-[#ECEEF8]"
                       }`}
                     >
-                      <span className="mr-1">{moodLabels[mood].emoji}</span>
-                      {language === "bg" ? moodLabels[mood].bg : moodLabels[mood].en}
+                      <span className="flex-shrink-0">{moodLabels[mood].emoji}</span>
+                      <span className="truncate">{language === "bg" ? moodLabels[mood].bg : moodLabels[mood].en}</span>
                     </button>
                   ))}
                 </div>
@@ -972,16 +972,16 @@ export default function Browse() {
 
               {/* Active Filters */}
               {(selectedGenre !== "all" || selectedMood !== "all" || searchQuery) && (
-                <div className={`px-4 py-3 border-t ${theme === "dark" ? "border-gray-800" : "border-gray-200"}`}>
-                  <p className={`text-xs font-medium mb-2 ${theme === "dark" ? "text-gray-400" : "text-gray-500"}`}>
+                <div className={`px-4 py-3 border-t ${theme === "dark" ? "border-[#2A2A4A]" : "border-[#E2E4F0]"}`}>
+                  <p className={`text-xs font-medium mb-2 ${theme === "dark" ? "text-[#A7A7C7]" : "text-[#5B5D78]"}`}>
                     {language === "bg" ? "Активни:" : "Active:"}
                   </p>
                   <div className="flex flex-wrap gap-2">
                     {searchQuery && (
-                      <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs ${theme === "dark" ? "bg-purple-500/20 text-purple-400" : "bg-purple-100 text-purple-700"}`}>
+                      <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs ${theme === "dark" ? "bg-primary/20 text-primary" : "bg-primary/10 text-primary"}`}>
                         {searchMode === "ai" ? <Sparkles className="w-3 h-3 flex-shrink-0" /> : <Search className="w-3 h-3 flex-shrink-0" />}
                         <span className="truncate max-w-[120px]">"{searchQuery.length > 15 ? searchQuery.slice(0, 15) + "..." : searchQuery}"</span>
-                        <button onClick={clearSearch} className="flex-shrink-0 w-4 h-4 flex items-center justify-center rounded hover:bg-purple-500/30 transition-colors"><X className="w-3 h-3" /></button>
+                        <button onClick={clearSearch} className="flex-shrink-0 w-4 h-4 flex items-center justify-center rounded hover:bg-primary/30 transition-colors"><X className="w-3 h-3" /></button>
                       </span>
                     )}
                     {selectedGenre !== "all" && (
@@ -1007,20 +1007,20 @@ export default function Browse() {
             {/* Results Header */}
             <div className="flex items-center justify-between mb-4">
               <div className="flex items-center gap-3">
-                <button onClick={() => setShowFilters(!showFilters)} className={`lg:hidden p-2 rounded-lg ${theme === "dark" ? "bg-gray-800 text-white" : "bg-white text-gray-700 border"}`}>
+                <button onClick={() => setShowFilters(!showFilters)} className={`lg:hidden p-2 rounded-lg ${theme === "dark" ? "bg-[#2A2A4A] text-white" : "bg-white text-[#5B5D78] border"}`}>
                   <Filter className="w-5 h-5" />
                 </button>
-                <p className={`text-sm ${theme === "dark" ? "text-gray-400" : "text-gray-600"}`}>
+                <p className={`text-sm ${theme === "dark" ? "text-[#A7A7C7]" : "text-[#5B5D78]"}`}>
                   {displayMovies.length} {language === "bg" ? "филма" : "movies"}
                   {totalPages > 1 && ` • ${language === "bg" ? "Страница" : "Page"} ${currentPage}/${totalPages}`}
                 </p>
               </div>
 
               <div className="flex items-center gap-1">
-                <button onClick={() => setViewMode("grid")} className={`p-2 rounded ${viewMode === "grid" ? "bg-tmdb-light-blue text-tmdb-dark-blue" : theme === "dark" ? "text-gray-400 hover:bg-gray-800" : "text-gray-400 hover:bg-gray-100"}`}>
+                <button onClick={() => setViewMode("grid")} className={`p-2 rounded ${viewMode === "grid" ? "bg-primary text-white" : theme === "dark" ? "text-[#A7A7C7] hover:bg-[#2A2A4A]" : "text-[#A7A7C7] hover:bg-[#ECEEF8]"}`}>
                   <Grid className="w-5 h-5" />
                 </button>
-                <button onClick={() => setViewMode("list")} className={`p-2 rounded ${viewMode === "list" ? "bg-tmdb-light-blue text-tmdb-dark-blue" : theme === "dark" ? "text-gray-400 hover:bg-gray-800" : "text-gray-400 hover:bg-gray-100"}`}>
+                <button onClick={() => setViewMode("list")} className={`p-2 rounded ${viewMode === "list" ? "bg-primary text-white" : theme === "dark" ? "text-[#A7A7C7] hover:bg-[#2A2A4A]" : "text-[#A7A7C7] hover:bg-[#ECEEF8]"}`}>
                   <List className="w-5 h-5" />
                 </button>
               </div>
@@ -1031,9 +1031,9 @@ export default function Browse() {
               <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
                 {[...Array(20)].map((_, i) => (
                   <div key={i} className="animate-pulse">
-                    <div className={`aspect-[2/3] rounded-lg ${theme === "dark" ? "bg-gray-800" : "bg-gray-200"}`} />
-                    <div className={`h-4 w-3/4 rounded mt-3 ${theme === "dark" ? "bg-gray-800" : "bg-gray-200"}`} />
-                    <div className={`h-3 w-1/2 rounded mt-2 ${theme === "dark" ? "bg-gray-800" : "bg-gray-200"}`} />
+                    <div className={`aspect-[2/3] rounded-lg ${theme === "dark" ? "bg-[#2A2A4A]" : "bg-gray-200"}`} />
+                    <div className={`h-4 w-3/4 rounded mt-3 ${theme === "dark" ? "bg-[#2A2A4A]" : "bg-gray-200"}`} />
+                    <div className={`h-3 w-1/2 rounded mt-2 ${theme === "dark" ? "bg-[#2A2A4A]" : "bg-gray-200"}`} />
                   </div>
                 ))}
               </div>
@@ -1041,7 +1041,7 @@ export default function Browse() {
 
             {/* Empty */}
             {!loading && !searching && displayMovies.length === 0 && (
-              <div className={`text-center py-16 ${theme === "dark" ? "text-gray-400" : "text-gray-500"}`}>
+              <div className={`text-center py-16 ${theme === "dark" ? "text-[#A7A7C7]" : "text-[#5B5D78]"}`}>
                 <Search className="w-16 h-16 mx-auto mb-4 opacity-50" />
                 <p className="text-xl font-medium">{language === "bg" ? "Няма намерени филми" : "No movies found"}</p>
                 <p className="mt-2">{language === "bg" ? "Опитайте с различно търсене" : "Try different search"}</p>

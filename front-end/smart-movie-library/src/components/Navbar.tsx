@@ -50,20 +50,20 @@ export default function Navbar() {
   return (
     <nav className={`sticky top-0 z-50 transition-colors ${
       theme === "dark" 
-        ? "bg-tmdb-dark-blue/95 backdrop-blur-sm border-b border-gray-800" 
-        : "bg-white/95 backdrop-blur-sm border-b border-gray-200 shadow-sm"
+        ? "bg-[#121226]/95 backdrop-blur-sm border-b border-[#2A2A4A]" 
+        : "bg-white/95 backdrop-blur-sm border-b border-[#E2E4F0] shadow-sm"
     }`}>
       <div className="max-w-7xl mx-auto px-4 md:px-8">
         <div className="flex items-center justify-between h-16">
           {/* Logo */}
           <Link to="/" className="flex items-center gap-2 group">
-            <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-tmdb-light-green to-tmdb-light-blue flex items-center justify-center">
-              <Film className="w-5 h-5 text-tmdb-dark-blue" />
+            <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-[#A78BFA] to-[#2DD4BF] flex items-center justify-center">
+              <Film className="w-5 h-5 text-white" />
             </div>
             <span className={`font-bold text-lg hidden sm:block ${
-              theme === "dark" ? "text-white" : "text-gray-900"
+              theme === "dark" ? "text-[#EDEDF7]" : "text-[#121225]"
             }`}>
-              MovieDB
+              CineVault
             </span>
           </Link>
 
@@ -75,10 +75,10 @@ export default function Navbar() {
                 to={link.path}
                 className={`px-4 py-2 rounded-lg font-medium transition-colors flex items-center gap-2 ${
                   isActive(link.path)
-                    ? "bg-tmdb-light-blue text-tmdb-dark-blue"
+                    ? "bg-primary text-white"
                     : theme === "dark"
-                    ? "text-gray-300 hover:text-white hover:bg-white/10"
-                    : "text-gray-600 hover:text-gray-900 hover:bg-gray-100"
+                    ? "text-[#A7A7C7] hover:text-[#EDEDF7] hover:bg-white/10"
+                    : "text-[#4B4B6A] hover:text-[#121225] hover:bg-[#ECEEF8]"
                 }`}
               >
                 <link.icon className="w-4 h-4" />
@@ -95,14 +95,14 @@ export default function Navbar() {
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 placeholder={language === "bg" ? "Търси филми..." : "Search movies..."}
-                className={`w-full pl-10 pr-4 py-2 rounded-full border focus:outline-none focus:ring-2 focus:ring-tmdb-light-blue transition-colors ${
+                className={`w-full pl-10 pr-4 py-2 rounded-full border focus:outline-none focus:ring-2 focus:ring-primary transition-colors ${
                   theme === "dark"
-                    ? "bg-gray-900 border-gray-700 text-white placeholder:text-gray-500"
-                    : "bg-gray-100 border-gray-200 text-gray-900 placeholder:text-gray-400 focus:bg-white"
+                    ? "bg-[#1A1A33] border-[#2A2A4A] text-[#EDEDF7] placeholder:text-[#A7A7C7]"
+                    : "bg-[#F3F4FF] border-[#E2E4F0] text-[#121225] placeholder:text-[#4B4B6A] focus:bg-white"
                 }`}
               />
               <Search className={`absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 ${
-                theme === "dark" ? "text-gray-500" : "text-gray-400"
+                theme === "dark" ? "text-[#A7A7C7]" : "text-[#4B4B6A]"
               }`} />
             </div>
           </form>
@@ -114,8 +114,8 @@ export default function Navbar() {
               onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
               className={`p-2 rounded-lg transition-colors ${
                 theme === "dark"
-                  ? "text-gray-300 hover:text-white hover:bg-white/10"
-                  : "text-gray-600 hover:text-gray-900 hover:bg-gray-100"
+                  ? "text-[#A7A7C7] hover:text-[#EDEDF7] hover:bg-white/10"
+                  : "text-[#4B4B6A] hover:text-[#121225] hover:bg-[#ECEEF8]"
               }`}
               aria-label="Toggle theme"
             >
@@ -127,8 +127,8 @@ export default function Navbar() {
               onClick={() => setLanguage(language === "en" ? "bg" : "en")}
               className={`p-2 rounded-lg transition-colors flex items-center gap-1 ${
                 theme === "dark"
-                  ? "text-gray-300 hover:text-white hover:bg-white/10"
-                  : "text-gray-600 hover:text-gray-900 hover:bg-gray-100"
+                  ? "text-[#A7A7C7] hover:text-[#EDEDF7] hover:bg-white/10"
+                  : "text-[#4B4B6A] hover:text-[#121225] hover:bg-[#ECEEF8]"
               }`}
               aria-label="Toggle language"
             >
@@ -143,12 +143,12 @@ export default function Navbar() {
                   onClick={() => setUserMenuOpen(!userMenuOpen)}
                   className={`flex items-center gap-2 px-3 py-2 rounded-lg transition-colors ${
                     theme === "dark"
-                      ? "text-gray-300 hover:text-white hover:bg-white/10"
-                      : "text-gray-600 hover:text-gray-900 hover:bg-gray-100"
+                      ? "text-[#A7A7C7] hover:text-[#EDEDF7] hover:bg-white/10"
+                      : "text-[#4B4B6A] hover:text-[#121225] hover:bg-[#ECEEF8]"
                   }`}
                 >
-                  <div className="w-8 h-8 rounded-full bg-gradient-to-br from-tmdb-light-green to-tmdb-light-blue flex items-center justify-center">
-                    <span className="text-tmdb-dark-blue font-bold text-sm">
+                  <div className="w-8 h-8 rounded-full bg-gradient-to-br from-[#A78BFA] to-[#2DD4BF] flex items-center justify-center">
+                    <span className="text-white font-bold text-sm">
                       {user.name?.charAt(0).toUpperCase() || "U"}
                     </span>
                   </div>
@@ -159,13 +159,13 @@ export default function Navbar() {
                   <>
                     <div className="fixed inset-0 z-10" onClick={() => setUserMenuOpen(false)} />
                     <div className={`absolute right-0 top-full mt-2 w-48 rounded-lg shadow-lg border z-20 overflow-hidden ${
-                      theme === "dark" ? "bg-gray-900 border-gray-800" : "bg-white border-gray-200"
+                      theme === "dark" ? "bg-[#1A1A33] border-[#2A2A4A]" : "bg-white border-[#E2E4F0]"
                     }`}>
-                      <div className={`px-4 py-3 border-b ${theme === "dark" ? "border-gray-800" : "border-gray-200"}`}>
-                        <p className={`font-medium ${theme === "dark" ? "text-white" : "text-gray-900"}`}>
+                      <div className={`px-4 py-3 border-b ${theme === "dark" ? "border-[#2A2A4A]" : "border-[#E2E4F0]"}`}>
+                        <p className={`font-medium ${theme === "dark" ? "text-[#EDEDF7]" : "text-[#121225]"}`}>
                           {user.name}
                         </p>
-                        <p className={`text-sm ${theme === "dark" ? "text-gray-400" : "text-gray-500"}`}>
+                        <p className={`text-sm ${theme === "dark" ? "text-[#A7A7C7]" : "text-[#4B4B6A]"}`}>
                           {user.email}
                         </p>
                       </div>
@@ -173,7 +173,7 @@ export default function Navbar() {
                         to="/profile"
                         onClick={() => setUserMenuOpen(false)}
                         className={`flex items-center gap-2 px-4 py-3 transition-colors ${
-                          theme === "dark" ? "text-gray-300 hover:bg-gray-800" : "text-gray-600 hover:bg-gray-50"
+                          theme === "dark" ? "text-[#A7A7C7] hover:bg-[#2A2A4A]" : "text-[#4B4B6A] hover:bg-[#ECEEF8]"
                         }`}
                       >
                         <User className="w-4 h-4" />
@@ -184,7 +184,7 @@ export default function Navbar() {
                           to="/admin"
                           onClick={() => setUserMenuOpen(false)}
                           className={`flex items-center gap-2 px-4 py-3 transition-colors ${
-                            theme === "dark" ? "text-amber-400 hover:bg-gray-800" : "text-amber-600 hover:bg-gray-50"
+                            theme === "dark" ? "text-warning hover:bg-[#2A2A4A]" : "text-warning hover:bg-[#ECEEF8]"
                           }`}
                         >
                           <ShieldCheck className="w-4 h-4" />
@@ -197,7 +197,7 @@ export default function Navbar() {
                           setUserMenuOpen(false);
                         }}
                         className={`flex items-center gap-2 px-4 py-3 w-full transition-colors ${
-                          theme === "dark" ? "text-red-400 hover:bg-gray-800" : "text-red-600 hover:bg-gray-50"
+                          theme === "dark" ? "text-error hover:bg-[#2A2A4A]" : "text-error hover:bg-[#ECEEF8]"
                         }`}
                       >
                         <LogOut className="w-4 h-4" />
@@ -213,15 +213,15 @@ export default function Navbar() {
                   to="/login"
                   className={`px-4 py-2 rounded-lg font-medium transition-colors border ${
                     theme === "dark"
-                      ? "border-gray-600 text-gray-300 hover:text-white hover:border-gray-500"
-                      : "border-gray-300 text-gray-600 hover:text-gray-900 hover:border-gray-400"
+                      ? "border-[#2A2A4A] text-[#A7A7C7] hover:text-[#EDEDF7] hover:border-[#3A3A5A]"
+                      : "border-[#E2E4F0] text-[#4B4B6A] hover:text-[#121225] hover:border-[#D1D5DB]"
                   }`}
                 >
                   {language === "bg" ? "Вход" : "Login"}
                 </Link>
                 <Link
                   to="/register"
-                  className="px-4 py-2 rounded-lg bg-tmdb-light-blue text-tmdb-dark-blue font-medium hover:bg-tmdb-light-blue/90 transition-colors"
+                  className="px-4 py-2 rounded-lg bg-primary text-white font-medium hover:bg-primary-hover transition-colors"
                 >
                   {language === "bg" ? "Регистрация" : "Sign Up"}
                 </Link>
@@ -233,8 +233,8 @@ export default function Navbar() {
               onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
               className={`md:hidden p-2 rounded-lg transition-colors ${
                 theme === "dark"
-                  ? "text-gray-300 hover:text-white hover:bg-white/10"
-                  : "text-gray-600 hover:text-gray-900 hover:bg-gray-100"
+                  ? "text-[#A7A7C7] hover:text-[#EDEDF7] hover:bg-white/10"
+                  : "text-[#4B4B6A] hover:text-[#121225] hover:bg-[#ECEEF8]"
               }`}
               aria-label="Toggle menu"
             >
@@ -245,7 +245,7 @@ export default function Navbar() {
 
         {/* Mobile Menu */}
         {mobileMenuOpen && (
-          <div className={`md:hidden py-4 border-t ${theme === "dark" ? "border-gray-800" : "border-gray-200"}`}>
+          <div className={`md:hidden py-4 border-t ${theme === "dark" ? "border-[#2A2A4A]" : "border-[#E2E4F0]"}`}>
             {/* Mobile Search */}
             <form onSubmit={handleSearch} className="mb-4">
               <div className="relative">
@@ -254,14 +254,14 @@ export default function Navbar() {
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   placeholder={language === "bg" ? "Търси филми..." : "Search movies..."}
-                  className={`w-full pl-10 pr-4 py-2 rounded-lg border focus:outline-none focus:ring-2 focus:ring-tmdb-light-blue ${
+                  className={`w-full pl-10 pr-4 py-2 rounded-lg border focus:outline-none focus:ring-2 focus:ring-primary ${
                     theme === "dark"
-                      ? "bg-gray-900 border-gray-700 text-white placeholder:text-gray-500"
-                      : "bg-gray-100 border-gray-200 text-gray-900 placeholder:text-gray-400"
+                      ? "bg-[#1A1A33] border-[#2A2A4A] text-[#EDEDF7] placeholder:text-[#A7A7C7]"
+                      : "bg-[#F3F4FF] border-[#E2E4F0] text-[#121225] placeholder:text-[#4B4B6A]"
                   }`}
                 />
                 <Search className={`absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 ${
-                  theme === "dark" ? "text-gray-500" : "text-gray-400"
+                  theme === "dark" ? "text-[#A7A7C7]" : "text-[#4B4B6A]"
                 }`} />
               </div>
             </form>
@@ -275,10 +275,10 @@ export default function Navbar() {
                   onClick={() => setMobileMenuOpen(false)}
                   className={`flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${
                     isActive(link.path)
-                      ? "bg-tmdb-light-blue text-tmdb-dark-blue"
+                      ? "bg-primary text-white"
                       : theme === "dark"
-                      ? "text-gray-300 hover:text-white hover:bg-white/10"
-                      : "text-gray-600 hover:text-gray-900 hover:bg-gray-100"
+                      ? "text-[#A7A7C7] hover:text-[#EDEDF7] hover:bg-white/10"
+                      : "text-[#4B4B6A] hover:text-[#121225] hover:bg-[#ECEEF8]"
                   }`}
                 >
                   <link.icon className="w-5 h-5" />
@@ -293,8 +293,8 @@ export default function Navbar() {
                     onClick={() => setMobileMenuOpen(false)}
                     className={`flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${
                       theme === "dark"
-                        ? "text-gray-300 hover:text-white hover:bg-white/10"
-                        : "text-gray-600 hover:text-gray-900 hover:bg-gray-100"
+                        ? "text-[#A7A7C7] hover:text-[#EDEDF7] hover:bg-white/10"
+                        : "text-[#4B4B6A] hover:text-[#121225] hover:bg-[#ECEEF8]"
                     }`}
                   >
                     <User className="w-5 h-5" />
@@ -303,7 +303,7 @@ export default function Navbar() {
                   <Link
                     to="/register"
                     onClick={() => setMobileMenuOpen(false)}
-                    className="flex items-center gap-3 px-4 py-3 rounded-lg bg-tmdb-light-blue text-tmdb-dark-blue font-medium"
+                    className="flex items-center gap-3 px-4 py-3 rounded-lg bg-primary text-white font-medium"
                   >
                     <User className="w-5 h-5" />
                     {language === "bg" ? "Регистрация" : "Sign Up"}

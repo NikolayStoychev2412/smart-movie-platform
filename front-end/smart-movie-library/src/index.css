@@ -2,8 +2,55 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Import font */
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
 
-/* Base styles */
+/* ==================== CSS VARIABLES ==================== */
+:root {
+  /* Primary - Violet */
+  --primary: #7C3AED;
+  --primary-hover: #6D28D9;
+  --primary-pressed: #5B21B6;
+  
+  /* Secondary - Teal */
+  --secondary: #14B8A6;
+  --secondary-hover: #0D9488;
+  
+  /* Status */
+  --success: #22C55E;
+  --warning: #F59E0B;
+  --error: #EF4444;
+  
+  /* Avatar gradient */
+  --gradient-start: #A78BFA;
+  --gradient-end: #2DD4BF;
+}
+
+/* ==================== LIGHT THEME (Default) ==================== */
+:root, .light {
+  --bg: #F8F9FC;
+  --surface: #FFFFFF;
+  --surface-2: #F3F4FF;
+  --surface-hover: #ECEEF8;
+  --border: #E2E4F0;
+  --text: #1A1B2E;
+  --text-muted: #5B5D78;
+  --shadow: rgba(100, 100, 150, 0.08);
+}
+
+/* ==================== DARK THEME ==================== */
+.dark {
+  --bg: #0B0B12;
+  --surface: #121226;
+  --surface-2: #1A1A33;
+  --surface-hover: #22223D;
+  --border: #2A2A4A;
+  --text: #EDEDF7;
+  --text-muted: #A7A7C7;
+  --shadow: rgba(0, 0, 0, 0.3);
+}
+
+/* ==================== BASE ==================== */
 * {
   margin: 0;
   padding: 0;
@@ -17,27 +64,10 @@ html {
   text-rendering: optimizeLegibility;
 }
 
-/* ==================== LIGHT THEME (Default) ==================== */
 body {
-  background-color: #f8fafc;
-  color: #1e293b;
-}
-
-.light body,
-body {
-  background-color: #f8fafc;
-  color: #1e293b;
-}
-
-/* ==================== DARK THEME ==================== */
-.dark body,
-html.dark body {
-  background-color: #0d1117;
-  color: #e2e8f0;
-}
-
-.dark {
-  color-scheme: dark;
+  background-color: var(--bg);
+  color: var(--text);
+  transition: background-color 0.2s ease, color 0.2s ease;
 }
 
 /* ==================== SCROLLBAR HIDING ==================== */
@@ -76,12 +106,11 @@ html.dark body {
 
 /* ==================== TRANSITIONS ==================== */
 * {
-  transition-property: background-color, border-color, color;
+  transition-property: background-color, border-color, color, opacity, transform, box-shadow;
   transition-duration: 150ms;
   transition-timing-function: ease-in-out;
 }
 
-/* Disable transitions on page load */
 .no-transition * {
   transition: none !important;
 }
@@ -97,13 +126,138 @@ input:focus-visible,
 textarea:focus-visible,
 select:focus-visible {
   outline: none;
-  box-shadow: 0 0 0 2px #01b4e4;
+  box-shadow: 0 0 0 2px var(--primary);
 }
 
 /* ==================== OVERFLOW CONTROL ==================== */
 html, body, #root {
   overflow-x: hidden;
   max-width: 100vw;
+}
+
+/* ==================== LIGHT THEME FORM ELEMENTS ==================== */
+:root input,
+:root textarea,
+:root select,
+.light input,
+.light textarea,
+.light select {
+  background-color: #FFFFFF;
+  border: 1px solid #E2E4F0;
+  color: #1A1B2E;
+  box-shadow: 0 1px 2px rgba(100, 100, 150, 0.04);
+}
+
+:root input::placeholder,
+:root textarea::placeholder,
+.light input::placeholder,
+.light textarea::placeholder {
+  color: #8B8DA8;
+}
+
+:root input:hover,
+:root textarea:hover,
+:root select:hover,
+.light input:hover,
+.light textarea:hover,
+.light select:hover {
+  border-color: #D0D2E4;
+}
+
+:root input:focus,
+:root textarea:focus,
+:root select:focus,
+.light input:focus,
+.light textarea:focus,
+.light select:focus {
+  border-color: var(--primary);
+  box-shadow: 0 0 0 3px rgba(124, 58, 237, 0.12), 0 1px 2px rgba(100, 100, 150, 0.04);
+}
+
+/* ==================== DARK THEME FORM ELEMENTS ==================== */
+.dark input,
+.dark textarea,
+.dark select {
+  background-color: #1A1A33;
+  border: 1px solid #2A2A4A;
+  color: #EDEDF7;
+  box-shadow: none;
+}
+
+.dark input::placeholder,
+.dark textarea::placeholder {
+  color: #6B6B8F;
+}
+
+.dark input:hover,
+.dark textarea:hover,
+.dark select:hover {
+  border-color: #3A3A5A;
+}
+
+.dark input:focus,
+.dark textarea:focus,
+.dark select:focus {
+  border-color: var(--primary);
+  box-shadow: 0 0 0 3px rgba(124, 58, 237, 0.2);
+}
+
+/* ==================== LIGHT THEME CARDS & SURFACES ==================== */
+.light .card,
+.light [data-card] {
+  background-color: #FFFFFF;
+  border: 1px solid #E2E4F0;
+  box-shadow: 0 1px 3px rgba(100, 100, 150, 0.06), 0 1px 2px rgba(100, 100, 150, 0.04);
+}
+
+/* Better contrast for light mode nav */
+.light nav {
+  background-color: rgba(255, 255, 255, 0.95);
+  border-bottom: 1px solid #E2E4F0;
+  box-shadow: 0 1px 3px rgba(100, 100, 150, 0.06);
+}
+
+/* ==================== TYPOGRAPHY ==================== */
+h1 { font-weight: 700; letter-spacing: -0.025em; }
+h2 { font-weight: 700; letter-spacing: -0.02em; }
+h3 { font-weight: 600; letter-spacing: -0.015em; }
+h4 { font-weight: 600; }
+h5, h6 { font-weight: 500; }
+
+p, span, li {
+  line-height: 1.6;
+}
+
+.text-xs { letter-spacing: 0.01em; }
+.text-sm { letter-spacing: 0.005em; }
+
+/* ==================== BUTTONS ==================== */
+button {
+  font-weight: 500;
+  letter-spacing: 0.01em;
+}
+
+button:hover:not(:disabled) {
+  transform: translateY(-1px);
+}
+
+button:active:not(:disabled) {
+  transform: translateY(0);
+}
+
+button:disabled {
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+/* ==================== SELECTION ==================== */
+::selection {
+  background-color: rgba(124, 58, 237, 0.25);
+  color: inherit;
+}
+
+.dark ::selection {
+  background-color: rgba(124, 58, 237, 0.35);
 }
 
 /* ==================== CAROUSEL ==================== */
@@ -120,170 +274,17 @@ html, body, #root {
   display: none;
 }
 
-/* ==================== LIGHT THEME SPECIFIC FIXES ==================== */
-
-/* Cards and panels */
-.light .card,
-.light [class*="bg-white"] {
-  background-color: #ffffff;
-  border-color: #e2e8f0;
-}
-
-/* Text colors for light mode */
-.light h1, .light h2, .light h3, .light h4, .light h5, .light h6 {
-  color: #0f172a;
-}
-
-.light p {
-  color: #475569;
-}
-
-/* Input fields */
-.light input,
-.light textarea,
-.light select {
-  background-color: #ffffff;
-  border-color: #cbd5e1;
-  color: #1e293b;
-}
-
-.light input::placeholder,
-.light textarea::placeholder {
-  color: #94a3b8;
-}
-
-.light input:focus,
-.light textarea:focus,
-.light select:focus {
-  border-color: #01b4e4;
-  box-shadow: 0 0 0 3px rgba(1, 180, 228, 0.1);
-}
-
-/* Buttons in light mode */
-.light button {
-  font-weight: 500;
-}
-
-/* Navigation/Header in light mode */
-.light nav,
-.light header {
-  background-color: #ffffff;
-  border-bottom: 1px solid #e2e8f0;
-}
-
-/* Shadows for light mode - more subtle */
-.light .shadow-lg {
-  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03);
-}
-
-.light .shadow-xl {
-  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.05), 0 4px 6px -2px rgba(0, 0, 0, 0.03);
-}
-
-/* ==================== DARK THEME SPECIFIC ==================== */
-
-/* Better contrast in dark mode */
-.dark input,
-.dark textarea,
-.dark select {
-  background-color: #1e293b;
-  border-color: #334155;
-  color: #e2e8f0;
-}
-
-.dark input::placeholder,
-.dark textarea::placeholder {
-  color: #64748b;
-}
-
-.dark input:focus,
-.dark textarea:focus,
-.dark select:focus {
-  border-color: #01b4e4;
-  box-shadow: 0 0 0 3px rgba(1, 180, 228, 0.2);
-}
-
-/* ==================== TYPOGRAPHY IMPROVEMENTS ==================== */
-
-/* Better heading weights */
-h1 { font-weight: 700; letter-spacing: -0.025em; }
-h2 { font-weight: 700; letter-spacing: -0.02em; }
-h3 { font-weight: 600; letter-spacing: -0.015em; }
-h4 { font-weight: 600; }
-h5, h6 { font-weight: 500; }
-
-/* Body text */
-p, span, li {
-  line-height: 1.6;
-}
-
-/* Small text */
-.text-xs {
-  letter-spacing: 0.01em;
-}
-
-.text-sm {
-  letter-spacing: 0.005em;
-}
-
-/* ==================== BUTTON IMPROVEMENTS ==================== */
-
-button {
-  font-weight: 500;
-  letter-spacing: 0.01em;
-}
-
-/* Primary button hover */
-button:hover:not(:disabled) {
-  transform: translateY(-1px);
-}
-
-button:active:not(:disabled) {
-  transform: translateY(0);
-}
-
-button:disabled {
-  cursor: not-allowed;
-  opacity: 0.6;
-}
-
-/* ==================== MOVIE POSTER CARDS ==================== */
-
-/* Poster hover effect */
+/* ==================== MOVIE CARDS ==================== */
 .group:hover .group-hover\:scale-105 {
   transform: scale(1.05);
 }
 
-/* Rating circle improvements */
-.light [style*="background-color: rgb(8, 28, 34)"] {
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
-}
-
-.dark [style*="background-color: rgb(8, 28, 34)"] {
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
-}
-
 /* ==================== MODAL/OVERLAY ==================== */
-
-/* Video modal backdrop */
 .fixed.inset-0.bg-black\/90 {
   backdrop-filter: blur(4px);
 }
 
-/* ==================== SELECTION ==================== */
-
-::selection {
-  background-color: rgba(1, 180, 228, 0.3);
-  color: inherit;
-}
-
-.dark ::selection {
-  background-color: rgba(1, 180, 228, 0.4);
-}
-
-/* ==================== CUSTOM SCROLLBAR (optional, for non-hidden areas) ==================== */
-
-/* If you want visible scrollbars somewhere */
+/* ==================== CUSTOM SCROLLBAR ==================== */
 .custom-scrollbar::-webkit-scrollbar {
   width: 8px;
   height: 8px;
@@ -294,19 +295,26 @@ button:disabled {
 }
 
 .light .custom-scrollbar::-webkit-scrollbar-thumb {
-  background: #cbd5e1;
+  background: #D0D2E4;
   border-radius: 4px;
 }
 
 .light .custom-scrollbar::-webkit-scrollbar-thumb:hover {
-  background: #94a3b8;
+  background: #B0B2C4;
 }
 
 .dark .custom-scrollbar::-webkit-scrollbar-thumb {
-  background: #475569;
+  background: #2A2A4A;
   border-radius: 4px;
 }
 
 .dark .custom-scrollbar::-webkit-scrollbar-thumb:hover {
-  background: #64748b;
+  background: #3A3A5A;
+}
+
+/* ==================== LIGHT THEME SPECIFIC OVERRIDES ==================== */
+
+/* Light mode hover states should be visible */
+.light [class*="hover:bg-[#F3F4FF]"]:hover {
+  background-color: #ECEEF8 !important;
 }

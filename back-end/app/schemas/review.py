@@ -4,7 +4,7 @@ from datetime import datetime
 
 class ReviewBase(BaseModel):
     rating: float = Field(..., ge=0, le=5, description="Rating 0-5")
-    comment: Optional[str] = Field(None, max_length=2000)
+    comment: str = Field(..., min_length=10, max_length=2000, description="Review comment (required, min 10 characters)")
 
 class ReviewCreate(ReviewBase):
     pass
@@ -18,6 +18,7 @@ class ReviewOut(ReviewBase):
     user_id: int
     movie_id: int
     created_at: datetime
-    
+    user_name: Optional[str] = None
+
     class Config:
         from_attributes = True

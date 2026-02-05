@@ -135,20 +135,26 @@ export default function Register() {
 
     try {
       // 1. Register the user
+      console.log("[Register] Starting registration...");
       const { user, token } = await authApi.register(name, email, password);
+      console.log("[Register] Registration successful, token:", token ? "received" : "MISSING");
       
       // 2. Save preferences to backend
       if (token) {
+        console.log("[Register] Saving preferences:", { selectedGenres, selectedMood });
         try {
-          await api.post('/users/preferences', {
+          const prefResponse = await api.post('/users/preferences', {
             preferred_genres: selectedGenres,
             preferred_mood: selectedMood,
           }, {
             headers: { Authorization: `Bearer ${token}` }
           });
-        } catch (prefErr) {
-          console.warn("Failed to save preferences, continuing anyway:", prefErr);
+          console.log("[Register] Preferences saved successfully:", prefResponse.data);
+        } catch (prefErr: any) {
+          console.error("[Register] Failed to save preferences:", prefErr.response?.status, prefErr.response?.data || prefErr.message);
         }
+      } else {
+        console.warn("[Register] No token available, skipping preferences save");
       }
       
       // 3. Store user with preferences locally
@@ -191,8 +197,8 @@ export default function Register() {
   const currentStepIndex = steps.indexOf(currentStep);
 
   return (
-    <div className={`min-h-screen flex items-center justify-center px-4 py-12 ${theme === "dark" ? "bg-tmdb-dark" : "bg-gray-50"}`}>
-      <div className={`w-full max-w-md ${theme === "dark" ? "bg-gray-900" : "bg-white shadow-lg"} rounded-2xl p-8`}>
+    <div className={`min-h-screen flex items-center justify-center px-4 py-12 ${theme === "dark" ? "bg-[#0B0B12]" : "bg-[#F8F9FC]"}`}>
+      <div className={`w-full max-w-md ${theme === "dark" ? "bg-[#1A1A33]" : "bg-white shadow-md border border-[#E2E4F0]"} rounded-2xl p-8`}>
         
         {/* Progress Bar */}
         <div className="mb-8">
@@ -201,22 +207,22 @@ export default function Register() {
               <div key={step} className="flex items-center">
                 <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-medium transition-colors ${
                   idx <= currentStepIndex 
-                    ? "bg-tmdb-light-blue text-tmdb-dark-blue" 
-                    : theme === "dark" ? "bg-gray-700 text-gray-400" : "bg-gray-200 text-gray-500"
+                    ? "bg-primary text-white" 
+                    : theme === "dark" ? "bg-gray-700 text-[#A7A7C7]" : "bg-gray-200 text-[#A7A7C7]"
                 }`}>
                   {idx < currentStepIndex ? <Check className="w-4 h-4" /> : idx + 1}
                 </div>
                 {idx < steps.length - 1 && (
                   <div className={`w-16 sm:w-24 h-1 mx-2 rounded ${
                     idx < currentStepIndex 
-                      ? "bg-tmdb-light-blue" 
+                      ? "bg-primary" 
                       : theme === "dark" ? "bg-gray-700" : "bg-gray-200"
                   }`} />
                 )}
               </div>
             ))}
           </div>
-          <p className={`text-center text-sm ${theme === "dark" ? "text-gray-400" : "text-gray-500"}`}>
+          <p className={`text-center text-sm ${theme === "dark" ? "text-[#A7A7C7]" : "text-[#5B5D78]"}`}>
             {currentStep === "account" && (language === "bg" ? "Създай акаунт" : "Create Account")}
             {currentStep === "genres" && (language === "bg" ? "Избери жанрове" : "Pick Genres")}
             {currentStep === "mood" && (language === "bg" ? "Какво настроение?" : "What's your mood?")}
@@ -235,55 +241,55 @@ export default function Register() {
         {currentStep === "account" && (
           <div className="space-y-5">
             <div className="text-center mb-6">
-              <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-gradient-to-br from-tmdb-light-green to-tmdb-light-blue flex items-center justify-center">
-                <UserPlus className="w-8 h-8 text-tmdb-dark-blue" />
+              <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-gradient-to-br from-[#A78BFA] to-[#2DD4BF] flex items-center justify-center">
+                <UserPlus className="w-8 h-8 text-white" />
               </div>
-              <h1 className={`text-2xl font-bold ${theme === "dark" ? "text-white" : "text-gray-900"}`}>
+              <h1 className={`text-2xl font-bold ${theme === "dark" ? "text-white" : "text-[#1A1B2E]"}`}>
                 {language === "bg" ? "Създайте акаунт" : "Create Account"}
               </h1>
             </div>
 
             <div>
-              <label className={`block text-sm font-medium mb-2 ${theme === "dark" ? "text-gray-300" : "text-gray-700"}`}>
+              <label className={`block text-sm font-medium mb-2 ${theme === "dark" ? "text-[#A7A7C7]" : "text-[#5B5D78]"}`}>
                 {language === "bg" ? "Име" : "Name"}
               </label>
               <div className="relative">
-                <User className={`absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 ${theme === "dark" ? "text-gray-500" : "text-gray-400"}`} />
+                <User className={`absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 ${theme === "dark" ? "text-[#A7A7C7]" : "text-[#5B5D78]"}`} />
                 <input type="text" value={name} onChange={(e) => setName(e.target.value)}
                   autoComplete="name"
-                  className={`w-full pl-11 pr-4 py-3 rounded-lg border focus:outline-none focus:ring-2 focus:ring-tmdb-light-blue ${
-                    theme === "dark" ? "bg-gray-800 border-gray-700 text-white" : "bg-gray-50 border-gray-300 text-gray-900"
+                  className={`w-full pl-11 pr-4 py-3 rounded-lg border focus:outline-none focus:ring-2 focus:ring-primary ${
+                    theme === "dark" ? "bg-[#2A2A4A] border-[#2A2A4A] text-white" : "bg-[#F8F9FC] border-[#E2E4F0] text-[#1A1B2E]"
                   }`} />
               </div>
             </div>
 
             <div>
-              <label className={`block text-sm font-medium mb-2 ${theme === "dark" ? "text-gray-300" : "text-gray-700"}`}>
+              <label className={`block text-sm font-medium mb-2 ${theme === "dark" ? "text-[#A7A7C7]" : "text-[#5B5D78]"}`}>
                 {language === "bg" ? "Имейл" : "Email"}
               </label>
               <div className="relative">
-                <Mail className={`absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 ${theme === "dark" ? "text-gray-500" : "text-gray-400"}`} />
+                <Mail className={`absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 ${theme === "dark" ? "text-[#A7A7C7]" : "text-[#5B5D78]"}`} />
                 <input type="email" value={email} onChange={(e) => setEmail(e.target.value)}
                   autoComplete="email"
-                  className={`w-full pl-11 pr-4 py-3 rounded-lg border focus:outline-none focus:ring-2 focus:ring-tmdb-light-blue ${
-                    theme === "dark" ? "bg-gray-800 border-gray-700 text-white" : "bg-gray-50 border-gray-300 text-gray-900"
+                  className={`w-full pl-11 pr-4 py-3 rounded-lg border focus:outline-none focus:ring-2 focus:ring-primary ${
+                    theme === "dark" ? "bg-[#2A2A4A] border-[#2A2A4A] text-white" : "bg-[#F8F9FC] border-[#E2E4F0] text-[#1A1B2E]"
                   }`} />
               </div>
             </div>
 
             <div>
-              <label className={`block text-sm font-medium mb-2 ${theme === "dark" ? "text-gray-300" : "text-gray-700"}`}>
+              <label className={`block text-sm font-medium mb-2 ${theme === "dark" ? "text-[#A7A7C7]" : "text-[#5B5D78]"}`}>
                 {language === "bg" ? "Парола" : "Password"}
               </label>
               <div className="relative">
-                <Lock className={`absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 ${theme === "dark" ? "text-gray-500" : "text-gray-400"}`} />
+                <Lock className={`absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 ${theme === "dark" ? "text-[#A7A7C7]" : "text-[#5B5D78]"}`} />
                 <input type={showPassword ? "text" : "password"} value={password} onChange={(e) => setPassword(e.target.value)}
                   autoComplete="new-password"
-                  className={`w-full pl-11 pr-12 py-3 rounded-lg border focus:outline-none focus:ring-2 focus:ring-tmdb-light-blue ${
-                    theme === "dark" ? "bg-gray-800 border-gray-700 text-white" : "bg-gray-50 border-gray-300 text-gray-900"
+                  className={`w-full pl-11 pr-12 py-3 rounded-lg border focus:outline-none focus:ring-2 focus:ring-primary ${
+                    theme === "dark" ? "bg-[#2A2A4A] border-[#2A2A4A] text-white" : "bg-[#F8F9FC] border-[#E2E4F0] text-[#1A1B2E]"
                   }`} />
                 <button type="button" onClick={() => setShowPassword(!showPassword)}
-                  className={`absolute right-3 top-0 bottom-0 flex items-center ${theme === "dark" ? "text-gray-500 hover:text-gray-300" : "text-gray-400 hover:text-gray-600"}`}>
+                  className={`absolute right-3 top-0 bottom-0 flex items-center ${theme === "dark" ? "text-[#A7A7C7] hover:text-[#A7A7C7]" : "text-[#5B5D78] hover:text-[#5B5D78]"}`}>
                   {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
                 </button>
               </div>
@@ -291,7 +297,7 @@ export default function Register() {
               {password && (
                 <div className="mt-3">
                   <div className="flex items-center justify-between mb-2">
-                    <span className={`text-xs ${theme === "dark" ? "text-gray-400" : "text-gray-500"}`}>
+                    <span className={`text-xs ${theme === "dark" ? "text-[#A7A7C7]" : "text-[#5B5D78]"}`}>
                       {language === "bg" ? "Сила:" : "Strength:"}
                     </span>
                     <span className={`text-xs font-medium ${
@@ -306,32 +312,32 @@ export default function Register() {
             </div>
 
             <div>
-              <label className={`block text-sm font-medium mb-2 ${theme === "dark" ? "text-gray-300" : "text-gray-700"}`}>
+              <label className={`block text-sm font-medium mb-2 ${theme === "dark" ? "text-[#A7A7C7]" : "text-[#5B5D78]"}`}>
                 {language === "bg" ? "Потвърдете паролата" : "Confirm Password"}
               </label>
               <div className="relative">
-                <Lock className={`absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 ${theme === "dark" ? "text-gray-500" : "text-gray-400"}`} />
+                <Lock className={`absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 ${theme === "dark" ? "text-[#A7A7C7]" : "text-[#5B5D78]"}`} />
                 <input type={showConfirmPassword ? "text" : "password"} value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)}
                   autoComplete="new-password"
                   className={`w-full pl-11 pr-12 py-3 rounded-lg border focus:outline-none focus:ring-2 ${
-                    confirmPassword && !passwordsMatch ? "border-red-500 focus:ring-red-500" : "focus:ring-tmdb-light-blue"
-                  } ${theme === "dark" ? "bg-gray-800 border-gray-700 text-white" : "bg-gray-50 border-gray-300 text-gray-900"}`} />
+                    confirmPassword && !passwordsMatch ? "border-red-500 focus:ring-red-500" : "focus:ring-primary"
+                  } ${theme === "dark" ? "bg-[#2A2A4A] border-[#2A2A4A] text-white" : "bg-[#F8F9FC] border-[#E2E4F0] text-[#1A1B2E]"}`} />
                 <button type="button" onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                  className={`absolute right-3 top-0 bottom-0 flex items-center ${theme === "dark" ? "text-gray-500 hover:text-gray-300" : "text-gray-400 hover:text-gray-600"}`}>
+                  className={`absolute right-3 top-0 bottom-0 flex items-center ${theme === "dark" ? "text-[#A7A7C7] hover:text-[#A7A7C7]" : "text-[#5B5D78] hover:text-[#5B5D78]"}`}>
                   {showConfirmPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
                 </button>
               </div>
             </div>
 
             <button onClick={handleNextStep}
-              className="w-full py-3 px-4 bg-tmdb-light-blue text-tmdb-dark-blue font-semibold rounded-lg hover:bg-tmdb-light-blue/90 transition-colors flex items-center justify-center gap-2">
+              className="w-full py-3 px-4 bg-primary text-white font-semibold rounded-lg hover:bg-primary/90 transition-colors flex items-center justify-center gap-2">
               {language === "bg" ? "Продължи" : "Continue"}
               <ChevronRight className="w-5 h-5" />
             </button>
 
-            <p className={`text-center text-sm ${theme === "dark" ? "text-gray-400" : "text-gray-600"}`}>
+            <p className={`text-center text-sm ${theme === "dark" ? "text-[#A7A7C7]" : "text-[#5B5D78]"}`}>
               {language === "bg" ? "Вече имате акаунт?" : "Already have an account?"}{" "}
-              <Link to="/login" className="text-tmdb-light-blue font-semibold hover:underline">
+              <Link to="/login" className="text-primary font-semibold hover:underline">
                 {language === "bg" ? "Вход" : "Sign In"}
               </Link>
             </p>
@@ -342,13 +348,13 @@ export default function Register() {
         {currentStep === "genres" && (
           <div className="space-y-5">
             <div className="text-center mb-6">
-              <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center">
+              <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-gradient-to-br from-primary to-secondary flex items-center justify-center">
                 <Film className="w-8 h-8 text-white" />
               </div>
-              <h1 className={`text-2xl font-bold ${theme === "dark" ? "text-white" : "text-gray-900"}`}>
+              <h1 className={`text-2xl font-bold ${theme === "dark" ? "text-white" : "text-[#1A1B2E]"}`}>
                 {language === "bg" ? "Какво обичаш да гледаш?" : "What do you like to watch?"}
               </h1>
-              <p className={`mt-2 text-sm ${theme === "dark" ? "text-gray-400" : "text-gray-500"}`}>
+              <p className={`mt-2 text-sm ${theme === "dark" ? "text-[#A7A7C7]" : "text-[#5B5D78]"}`}>
                 {language === "bg" ? "Избери до 5 любими жанра" : "Pick up to 5 favorite genres"}
               </p>
             </div>
@@ -362,18 +368,18 @@ export default function Register() {
                     onClick={() => toggleGenre(genre.id)}
                     className={`p-3 rounded-xl border-2 transition-all text-left ${
                       isSelected
-                        ? "border-tmdb-light-blue bg-tmdb-light-blue/10"
+                        ? "border-primary bg-primary/10"
                         : theme === "dark" 
-                          ? "border-gray-700 hover:border-gray-600 bg-gray-800" 
-                          : "border-gray-200 hover:border-gray-300 bg-gray-50"
+                          ? "border-[#2A2A4A] hover:border-gray-600 bg-[#2A2A4A]" 
+                          : "border-[#E2E4F0] hover:border-[#E2E4F0] bg-[#F8F9FC]"
                     }`}
                   >
                     <div className="flex items-center gap-2">
                       <span className="text-xl">{genre.emoji}</span>
                       <span className={`font-medium text-sm ${
                         isSelected 
-                          ? "text-tmdb-light-blue" 
-                          : theme === "dark" ? "text-white" : "text-gray-900"
+                          ? "text-primary" 
+                          : theme === "dark" ? "text-white" : "text-[#1A1B2E]"
                       }`}>
                         {language === "bg" ? genre.bg : genre.en}
                       </span>
@@ -383,27 +389,27 @@ export default function Register() {
               })}
             </div>
 
-            <div className={`text-center text-sm ${theme === "dark" ? "text-gray-400" : "text-gray-500"}`}>
+            <div className={`text-center text-sm ${theme === "dark" ? "text-[#A7A7C7]" : "text-[#5B5D78]"}`}>
               {selectedGenres.length}/5 {language === "bg" ? "избрани" : "selected"}
             </div>
 
             <div className="flex gap-3">
               <button onClick={handlePrevStep}
                 className={`flex-1 py-3 px-4 rounded-lg font-medium transition-colors flex items-center justify-center gap-2 ${
-                  theme === "dark" ? "bg-gray-800 text-white hover:bg-gray-700" : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+                  theme === "dark" ? "bg-[#2A2A4A] text-white hover:bg-[#2A2A4A]" : "bg-[#F3F4FF] text-[#5B5D78] hover:bg-gray-200"
                 }`}>
                 <ChevronLeft className="w-5 h-5" />
                 {language === "bg" ? "Назад" : "Back"}
               </button>
               <button onClick={handleNextStep}
-                className="flex-1 py-3 px-4 bg-tmdb-light-blue text-tmdb-dark-blue font-semibold rounded-lg hover:bg-tmdb-light-blue/90 transition-colors flex items-center justify-center gap-2">
+                className="flex-1 py-3 px-4 bg-primary text-white font-semibold rounded-lg hover:bg-primary/90 transition-colors flex items-center justify-center gap-2">
                 {language === "bg" ? "Продължи" : "Continue"}
                 <ChevronRight className="w-5 h-5" />
               </button>
             </div>
 
             <button onClick={handleSkipPreferences}
-              className={`w-full py-2 text-sm ${theme === "dark" ? "text-gray-500 hover:text-gray-400" : "text-gray-400 hover:text-gray-500"}`}>
+              className={`w-full py-2 text-sm ${theme === "dark" ? "text-[#A7A7C7] hover:text-[#A7A7C7]" : "text-[#5B5D78] hover:text-[#A7A7C7]"}`}>
               {language === "bg" ? "Пропусни за сега" : "Skip for now"}
             </button>
           </div>
@@ -416,10 +422,10 @@ export default function Register() {
               <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-gradient-to-br from-orange-500 to-red-500 flex items-center justify-center">
                 <Sparkles className="w-8 h-8 text-white" />
               </div>
-              <h1 className={`text-2xl font-bold ${theme === "dark" ? "text-white" : "text-gray-900"}`}>
+              <h1 className={`text-2xl font-bold ${theme === "dark" ? "text-white" : "text-[#1A1B2E]"}`}>
                 {language === "bg" ? "Какво настроение предпочиташ?" : "What mood do you prefer?"}
               </h1>
-              <p className={`mt-2 text-sm ${theme === "dark" ? "text-gray-400" : "text-gray-500"}`}>
+              <p className={`mt-2 text-sm ${theme === "dark" ? "text-[#A7A7C7]" : "text-[#5B5D78]"}`}>
                 {language === "bg" ? "Избери какво обикновено търсиш" : "Pick what you usually look for"}
               </p>
             </div>
@@ -433,22 +439,22 @@ export default function Register() {
                     onClick={() => setSelectedMood(mood.id)}
                     className={`w-full p-4 rounded-xl border-2 transition-all text-left ${
                       isSelected
-                        ? "border-tmdb-light-blue bg-tmdb-light-blue/10"
+                        ? "border-primary bg-primary/10"
                         : theme === "dark" 
-                          ? "border-gray-700 hover:border-gray-600 bg-gray-800" 
-                          : "border-gray-200 hover:border-gray-300 bg-gray-50"
+                          ? "border-[#2A2A4A] hover:border-gray-600 bg-[#2A2A4A]" 
+                          : "border-[#E2E4F0] hover:border-[#E2E4F0] bg-[#F8F9FC]"
                     }`}
                   >
                     <div className="flex items-center gap-3">
                       <span className="text-2xl">{mood.emoji}</span>
                       <span className={`font-medium ${
                         isSelected 
-                          ? "text-tmdb-light-blue" 
-                          : theme === "dark" ? "text-white" : "text-gray-900"
+                          ? "text-primary" 
+                          : theme === "dark" ? "text-white" : "text-[#1A1B2E]"
                       }`}>
                         {language === "bg" ? mood.bg : mood.en}
                       </span>
-                      {isSelected && <Check className="w-5 h-5 text-tmdb-light-blue ml-auto" />}
+                      {isSelected && <Check className="w-5 h-5 text-primary ml-auto" />}
                     </div>
                   </button>
                 );
@@ -458,13 +464,13 @@ export default function Register() {
             <div className="flex gap-3">
               <button onClick={handlePrevStep}
                 className={`flex-1 py-3 px-4 rounded-lg font-medium transition-colors flex items-center justify-center gap-2 ${
-                  theme === "dark" ? "bg-gray-800 text-white hover:bg-gray-700" : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+                  theme === "dark" ? "bg-[#2A2A4A] text-white hover:bg-[#2A2A4A]" : "bg-[#F3F4FF] text-[#5B5D78] hover:bg-gray-200"
                 }`}>
                 <ChevronLeft className="w-5 h-5" />
                 {language === "bg" ? "Назад" : "Back"}
               </button>
               <button onClick={handleSubmit} disabled={loading}
-                className="flex-1 py-3 px-4 bg-gradient-to-r from-purple-600 to-pink-600 text-white font-semibold rounded-lg hover:from-purple-500 hover:to-pink-500 transition-all flex items-center justify-center gap-2 disabled:opacity-50">
+                className="flex-1 py-3 px-4 bg-gradient-to-r from-primary to-secondary text-white font-semibold rounded-lg hover:opacity-90 transition-all flex items-center justify-center gap-2 disabled:opacity-50">
                 {loading ? (
                   <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
                 ) : (
@@ -477,7 +483,7 @@ export default function Register() {
             </div>
 
             <button onClick={handleSkipPreferences}
-              className={`w-full py-2 text-sm ${theme === "dark" ? "text-gray-500 hover:text-gray-400" : "text-gray-400 hover:text-gray-500"}`}>
+              className={`w-full py-2 text-sm ${theme === "dark" ? "text-[#A7A7C7] hover:text-[#A7A7C7]" : "text-[#5B5D78] hover:text-[#A7A7C7]"}`}>
               {language === "bg" ? "Пропусни за сега" : "Skip for now"}
             </button>
           </div>

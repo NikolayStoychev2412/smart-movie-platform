@@ -84,6 +84,7 @@ export interface Review {
   user_name?: string;
   user_id?: number;
   content?: string;
+  comment?: string;
   review_text?: string;
   rating?: number;
   created_at?: string;
@@ -112,3 +113,29 @@ export interface AuthResponse {
 
 // Alias for backwards compatibility
 export type Actor = CastMember;
+
+// Watchlist types - matching backend WatchStatus enum
+export type WatchStatus = 'completed' | 'watching' | 'dropped' | 'planned';
+
+export interface WatchlistEntry {
+  id: number;
+  user_id: number;
+  movie_id: number;
+  status: WatchStatus;
+  added_at: string;
+  updated_at?: string;
+  movie?: Movie;
+}
+
+// Recommendation types - matching backend RecommendationOut
+export interface Recommendation {
+  movie: Movie;
+  score: number;
+  explanation: {
+    reasons?: string[];
+    reasons_bg?: string[];
+    score_breakdown?: Record<string, number>;
+    total_score?: number;
+    activity_level?: string;
+  };
+}
