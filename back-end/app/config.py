@@ -58,7 +58,6 @@ class Settings(BaseSettings):
     def cors_origins_list(self) -> List[str]:
         return [origin.strip() for origin in self.CORS_ORIGINS.split(",")]
 
-    # ✅ THIS IS THE MISSING PIECE
     model_config = SettingsConfigDict(
         env_file=".env",
         case_sensitive=True,

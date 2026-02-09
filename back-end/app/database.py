@@ -18,7 +18,7 @@ from sqlalchemy.pool import StaticPool
 # Get database URL from environment
 DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///./movies.db")
 
-print(f"📦 Database URL: {DATABASE_URL[:50]}...")  # Debug print
+print(f"Database URL: {DATABASE_URL[:50]}...")
 
 # Determine if using SQLite or PostgreSQL
 IS_SQLITE = DATABASE_URL.startswith("sqlite")

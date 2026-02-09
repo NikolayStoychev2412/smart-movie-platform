@@ -153,20 +153,21 @@ async def semantic_movie_search(
     top_k: int = Query(20, ge=1, le=50),
     genre: Optional[str] = Query(None),
     min_rating: Optional[float] = Query(None, ge=0, le=5),
+    language: Optional[str] = Query("en", description="Response language (en/bg)"),
     db: Session = Depends(get_db),
     _rate_limit: None = Depends(search_rate_limit)
 ):
     """
     Semantic search for movies using natural language.
-    
-    🌍 Supports Bulgarian and English queries!
-    ⚡ Results are cached for 5 minutes.
+
+    Supports Bulgarian and English queries.
+    Results are cached for 5 minutes.
     """
-    # Check cache first
-    cached = search_cache.get(q, top_k=top_k, genre=genre, min_rating=min_rating)
+    # Check cache first (include language in cache key)
+    cached = search_cache.get(q, top_k=top_k, genre=genre, min_rating=min_rating, language=language)
     if cached:
         return cached
-    
+
     try:
         # Build filters
         filters = {}
@@ -174,10 +175,10 @@ async def semantic_movie_search(
             filters["genre"] = genre
         if min_rating is not None:
             filters["min_rating"] = min_rating
-        
+
         # Run search in thread pool (CPU-bound!)
         from app.ai.semantic_search import semantic_search
-        
+
         results = await run_in_threadpool(
             semantic_search,
             db,
@@ -186,35 +187,41 @@ async def semantic_movie_search(
             min_score=0.0,
             filters=filters if filters else None
         )
-        
-        # Convert to response
-        response = [
-            SearchResultOut(
-                movie=MovieOut.model_validate(movie),
-                relevance=round(score, 3),
-                snippet=snippet
+
+        # Convert to response — use Bulgarian summary for snippets when language=bg
+        response = []
+        for movie, score, snippet in results:
+            if language == "bg" and movie.summary_bg and movie.summary_bg.strip():
+                snippet = _truncate(movie.summary_bg, 150)
+            response.append(
+                SearchResultOut(
+                    movie=MovieOut.model_validate(movie),
+                    relevance=round(score, 3),
+                    snippet=snippet
+                )
             )
-            for movie, score, snippet in results
-        ]
-        
+
         # Fallback if no results
         if not response:
             movies = db.query(Movie).filter(
                 Movie.summary.ilike(f"%{q}%") | Movie.title.ilike(f"%{q}%")
             ).order_by(Movie.average_rating.desc()).limit(top_k).all()
-            
+
             response = [
                 SearchResultOut(
                     movie=MovieOut.model_validate(movie),
                     relevance=0.5,
-                    snippet=_truncate(movie.summary, 150)
+                    snippet=_truncate(
+                        (movie.summary_bg if language == "bg" and movie.summary_bg else movie.summary),
+                        150
+                    )
                 )
                 for movie in movies
             ]
-        
+
         # Cache response
-        search_cache.set(q, response, top_k=top_k, genre=genre, min_rating=min_rating)
-        
+        search_cache.set(q, response, top_k=top_k, genre=genre, min_rating=min_rating, language=language)
+
         return response
     
     except Exception as e:
@@ -235,9 +242,9 @@ async def search_movies_by_mood(
 ):
     """
     Find movies matching a mood or emotion.
-    
-    🌍 Supports Bulgarian and English moods!
-    ⚡ Results cached for 10 minutes.
+
+    Supports Bulgarian and English moods.
+    Results cached for 10 minutes.
     """
     # Check cache
     cached = mood_cache.get(mood, top_k=top_k)

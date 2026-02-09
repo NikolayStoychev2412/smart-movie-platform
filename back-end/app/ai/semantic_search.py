@@ -2,7 +2,7 @@
 """
 Semantic search over movie summaries using natural language queries.
 
-🌍 MULTILINGUAL SUPPORT:
+MULTILINGUAL SUPPORT:
 Uses paraphrase-multilingual-MiniLM-L12-v2 which understands 50+ languages.
 Users can search in Bulgarian, English, or any supported language - NO TRANSLATION NEEDED!
 
@@ -53,12 +53,12 @@ class SemanticSearch:
         Returns:
             List of (Movie, similarity_score, snippet) tuples
         """
-        logger.info(f"🔍 Search query: '{query}'")
+        logger.info(f"Search query: '{query}'")
         
         # Expand short queries with synonyms (helps with single-word searches)
         expanded_query = self._expand_query(query)
         if expanded_query != query:
-            logger.info(f"📝 Expanded: '{query}' → '{expanded_query}'")
+            logger.info(f"Expanded: '{query}' -> '{expanded_query}'")
         
         # Generate query embedding - multilingual model handles any language!
         query_vector = get_embedding(expanded_query)
@@ -81,7 +81,7 @@ class SemanticSearch:
             filter_ids=filter_movie_ids
         )
         
-        logger.info(f"📊 Vector search returned {len(search_results)} candidates")
+        logger.info(f"Vector search returned {len(search_results)} candidates")
         
         if not search_results:
             logger.warning(f"No results for query: '{query}'")
@@ -121,7 +121,7 @@ class SemanticSearch:
             if len(results) >= top_k:
                 break
         
-        logger.info(f"✅ Returning {len(results)} results")
+        logger.info(f"Returning {len(results)} results")
         return results
     
     def _expand_query(self, query: str) -> str:
@@ -255,7 +255,7 @@ class SemanticSearch:
         mood_lower = mood.lower()
         query = mood_queries.get(mood_lower, f"{mood} feeling emotional atmosphere")
         
-        logger.info(f"🎭 Mood search: '{mood}' → '{query}'")
+        logger.info(f"Mood search: '{mood}' -> '{query}'")
         
         return self.search(db, query, top_k, min_score=0.0)
 

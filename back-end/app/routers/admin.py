@@ -193,11 +193,12 @@ def get_dashboard_stats(
 def get_all_reviews(
     current_user: User = Depends(require_admin),
     db: Session = Depends(get_db),
+    search: str = Query("", description="Search by user name/email or movie title"),
     skip: int = Query(0, ge=0),
     limit: int = Query(50, ge=1, le=200),
 ):
     """Get all reviews with user and movie info (admin only)."""
-    reviews = (
+    query = (
         db.query(
             Review,
             User.name.label("user_name"),
@@ -206,13 +207,27 @@ def get_all_reviews(
         )
         .join(User, Review.user_id == User.id)
         .join(Movie, Review.movie_id == Movie.id)
+    )
+
+    if search.strip():
+        term = f"%{search.strip()}%"
+        query = query.filter(
+            or_(
+                User.name.ilike(term),
+                User.email.ilike(term),
+                Movie.title.ilike(term),
+            )
+        )
+
+    total = query.count()
+
+    reviews = (
+        query
         .order_by(Review.created_at.desc())
         .offset(skip)
         .limit(limit)
         .all()
     )
-
-    total = db.query(func.count(Review.id)).scalar() or 0
 
     return {
         "total": total,

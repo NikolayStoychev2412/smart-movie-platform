@@ -268,7 +268,7 @@ function OnboardingCard({ language, theme, onNavigate }: { language: string; the
           </div>
           <div className="flex-1 text-center md:text-left">
             <h3 className={`text-xl md:text-2xl font-bold mb-2 ${theme === "dark" ? "text-[#EDEDF7]" : "text-[#1A1B2E]"}`}>
-              {language === "bg" ? "🎯 Започни своите препоръки" : "🎯 Start Your Recommendations"}
+              {language === "bg" ? "Започни своите препоръки" : "Start Your Recommendations"}
             </h3>
             <p className={`${theme === "dark" ? "text-[#A7A7C7]" : "text-[#5B5D78]"}`}>
               {language === "bg" 
@@ -469,14 +469,25 @@ function ForYouCarousel({ recommendations, language, userState, allMovies }: { r
                       <Sparkles className="w-10 h-10 text-[#A7A7C7]" />
                     </div>
                   )}
-                  <div className="absolute top-2 right-2 px-2 py-1 rounded-md bg-gradient-to-r from-primary to-secondary text-white text-xs font-bold shadow-lg">
+                  <div className="absolute top-2 right-2 px-2 py-1 rounded-md bg-gradient-to-r from-primary to-secondary text-white text-xs font-bold shadow-lg z-10">
                     {matchPercent}% match
                   </div>
+                  {/* Reason hover overlay */}
+                  {reason && (
+                    <div className="absolute inset-0 bg-gradient-to-t from-black/95 via-black/50 to-transparent opacity-0 group-hover/card:opacity-100 transition-all duration-300 flex flex-col justify-end p-3">
+                      <div className="flex items-center gap-1.5 mb-1.5">
+                        <Heart className="w-3 h-3 text-[#2DD4BF]" />
+                        <span className="text-[10px] font-bold text-[#2DD4BF] uppercase tracking-wider">
+                          {language === "bg" ? "Защо" : "Why"}
+                        </span>
+                      </div>
+                      <p className="text-white/90 text-[11px] leading-relaxed line-clamp-3">{reason}</p>
+                    </div>
+                  )}
                 </div>
                 <div className="pt-3 px-1">
                   <h3 className={`font-semibold text-sm line-clamp-1 group-hover/card:text-primary transition-colors ${theme === "dark" ? "text-white" : "text-[#1A1B2E]"}`}>{movieTitle}</h3>
-                  {reason && <p className={`text-xs mt-1.5 italic line-clamp-2 leading-relaxed ${theme === "dark" ? "text-primary" : "text-primary"}`}>{reason}</p>}
-                  {!reason && movie.release_date && <p className={`text-xs mt-1 ${theme === "dark" ? "text-[#A7A7C7]" : "text-[#5B5D78]"}`}>{new Date(movie.release_date).getFullYear()}</p>}
+                  {movie.release_date && <p className={`text-xs mt-1 ${theme === "dark" ? "text-[#A7A7C7]" : "text-[#5B5D78]"}`}>{new Date(movie.release_date).getFullYear()}</p>}
                 </div>
               </div>
             );
@@ -805,23 +816,35 @@ export default function Home() {
         <MovieCarousel movies={recentMovies} title={language === "bg" ? "Нови филми" : "Recently Released"} icon={Calendar} language={language} />
 
         {/* AI Search Promo */}
-        <section className={`rounded-2xl p-8 ${theme === "dark" 
-          ? "bg-gradient-to-r from-primary/20 via-[#1A1A33] to-secondary/20 border border-[#2A2A4A]" 
-          : "bg-gradient-to-r from-primary/10 via-white to-secondary/10 border border-[#E2E4F0]"}`}>
-          <div className="flex flex-col md:flex-row items-center gap-6">
-            <div className="p-4 rounded-full bg-gradient-to-br from-[#A78BFA] to-[#2DD4BF]">
+        <section className={`relative rounded-2xl p-8 overflow-hidden ${theme === "dark"
+          ? "bg-gradient-to-r from-[#1a1040] via-[#1A1A33] to-[#0f2a2a] border border-[#A78BFA]/30"
+          : "bg-gradient-to-r from-[#f0ebff] via-white to-[#e6faf5] border border-[#A78BFA]/20"}`}>
+          {/* Subtle sparkle pattern */}
+          <div className="absolute inset-0 opacity-[0.04]" style={{
+            backgroundImage: "radial-gradient(circle at 20% 30%, #A78BFA 1px, transparent 1px), radial-gradient(circle at 80% 70%, #2DD4BF 1px, transparent 1px)",
+            backgroundSize: "60px 60px"
+          }} />
+          <div className="relative flex flex-col md:flex-row items-center gap-6">
+            <div className="p-4 rounded-2xl bg-gradient-to-br from-[#A78BFA] to-[#2DD4BF] shadow-lg shadow-primary/20">
               <Sparkles className="w-10 h-10 text-white" />
             </div>
             <div className="flex-1 text-center md:text-left">
+              <div className="flex items-center gap-2 justify-center md:justify-start mb-1">
+                <span className="px-2 py-0.5 rounded-full bg-gradient-to-r from-[#A78BFA] to-[#2DD4BF] text-white text-[10px] font-bold uppercase tracking-wider">
+                  {language === "bg" ? "Бонус" : "Bonus"}
+                </span>
+              </div>
               <h3 className={`text-2xl font-bold mb-2 ${theme === "dark" ? "text-[#EDEDF7]" : "text-[#1A1B2E]"}`}>
-                {language === "bg" ? "Търси с AI" : "Search with AI"}
+                {language === "bg" ? "AI Интелигентно търсене" : "AI Smart Search"}
               </h3>
               <p className={theme === "dark" ? "text-[#A7A7C7]" : "text-[#5B5D78]"}>
-                {language === "bg" ? "Опиши какво искаш да гледаш и нашият AI ще намери перфектния филм за теб." : "Describe what you want to watch and our AI will find the perfect movie for you."}
+                {language === "bg"
+                  ? "Не знаеш точното заглавие? Опиши какво искаш да гледаш и нашият AI ще намери перфектния филм за теб."
+                  : "Don't know the exact title? Describe what you want to watch and our AI will find the perfect movie for you."}
               </p>
             </div>
-            <button onClick={() => navigate("/browse")} className="px-6 py-3 bg-gradient-to-r from-primary to-secondary text-white font-semibold rounded-lg hover:opacity-90 transition-all flex items-center gap-2 shadow-lg">
-              <Sparkles className="w-5 h-5" />{language === "bg" ? "Опитай сега" : "Try Now"}
+            <button onClick={() => navigate("/browse")} className="px-6 py-3 bg-gradient-to-r from-[#A78BFA] to-[#2DD4BF] text-white font-semibold rounded-xl hover:opacity-90 transition-all flex items-center gap-2 shadow-lg shadow-primary/25 whitespace-nowrap">
+              <Sparkles className="w-5 h-5" />{language === "bg" ? "Опитай AI" : "Try AI Search"}
             </button>
           </div>
         </section>

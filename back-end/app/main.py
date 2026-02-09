@@ -34,28 +34,28 @@ async def lifespan(app: FastAPI) -> AsyncGenerator:
     Handles startup and shutdown events.
     """
     # ===== STARTUP =====
-    logger.info("🚀 Starting application...")
+    logger.info("Starting application...")
     
     # 1. Initialize database
-    logger.info("📦 Initializing database...")
+    logger.info("Initializing database...")
     await init_db()
     
     # 2. Preload AI models (THIS ELIMINATES COLD START!)
-    logger.info("🤖 Preloading AI models...")
+    logger.info("Preloading AI models...")
     await preload_models()
     
     # 3. Warm up vector store
-    logger.info("📊 Warming up vector store...")
+    logger.info("Warming up vector store...")
     await warmup_vector_store()
     
-    logger.info("✅ Application ready!")
+    logger.info("Application ready!")
     
     yield  # Application runs here
     
     # ===== SHUTDOWN =====
-    logger.info("👋 Shutting down...")
+    logger.info("Shutting down...")
     await close_db()
-    logger.info("✅ Shutdown complete")
+    logger.info("Shutdown complete")
 
 
 async def preload_models():
@@ -75,10 +75,10 @@ async def preload_models():
             
             # Warm up with a test embedding
             _ = provider.get_embedding("test query warmup")
-            logger.info(f"  ✅ Loaded embedding model: {provider.model_name}")
+            logger.info(f"  Loaded embedding model: {provider.model_name}")
             
         except Exception as e:
-            logger.error(f"  ❌ Error loading models: {e}")
+            logger.error(f"  Error loading models: {e}")
     
     # Run in thread pool to not block event loop
     loop = asyncio.get_event_loop()
@@ -96,9 +96,9 @@ async def warmup_vector_store():
             from app.ai.vector_store import get_vector_store
             store = get_vector_store()
             stats = store.stats()
-            logger.info(f"  ✅ Vector store ready: {stats.get('total_vectors', 0)} vectors")
+            logger.info(f"  Vector store ready: {stats.get('total_vectors', 0)} vectors")
         except Exception as e:
-            logger.warning(f"  ⚠️ Vector store warmup: {e}")
+            logger.warning(f"  Vector store warmup: {e}")
     
     loop = asyncio.get_event_loop()
     with ThreadPoolExecutor() as pool:

@@ -75,7 +75,7 @@ class EmbeddingProvider:
             
             # Log language support info
             if "multilingual" in self.model_name.lower():
-                logger.info("✅ Multilingual model loaded - supports Bulgarian, English, and 48 other languages!")
+                logger.info("Multilingual model loaded - supports Bulgarian, English, and 48 other languages")
     
     def _init_openai(self):
         """Initialize OpenAI client"""

@@ -84,20 +84,22 @@ function StarRating({ rating, onRate, size = 24 }: { rating: number; onRate?: (r
   );
 }
 
-function SentimentBadge({ sentiment, confidence, size = 'small' }: { sentiment: string; confidence: number; size?: 'small' | 'large' }) {
+function SentimentBadge({ sentiment, confidence, size = 'small', language = 'en' }: { sentiment: string; confidence: number; size?: 'small' | 'large'; language?: string }) {
   const config = {
     positive: { icon: ThumbsUp, color: 'text-green-400 bg-green-500/20 border-green-500/30', label: 'Positive', labelBg: 'Позитивен' },
     negative: { icon: ThumbsDown, color: 'text-red-400 bg-red-500/20 border-red-500/30', label: 'Negative', labelBg: 'Негативен' },
     neutral: { icon: Minus, color: 'text-yellow-400 bg-yellow-500/20 border-yellow-500/30', label: 'Neutral', labelBg: 'Неутрален' }
   };
 
-  const { icon: Icon, color, label } = config[sentiment as keyof typeof config] || config.neutral;
+  const entry = config[sentiment as keyof typeof config] || config.neutral;
+  const { icon: Icon, color } = entry;
+  const displayLabel = language === 'bg' ? entry.labelBg : entry.label;
 
   if (size === 'small') {
     return (
       <div className={`inline-flex items-center gap-1.5 px-2 py-1 rounded-full text-xs font-medium ${color}`}>
         <Icon className="w-3 h-3" />
-        {label} ({Math.round(confidence * 100)}%)
+        {displayLabel} ({Math.round(confidence * 100)}%)
       </div>
     );
   }
@@ -105,7 +107,7 @@ function SentimentBadge({ sentiment, confidence, size = 'small' }: { sentiment: 
   return (
     <div className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm font-medium border ${color}`}>
       <Icon className="w-4 h-4" />
-      {label} ({Math.round(confidence * 100)}%)
+      {displayLabel} ({Math.round(confidence * 100)}%)
     </div>
   );
 }
@@ -125,11 +127,11 @@ function ReviewForm({ movieId, theme, language, onReviewAdded }: {
 
   // Analyze sentiment when comment changes (debounced)
   useEffect(() => {
-    if (comment.length < 20) {
+    if (comment.length < 15) {
       setSentiment(null);
       return;
     }
-    
+
     const timeout = setTimeout(async () => {
       setAnalyzing(true);
       try {
@@ -137,11 +139,12 @@ function ReviewForm({ movieId, theme, language, onReviewAdded }: {
         setSentiment(response.data);
       } catch (err) {
         console.error('Sentiment analysis failed:', err);
+        setSentiment(null);
       } finally {
         setAnalyzing(false);
       }
-    }, 500);
-    
+    }, 1200);
+
     return () => clearTimeout(timeout);
   }, [comment]);
 
@@ -225,7 +228,7 @@ function ReviewForm({ movieId, theme, language, onReviewAdded }: {
         }`}>
           <div className="flex items-center gap-2 mb-2">
             <span className={`text-xs font-medium uppercase tracking-wide ${theme === 'dark' ? 'text-primary' : 'text-primary'}`}>
-              🤖 {language === 'bg' ? 'AI Анализ на тона' : 'AI Tone Analysis'}
+              {language === 'bg' ? 'AI Анализ на тона' : 'AI Tone Analysis'}
             </span>
           </div>
 
@@ -238,7 +241,7 @@ function ReviewForm({ movieId, theme, language, onReviewAdded }: {
             </div>
           ) : sentiment && (
             <div className="flex items-center justify-between flex-wrap gap-3">
-              <SentimentBadge sentiment={sentiment.sentiment} confidence={sentiment.confidence} size="large" />
+              <SentimentBadge sentiment={sentiment.sentiment} confidence={sentiment.confidence} size="large" language={language} />
               <span className={`text-xs ${theme === 'dark' ? 'text-[#A7A7C7]' : 'text-[#5B5D78]'}`}>
                 {language === 'bg'
                   ? 'AI открива тона на вашето ревю'
@@ -942,7 +945,7 @@ export default function MovieDetails() {
 
   const title = language==="bg" ? movie.title_bg||movie.title : movie.title;
   const summary = language==="bg" ? movie.summary_bg||movie.summary : movie.summary;
-  const tagline = language==="bg" ? movie.tagline_bg||movie.tagline : movie.tagline;
+  const tagline = language==="bg" ? movie.tagline_bg : movie.tagline;
   const genre = language==="bg" ? movie.genre_bg||movie.genre : movie.genre;
   const backdropUrl = movie.backdrop_url_large || movie.backdrop_url || (movie.backdrop_path ? `https://image.tmdb.org/t/p/w1280${movie.backdrop_path}` : null);
   const posterUrl = movie.poster_url_large || movie.poster_url || (movie.poster_path ? `https://image.tmdb.org/t/p/w500${movie.poster_path}` : null);
