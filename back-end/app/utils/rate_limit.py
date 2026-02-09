@@ -17,7 +17,6 @@ async def rate_limit_dependency(
     now = datetime.now()
     window_start = now - timedelta(seconds=window_seconds)
     
-    # Clean old entries
     if client_ip in _rate_limit_store:
         _rate_limit_store[client_ip] = [
             t for t in _rate_limit_store[client_ip] if t > window_start
@@ -25,14 +24,12 @@ async def rate_limit_dependency(
     else:
         _rate_limit_store[client_ip] = []
     
-    # Check limit
     if len(_rate_limit_store[client_ip]) >= max_requests:
         raise HTTPException(
             status_code=429, 
             detail="Too many requests. Please try again later."
         )
     
-    # Add current request
     _rate_limit_store[client_ip].append(now)
     return None
 

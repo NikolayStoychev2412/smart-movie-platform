@@ -3,8 +3,8 @@ from typing import Optional
 from datetime import datetime
 
 class ReviewBase(BaseModel):
-    rating: float = Field(..., ge=0, le=5, description="Rating 0-5")
-    comment: str = Field(..., min_length=10, max_length=2000, description="Review comment (required, min 10 characters)")
+    rating: float = Field(..., ge=0, le=5)
+    comment: str = Field(..., min_length=10, max_length=2000)
 
 class ReviewCreate(ReviewBase):
     pass

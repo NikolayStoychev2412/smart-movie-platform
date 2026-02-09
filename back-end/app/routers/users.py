@@ -13,18 +13,12 @@ from app.utils.audit import log_security_event, SecurityEventType
 router = APIRouter(prefix="/users", tags=["Users"])
 
 
-# ============================================================================
-# PREFERENCE SCHEMAS
-# ============================================================================
-
 class UserPreferencesIn(BaseModel):
-    """Schema for updating user preferences"""
     preferred_genres: Optional[List[str]] = None
     preferred_mood: Optional[str] = None
 
 
 class UserPreferencesOut(BaseModel):
-    """Schema for user preferences response"""
     preferred_genres: List[str]
     preferred_mood: Optional[str]
     
@@ -32,18 +26,13 @@ class UserPreferencesOut(BaseModel):
         from_attributes = True
 
 
-# ============================================================================
-# USER CRUD ENDPOINTS
-# ============================================================================
-
 @router.post("/", response_model=UserOut, status_code=status.HTTP_201_CREATED)
 def create_user(
     user: UserCreate,
     request: Request,
     db: Session = Depends(get_db)
 ):
-    """Register a new user (public endpoint)"""
-    # Check if email already exists
+    """Register a new user."""
     existing_user = db.query(User).filter(User.email == user.email).first()
     if existing_user:
         raise HTTPException(
@@ -84,7 +73,7 @@ def create_user(
 
 @router.get("/me", response_model=UserOut)
 def get_current_user_profile(current_user: User = Depends(get_current_user)):
-    """Get current logged-in user's profile"""
+    """Get current user's profile."""
     return current_user
 
 
@@ -93,13 +82,13 @@ def get_all_users(
     current_user: User = Depends(require_admin),
     db: Session = Depends(get_db)
 ):
-    """Get all users (admin only)"""
+    """Get all users."""
     return db.query(User).all()
 
 
 @router.get("/{user_id}", response_model=UserOut)
 def get_user(user_id: int, db: Session = Depends(get_db)):
-    """Get a specific user by ID"""
+    """Get a user by ID."""
     user = db.query(User).filter(User.id == user_id).first()
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
@@ -113,7 +102,7 @@ def delete_user(
     current_user: User = Depends(require_admin),
     db: Session = Depends(get_db)
 ):
-    """Delete a user (admin only)"""
+    """Delete a user."""
     db_user = db.query(User).filter(User.id == user_id).first()
     if not db_user:
         raise HTTPException(status_code=404, detail="User not found")
@@ -142,7 +131,6 @@ def delete_user(
 
 
 class PasswordChangeIn(BaseModel):
-    """Schema for password change request"""
     current_password: str
     new_password: str
 
@@ -189,7 +177,7 @@ def make_user_admin(
     current_user: User = Depends(require_admin),
     db: Session = Depends(get_db)
 ):
-    """Make a user an admin (admin only)"""
+    """Make a user an admin."""
     user = db.query(User).filter(User.id == user_id).first()
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
@@ -216,7 +204,7 @@ def remove_user_admin(
     current_user: User = Depends(require_admin),
     db: Session = Depends(get_db)
 ):
-    """Remove admin privileges from a user (admin only)"""
+    """Remove admin privileges from a user."""
     user = db.query(User).filter(User.id == user_id).first()
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
@@ -242,18 +230,11 @@ def remove_user_admin(
     return {"detail": f"User {user.email} is no longer an admin"}
 
 
-# ============================================================================
-# USER PREFERENCES ENDPOINTS (for cold-start recommendations)
-# ============================================================================
-
 @router.get("/preferences", response_model=UserPreferencesOut)
 def get_user_preferences(
     current_user: User = Depends(get_current_user)
 ):
-    """
-    Get current user's preferences for recommendations.
-    Used by the frontend to check if preferences were saved.
-    """
+    """Get current user's preferences."""
     return UserPreferencesOut(
         preferred_genres=current_user.preferred_genres or [],
         preferred_mood=getattr(current_user, 'preferred_mood', None)
@@ -266,19 +247,7 @@ def save_user_preferences(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
-    """
-    Save user preferences for personalized recommendations.
-    
-    Called during registration (step 2 & 3) after account creation.
-    These preferences enable cold-start recommendations for new users.
-    
-    Example request:
-    {
-        "preferred_genres": ["action", "comedy", "scifi"],
-        "preferred_mood": "thrilling"
-    }
-    """
-    # Update genres if provided
+    """Save user preferences for personalized recommendations."""
     if preferences.preferred_genres is not None:
         current_user.preferred_genres = preferences.preferred_genres
 
@@ -300,10 +269,7 @@ def replace_user_preferences(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
-    """
-    Replace all user preferences (full update).
-    Use this when user wants to reset their preferences.
-    """
+    """Replace all user preferences."""
     current_user.preferred_genres = preferences.preferred_genres or []
     current_user.preferred_mood = preferences.preferred_mood
 
@@ -316,19 +282,12 @@ def replace_user_preferences(
     )
 
 
-# ============================================================================
-# PROFILE STATS & ACTIVITY ENDPOINTS
-# ============================================================================
-
 @router.get("/me/stats")
 def get_profile_stats(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
-    """
-    Get comprehensive profile statistics for the current user.
-    Includes rating distribution, top genres, taste insights, etc.
-    """
+    """Get profile statistics for the current user."""
     from app.models.review import Review
     from app.models.favorite import Favorite
     from app.models.watchlist import Watchlist, WatchStatus
@@ -418,10 +377,7 @@ def get_recent_activity(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
-    """
-    Get recent activity feed for the current user.
-    Includes reviews, favorites, and watchlist actions.
-    """
+    """Get recent activity feed for the current user."""
     from app.models.review import Review
     from app.models.favorite import Favorite
     from app.models.watchlist import Watchlist

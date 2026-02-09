@@ -1,13 +1,5 @@
 # app/routers/ai_router.py
-"""
-AI-powered features API endpoints with performance optimizations:
-- CPU-bound AI tasks run in thread pool (don't block event loop)
-- Response caching for repeated queries
-- Async database queries
-
-Key insight: AI model inference is CPU-bound, not I/O-bound.
-Running it in a thread pool allows other requests to proceed while waiting.
-"""
+"""AI-powered features API endpoints."""
 import asyncio
 import hashlib
 from concurrent.futures import ThreadPoolExecutor
@@ -16,7 +8,6 @@ from functools import lru_cache
 from typing import List, Optional, Dict, Any
 from app.utils.rate_limit import search_rate_limit, recommend_rate_limit, review_rate_limit
 from fastapi import APIRouter, Depends, HTTPException, Path, Query, status, Request
-from sqlalchemy import select # type: ignore
 from sqlalchemy.ext.asyncio import AsyncSession # type: ignore
 from sqlalchemy.orm import Session # type: ignore
 from pydantic import BaseModel, Field, field_validator
@@ -36,27 +27,18 @@ router = APIRouter(prefix="/ai", tags=["AI Features"])
 AI_THREAD_POOL = ThreadPoolExecutor(max_workers=4, thread_name_prefix="ai_worker")
 
 
-# =============================================================================
-# SEARCH CACHE
-# =============================================================================
-
 class SearchCache:
-    """
-    LRU cache for search results.
-    Stores results for repeated queries to avoid recomputation.
-    """
+    """LRU cache for search results."""
     def __init__(self, max_size: int = 100, ttl_seconds: int = 300):
         self.max_size = max_size
         self.ttl = ttl_seconds
         self._cache: Dict[str, tuple] = {}  # key -> (result, timestamp)
     
     def _make_key(self, query: str, **kwargs) -> str:
-        """Create cache key from query and parameters."""
         params = f"{query}:{sorted(kwargs.items())}"
         return hashlib.md5(params.encode()).hexdigest()
     
     def get(self, query: str, **kwargs) -> Optional[Any]:
-        """Get cached result if valid."""
         key = self._make_key(query, **kwargs)
         if key not in self._cache:
             return None
@@ -69,8 +51,6 @@ class SearchCache:
         return result
     
     def set(self, query: str, result: Any, **kwargs):
-        """Cache a result."""
-        # Evict oldest if at capacity
         if len(self._cache) >= self.max_size:
             oldest_key = min(self._cache, key=lambda k: self._cache[k][1])
             del self._cache[oldest_key]
@@ -83,10 +63,6 @@ class SearchCache:
 search_cache = SearchCache(max_size=200, ttl_seconds=300)
 mood_cache = SearchCache(max_size=50, ttl_seconds=600)
 
-
-# =============================================================================
-# RESPONSE MODELS
-# =============================================================================
 
 class RecommendationOut(BaseModel):
     movie: MovieOut
@@ -126,10 +102,6 @@ class ReviewAnalysisRequest(BaseModel):
         return v.strip()
 
 
-# =============================================================================
-# HELPER: Run CPU-bound tasks in thread pool
-# =============================================================================
-
 async def run_in_threadpool(func, *args, **kwargs):
     """
     Run a CPU-bound function in the thread pool.
@@ -141,10 +113,6 @@ async def run_in_threadpool(func, *args, **kwargs):
         lambda: func(*args, **kwargs)
     )
 
-
-# =============================================================================
-# SEMANTIC SEARCH ENDPOINTS
-# =============================================================================
 
 @router.get("/search", response_model=List[SearchResultOut])
 async def semantic_movie_search(
@@ -225,8 +193,6 @@ async def semantic_movie_search(
         return response
     
     except Exception as e:
-        import traceback
-        traceback.print_exc()
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Search error: {str(e)}"
@@ -287,17 +253,11 @@ async def search_movies_by_mood(
         return response
     
     except Exception as e:
-        import traceback
-        traceback.print_exc()
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Mood search error: {str(e)}"
         )
 
-
-# =============================================================================
-# RECOMMENDATION ENDPOINTS
-# =============================================================================
 
 @router.get("/recommend/for-me", response_model=List[RecommendationOut])
 async def get_personalized_recommendations(
@@ -342,9 +302,6 @@ async def get_personalized_recommendations(
         ]
     
     except Exception as e:
-        import traceback
-        traceback.print_exc()
-        
         popular = db.query(Movie).order_by(Movie.average_rating.desc()).limit(top_k).all()
         return [
             RecommendationOut(
@@ -406,10 +363,6 @@ async def get_similar_movies(
         )
 
 
-# =============================================================================
-# REVIEW ANALYSIS
-# =============================================================================
-
 @router.post("/analyze-review", response_model=ReviewAnalysisOut)
 async def analyze_review_sentiment(
     request: Request,
@@ -438,10 +391,6 @@ async def analyze_review_sentiment(
         )
 
 
-# =============================================================================
-# SYSTEM INFO
-# =============================================================================
-
 @router.get("/info")
 async def get_ai_system_info():
     """Get information about the AI system."""
@@ -463,10 +412,6 @@ async def get_ai_system_info():
         }
     }
 
-
-# =============================================================================
-# HELPERS
-# =============================================================================
 
 def _truncate(text: str, max_length: int = 150) -> str:
     if not text:

@@ -10,4 +10,4 @@ from app.models.review import Review
 from app.models.watchlist import Watchlist, WatchStatus
 from app.models.favorite import Favorite
 # Make them available when doing: from app.models import Movie
-__all__ = ["User", "Movie", "Review", "Watchlist", "WatchStatus"]
+__all__ = ["User", "Movie", "Review", "Watchlist", "WatchStatus", "Favorite"]

@@ -63,7 +63,7 @@ class ReviewAnalyzer:
             logger.info(f"Loading sentiment model: {SENTIMENT_MODEL}")
             _sentiment_pipeline = pipeline("sentiment-analysis", model=SENTIMENT_MODEL)
             _loaded_model_name = SENTIMENT_MODEL
-            logger.info(f"✓ Loaded HuggingFace model: {SENTIMENT_MODEL}")
+            logger.info(f"Loaded HuggingFace model: {SENTIMENT_MODEL}")
         else:
             logger.info(f"Using cached model: {_loaded_model_name}")
     
@@ -136,7 +136,7 @@ class ReviewAnalyzer:
                 label = r["label"].upper()
                 scores[label] = r["score"]
 
-        logger.info(f"Model output scores: {scores}")
+        logger.debug(f"Model output scores: {scores}")
 
         # Handle different model output formats
         if "1 STAR" in scores or "5 STARS" in scores:
@@ -144,7 +144,7 @@ class ReviewAnalyzer:
             star_scores = {i: scores.get(f"{i} STAR" if i == 1 else f"{i} STARS", 0) for i in range(1, 6)}
             weighted_avg = sum(i * star_scores[i] for i in range(1, 6))
 
-            logger.info(f"Star model weighted average: {weighted_avg}")
+            logger.debug(f"Star model weighted average: {weighted_avg}")
 
             if weighted_avg >= 3.5:
                 sentiment = SentimentLabel.POSITIVE
@@ -161,7 +161,7 @@ class ReviewAnalyzer:
             neg_score = scores.get("NEGATIVE", 0)
             neu_score = scores.get("NEUTRAL", 0)
 
-            logger.info(f"Sentiment scores - POS: {pos_score}, NEG: {neg_score}, NEU: {neu_score}")
+            logger.debug(f"Sentiment scores - POS: {pos_score}, NEG: {neg_score}, NEU: {neu_score}")
 
             if neu_score > pos_score and neu_score > neg_score:
                 sentiment = SentimentLabel.NEUTRAL
@@ -180,7 +180,7 @@ class ReviewAnalyzer:
             sentiment = SentimentLabel(best_label.lower()) if best_label.lower() in [e.value for e in SentimentLabel] else SentimentLabel.NEUTRAL
             confidence = mapped[best_label]
 
-        logger.info(f"Result: {sentiment.value} with confidence {confidence}")
+        logger.debug(f"Result: {sentiment.value} with confidence {confidence}")
         
         # Extract keywords
         keywords = self._extract_keywords(text)

@@ -66,7 +66,6 @@ class UserOut(UserBase):
     id: int
     is_admin: bool
     created_at: datetime
-    # Include preferences in user output
     preferred_genres: Optional[List[str]] = []
     preferred_mood: Optional[str] = None
 

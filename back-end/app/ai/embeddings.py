@@ -3,7 +3,7 @@
 Embedding provider with multilingual support.
 
 Uses paraphrase-multilingual-MiniLM-L12-v2 which understands 50+ languages
-including Bulgarian - NO TRANSLATION NEEDED!
+including Bulgarian.
 
 Supports: sentence-transformers (local) and OpenAI (cloud)
 """
@@ -47,7 +47,6 @@ class EmbeddingProvider:
     def _get_model_name(self) -> str:
         """Get model name based on provider and env vars"""
         if self.provider == "sentence-transformers":
-            # Default to multilingual model for Bulgarian support!
             return os.getenv("ST_MODEL_NAME", "paraphrase-multilingual-MiniLM-L12-v2")
         elif self.provider == "openai":
             return "text-embedding-ada-002"
@@ -93,11 +92,9 @@ class EmbeddingProvider:
         """
         Get embedding for a single text.
         
-        Works with Bulgarian, English, or any of the 50 supported languages!
-        
         Args:
             text: Input text to embed (any language)
-            
+
         Returns:
             List of floats representing the embedding vector
         """
@@ -116,10 +113,10 @@ class EmbeddingProvider:
     def get_embeddings_batch(self, texts: List[str]) -> List[List[float]]:
         """
         Get embeddings for multiple texts efficiently.
-        
+
         Args:
             texts: List of texts to embed (any language)
-            
+
         Returns:
             List of embedding vectors
         """
@@ -184,15 +181,8 @@ def get_embedding(text: str) -> List[float]:
     """
     Convenience function to get embedding for a single text.
     
-    Works with any language (Bulgarian, English, etc.)!
-    
     Example:
         >>> embedding = get_embedding("A sci-fi movie about space")
-        >>> len(embedding)
-        384
-        
-        >>> # Bulgarian works too!
-        >>> embedding = get_embedding("Страшен филм за космоса")
         >>> len(embedding)
         384
     """
@@ -205,7 +195,7 @@ def get_embeddings_batch(texts: List[str]) -> List[List[float]]:
     Convenience function to get embeddings for multiple texts.
     
     Example:
-        >>> texts = ["Movie 1 summary", "Резюме на филм 2"]  # Mixed languages OK!
+        >>> texts = ["Movie 1 summary", "Резюме на филм 2"]
         >>> embeddings = get_embeddings_batch(texts)
         >>> len(embeddings)
         2

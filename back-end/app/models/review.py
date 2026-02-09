@@ -1,5 +1,5 @@
 # app/models/review.py
-from sqlalchemy import Column, Integer, String, ForeignKey, Float, Text, DateTime, func,UniqueConstraint
+from sqlalchemy import Column, Integer, String, ForeignKey, Float, Text, DateTime, func, UniqueConstraint
 from sqlalchemy.orm import relationship
 from app.database import Base
 

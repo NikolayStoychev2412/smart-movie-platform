@@ -10,6 +10,7 @@ Hybrid recommendation system with:
 7. Quality boost (TMDB rating + community rating + favorite count)
 """
 import logging
+import math
 from typing import List, Tuple, Optional, Dict
 from sqlalchemy.orm import Session
 from sqlalchemy import func
@@ -208,11 +209,11 @@ class HybridRecommender:
         mood_genres = MOOD_GENRE_MAP.get(preferred_mood, []) if preferred_mood else []
         has_genres = len(preferred_genres) > 0
 
-        logger.info(f"User {user_id}: activity={activity_count}, genres={preferred_genres}, mood={preferred_mood}, favorites={len(user_favorites)}")
+        logger.debug(f"User {user_id}: activity={activity_count}, genres={preferred_genres}, mood={preferred_mood}, favorites={len(user_favorites)}")
         
         # Calculate dynamic weights
         weights = self._calculate_dynamic_weights(activity_count, has_genres)
-        logger.info(f"Dynamic weights: {weights}")
+        logger.debug(f"Dynamic weights: {weights}")
         
         # Get the top movie for "Because you watched X" explanations
         top_user_movie = self._get_top_user_movie(db, user_reviews, user_watchlist, user_favorites)
@@ -419,7 +420,6 @@ class HybridRecommender:
         
         # Favorite boost (log normalized to prevent outliers)
         if max_favorites > 0 and favorite_count > 0:
-            import math
             fav_norm = math.log(1 + favorite_count) / math.log(1 + max_favorites)
         else:
             fav_norm = 0
@@ -536,13 +536,6 @@ class HybridRecommender:
                         'weight': 0.8
                     })
         
-        # Search similar movies
-        search_results = self.vector_store.search(
-            query_vector=user_vector,
-            top_k=limit
-        )
-        
-        # Search similar movies
         search_results = self.vector_store.search(
             query_vector=user_vector,
             top_k=limit

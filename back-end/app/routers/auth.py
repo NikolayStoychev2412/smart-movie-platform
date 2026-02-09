@@ -10,7 +10,6 @@ from app.utils.security import verify_password, create_access_token, hash_passwo
 router = APIRouter(prefix="/auth", tags=["Auth"])
 
 
-# ============ Schemas ============
 class UserCreate(BaseModel):
     name: str
     email: EmailStr
@@ -33,7 +32,6 @@ class TokenResponse(BaseModel):
     token_type: str
 
 
-# ============ Endpoints ============
 @router.post("/register", response_model=UserResponse, status_code=status.HTTP_201_CREATED)
 def register(user_data: UserCreate, db: Session = Depends(get_db)):
     """Register a new user"""

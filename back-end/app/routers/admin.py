@@ -25,10 +25,6 @@ from app.utils.audit import log_security_event, SecurityEventType
 router = APIRouter(prefix="/admin", tags=["Admin"])
 
 
-# ============================================================================
-# SCHEMAS
-# ============================================================================
-
 class MovieUpdate(BaseModel):
     title: Optional[str] = None
     title_bg: Optional[str] = None
@@ -44,10 +40,6 @@ class MovieUpdate(BaseModel):
     backdrop_path: Optional[str] = None
 
 
-# ============================================================================
-# HELPERS
-# ============================================================================
-
 def _is_empty(val) -> bool:
     """Treat None AND empty/whitespace-only strings as 'missing'."""
     if val is None:
@@ -56,10 +48,6 @@ def _is_empty(val) -> bool:
         return True
     return False
 
-
-# ============================================================================
-# DASHBOARD STATS
-# ============================================================================
 
 @router.get("/stats")
 def get_dashboard_stats(
@@ -73,26 +61,21 @@ def get_dashboard_stats(
     total_watchlist = db.query(func.count(Watchlist.id)).scalar() or 0
     total_favorites = db.query(func.count(Favorite.id)).scalar() or 0
 
-    # Movies missing Bulgarian translations (None OR empty string)
     missing_bg = db.query(func.count(Movie.id)).filter(
         or_(Movie.title_bg == None, func.trim(Movie.title_bg) == "")
     ).scalar() or 0
 
-    # Movies missing backdrops (None OR empty string on BOTH fields)
     missing_backdrop = db.query(func.count(Movie.id)).filter(
         or_(Movie.backdrop_path == None, func.trim(Movie.backdrop_path) == ""),
         or_(Movie.backdrop_url == None, func.trim(Movie.backdrop_url) == "")
     ).scalar() or 0
 
-    # Movies missing summaries in BG
     missing_summary_bg = db.query(func.count(Movie.id)).filter(
         or_(Movie.summary_bg == None, func.trim(Movie.summary_bg) == "")
     ).scalar() or 0
 
-    # Average rating across all reviews
     avg_rating = db.query(func.avg(Review.rating)).scalar()
 
-    # Most reviewed movies (top 5)
     top_reviewed = (
         db.query(
             Movie.id, Movie.title, Movie.poster_path,
@@ -126,7 +109,6 @@ def get_dashboard_stats(
             for m in popular_movies_rows
         ]
 
-    # Most active users (top 5 by reviews)
     top_users = (
         db.query(
             User.id, User.name, User.email,
@@ -184,10 +166,6 @@ def get_dashboard_stats(
         "recent_actions": recent_actions,
     }
 
-
-# ============================================================================
-# REVIEW MODERATION
-# ============================================================================
 
 @router.get("/reviews")
 def get_all_reviews(
@@ -309,10 +287,6 @@ def admin_delete_review(
 
     return {"detail": f"Review {review_id} deleted"}
 
-
-# ============================================================================
-# MOVIE MANAGEMENT
-# ============================================================================
 
 @router.get("/movies")
 def admin_list_movies(
@@ -494,10 +468,6 @@ def admin_delete_movie(
 
     return {"detail": f"Movie '{title}' and all related data deleted"}
 
-
-# ============================================================================
-# AUDIT LOG
-# ============================================================================
 
 @router.get("/audit-log")
 def get_audit_log(
