@@ -18,8 +18,6 @@ from sqlalchemy.pool import StaticPool
 # Get database URL from environment
 DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///./movies.db")
 
-print(f"📦 Database URL: {DATABASE_URL[:50]}...")  # Debug print
-
 # Determine if using SQLite or PostgreSQL
 IS_SQLITE = DATABASE_URL.startswith("sqlite")
 
@@ -34,9 +32,7 @@ else:
 Base = declarative_base()
 
 
-# =============================================================================
-# SYNC ENGINE (for migrations and background tasks)
-# =============================================================================
+# Sync engine (for migrations and background tasks)
 if IS_SQLITE:
     sync_engine = create_engine(
         DATABASE_URL,
@@ -55,9 +51,7 @@ else:
 SyncSessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=sync_engine)
 
 
-# =============================================================================
-# ASYNC ENGINE (for API requests)
-# =============================================================================
+# Async engine (for API requests)
 if IS_SQLITE:
     async_engine = create_async_engine(
         ASYNC_DATABASE_URL,
@@ -82,10 +76,6 @@ AsyncSessionLocal = async_sessionmaker(
     autoflush=False,
 )
 
-
-# =============================================================================
-# DEPENDENCY INJECTION
-# =============================================================================
 
 def get_db() -> Session:
     """Sync database session dependency."""
@@ -119,10 +109,6 @@ async def get_async_session() -> AsyncGenerator[AsyncSession, None]:
             await session.close()
 
 
-# =============================================================================
-# STARTUP / SHUTDOWN
-# =============================================================================
-
 async def init_db():
     """Initialize database tables."""
     async with async_engine.begin() as conn:
@@ -133,10 +119,6 @@ async def close_db():
     """Close database connections on shutdown."""
     await async_engine.dispose()
 
-
-# =============================================================================
-# SQLITE OPTIMIZATIONS
-# =============================================================================
 
 if IS_SQLITE:
     @event.listens_for(sync_engine, "connect")

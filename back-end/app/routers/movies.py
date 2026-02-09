@@ -20,10 +20,6 @@ from app.schemas.movie import MovieOut, MovieDetailOut
 router = APIRouter(prefix="/movies", tags=["Movies"])
 
 
-# =============================================================================
-# SIMPLE IN-MEMORY CACHE
-# =============================================================================
-
 class MovieCache:
     def __init__(self, ttl_seconds: int = 300):
         self.ttl = ttl_seconds
@@ -66,10 +62,6 @@ class MovieCache:
 movie_cache = MovieCache(ttl_seconds=300)
 
 
-# =============================================================================
-# HELPER: Format money
-# =============================================================================
-
 def format_money(amount: Optional[int]) -> Optional[str]:
     """Format budget/revenue with $ and M/B"""
     if not amount or amount == 0:
@@ -92,10 +84,6 @@ def format_runtime(minutes: Optional[int]) -> Optional[str]:
         return f"{hours}h {mins}m"
     return f"{mins}m"
 
-
-# =============================================================================
-# ENDPOINTS
-# =============================================================================
 
 @router.get("/", response_model=List[MovieOut])
 async def get_all_movies(
@@ -218,14 +206,7 @@ async def get_movie(
     movie_id: int,
     db: AsyncSession = Depends(get_async_db)
 ):
-    """
-    Get a single movie by ID with FULL details including:
-    - Cast & Crew
-    - Videos (trailers)
-    - Production companies
-    - Budget/Revenue
-    - And more!
-    """
+    """Get a single movie by ID with full details."""
     # Check cache
     cached = movie_cache.get_by_id(movie_id)
     if cached:

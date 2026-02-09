@@ -5,7 +5,8 @@ import api from "../api/client";
 import {
   BarChart3, Users, Film, MessageSquare, Trash2, Shield, ShieldCheck,
   Search, ChevronLeft, ChevronRight, AlertTriangle, Star, Eye,
-  Heart, Bookmark, Loader2, X, Pencil, Check, Clock, Activity
+  Heart, Bookmark, Loader2, X, Pencil, Check, Clock, Activity,
+  ShieldOff
 } from "lucide-react";
 
 // ============================================================================
@@ -35,7 +36,7 @@ interface MovieItem {
   id: number; title: string; title_bg?: string; genre?: string; genre_bg?: string;
   tmdb_rating?: number; average_rating?: number; review_count?: number;
   poster_path?: string; poster_url?: string; backdrop_path?: string; backdrop_url?: string;
-  release_date?: string; release_year?: number;
+  release_date?: string; release_year?: number; runtime?: number;
   summary?: string; summary_bg?: string; popularity?: number;
 }
 
@@ -52,7 +53,8 @@ interface AuditEvent {
 interface MovieEditForm {
   title: string; title_bg: string;
   genre: string; genre_bg: string;
-  summary_bg: string;
+  summary: string; summary_bg: string;
+  release_date: string; runtime: string;
   poster_path: string; backdrop_path: string;
 }
 
@@ -65,7 +67,7 @@ type Tab = "dashboard" | "users" | "movies" | "reviews" | "activity";
 function StatCard({ label, value, icon: Icon, color }: { label: string; value: number | string; icon: React.ComponentType<{ className?: string }>; color: string }) {
   const { theme } = useApp();
   return (
-    <div className={`p-5 rounded-xl ${theme === "dark" ? "bg-[#2A2A4A]/60 border border-[#2A2A4A]/50" : "bg-white border border-[#E2E4F0] shadow-sm shadow-sm"}`}>
+    <div className={`p-5 rounded-xl ${theme === "dark" ? "bg-[#2A2A4A]/60 border border-[#2A2A4A]/50" : "bg-white border border-[#E2E4F0] shadow-sm"}`}>
       <div className="flex items-center justify-between">
         <div>
           <p className={`text-sm font-medium ${theme === "dark" ? "text-[#A7A7C7]" : "text-[#5B5D78]"}`}>{label}</p>
@@ -93,6 +95,8 @@ const eventLabels: Record<string, { label: string; color: string }> = {
   user_deleted: { label: "Deleted user", color: "text-red-400" },
   user_created: { label: "New user", color: "text-green-400" },
   admin_promoted: { label: "Promoted to admin", color: "text-amber-400" },
+  admin_demoted: { label: "Demoted from admin", color: "text-orange-400" },
+  password_changed: { label: "Password changed", color: "text-blue-400" },
   login_success: { label: "Login", color: "text-blue-400" },
   login_failed: { label: "Failed login", color: "text-red-400" },
   admin_action: { label: "Admin action", color: "text-amber-400" },
@@ -168,7 +172,7 @@ function DashboardTab({ stats, loading }: { stats: Stats | null; loading: boolea
       </div>
 
       {/* Data quality */}
-      <div className={`rounded-xl p-5 ${theme === "dark" ? "bg-[#2A2A4A]/60 border border-[#2A2A4A]/50" : "bg-white border border-[#E2E4F0] shadow-sm shadow-sm"}`}>
+      <div className={`rounded-xl p-5 ${theme === "dark" ? "bg-[#2A2A4A]/60 border border-[#2A2A4A]/50" : "bg-white border border-[#E2E4F0] shadow-sm"}`}>
         <div className="flex items-center gap-2 mb-4">
           <AlertTriangle className="w-5 h-5 text-amber-400" />
           <h3 className={`font-semibold ${theme === "dark" ? "text-white" : "text-[#1A1B2E]"}`}>
@@ -213,7 +217,7 @@ function DashboardTab({ stats, loading }: { stats: Stats | null; loading: boolea
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Top reviewed / popular fallback */}
-        <div className={`rounded-xl p-5 ${theme === "dark" ? "bg-[#2A2A4A]/60 border border-[#2A2A4A]/50" : "bg-white border border-[#E2E4F0] shadow-sm shadow-sm"}`}>
+        <div className={`rounded-xl p-5 ${theme === "dark" ? "bg-[#2A2A4A]/60 border border-[#2A2A4A]/50" : "bg-white border border-[#E2E4F0] shadow-sm"}`}>
           <h3 className={`font-semibold mb-4 ${theme === "dark" ? "text-white" : "text-[#1A1B2E]"}`}>
             {hasReviews
               ? (language === "bg" ? "Най-ревюирани филми" : "Top Reviewed Movies")
@@ -250,7 +254,7 @@ function DashboardTab({ stats, loading }: { stats: Stats | null; loading: boolea
         </div>
 
         {/* Most active users */}
-        <div className={`rounded-xl p-5 ${theme === "dark" ? "bg-[#2A2A4A]/60 border border-[#2A2A4A]/50" : "bg-white border border-[#E2E4F0] shadow-sm shadow-sm"}`}>
+        <div className={`rounded-xl p-5 ${theme === "dark" ? "bg-[#2A2A4A]/60 border border-[#2A2A4A]/50" : "bg-white border border-[#E2E4F0] shadow-sm"}`}>
           <h3 className={`font-semibold mb-4 ${theme === "dark" ? "text-white" : "text-[#1A1B2E]"}`}>
             {language === "bg" ? "Най-активни потребители" : "Most Active Users"}
           </h3>
@@ -277,7 +281,7 @@ function DashboardTab({ stats, loading }: { stats: Stats | null; loading: boolea
 
       {/* Recent admin actions */}
       {recentActions.length > 0 && (
-        <div className={`rounded-xl p-5 ${theme === "dark" ? "bg-[#2A2A4A]/60 border border-[#2A2A4A]/50" : "bg-white border border-[#E2E4F0] shadow-sm shadow-sm"}`}>
+        <div className={`rounded-xl p-5 ${theme === "dark" ? "bg-[#2A2A4A]/60 border border-[#2A2A4A]/50" : "bg-white border border-[#E2E4F0] shadow-sm"}`}>
           <div className="flex items-center gap-2 mb-4">
             <Clock className="w-5 h-5 text-blue-400" />
             <h3 className={`font-semibold ${theme === "dark" ? "text-white" : "text-[#1A1B2E]"}`}>
@@ -305,6 +309,8 @@ function UsersTab() {
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [actionLoading, setActionLoading] = useState<number | null>(null);
+  const [page, setPage] = useState(0);
+  const PAGE_SIZE = 20;
 
   useEffect(() => {
     api.get("/users/").then(r => { setUsers(r.data); setLoading(false); }).catch(() => setLoading(false));
@@ -322,11 +328,16 @@ function UsersTab() {
     setActionLoading(null);
   };
 
-  const handleToggleAdmin = async (userId: number) => {
+  const handleToggleAdmin = async (userId: number, currentlyAdmin: boolean) => {
+    const endpoint = currentlyAdmin ? "remove-admin" : "make-admin";
+    const confirmMsg = currentlyAdmin
+      ? (language === "bg" ? "Премахни админ права?" : "Remove admin privileges?")
+      : (language === "bg" ? "Направи админ?" : "Make this user an admin?");
+    if (!confirm(confirmMsg)) return;
     setActionLoading(userId);
     try {
-      await api.patch(`/users/${userId}/make-admin`);
-      setUsers(prev => prev.map(u => u.id === userId ? { ...u, is_admin: true } : u));
+      await api.patch(`/users/${userId}/${endpoint}`);
+      setUsers(prev => prev.map(u => u.id === userId ? { ...u, is_admin: !currentlyAdmin } : u));
     } catch (err: any) {
       alert(err.response?.data?.detail || "Failed");
     }
@@ -337,6 +348,13 @@ function UsersTab() {
     u.name.toLowerCase().includes(search.toLowerCase()) ||
     u.email.toLowerCase().includes(search.toLowerCase())
   );
+
+  // Paginate the filtered results
+  const totalPages = Math.ceil(filtered.length / PAGE_SIZE);
+  const paginated = filtered.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE);
+
+  // Reset page when search changes
+  useEffect(() => { setPage(0); }, [search]);
 
   if (loading) return <div className="flex justify-center py-20"><Loader2 className="w-8 h-8 animate-spin text-[#A7A7C7]" /></div>;
 
@@ -358,12 +376,13 @@ function UsersTab() {
                 <th className={`px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider ${theme === "dark" ? "text-[#A7A7C7]" : "text-[#5B5D78]"}`}>ID</th>
                 <th className={`px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider ${theme === "dark" ? "text-[#A7A7C7]" : "text-[#5B5D78]"}`}>{language === "bg" ? "Потребител" : "User"}</th>
                 <th className={`px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider ${theme === "dark" ? "text-[#A7A7C7]" : "text-[#5B5D78]"}`}>Email</th>
+                <th className={`px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider ${theme === "dark" ? "text-[#A7A7C7]" : "text-[#5B5D78]"}`}>{language === "bg" ? "Дата" : "Joined"}</th>
                 <th className={`px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider ${theme === "dark" ? "text-[#A7A7C7]" : "text-[#5B5D78]"}`}>{language === "bg" ? "Роля" : "Role"}</th>
                 <th className={`px-4 py-3 text-right text-xs font-semibold uppercase tracking-wider ${theme === "dark" ? "text-[#A7A7C7]" : "text-[#5B5D78]"}`}>{language === "bg" ? "Действия" : "Actions"}</th>
               </tr>
             </thead>
             <tbody className={`divide-y ${theme === "dark" ? "divide-gray-700/50" : "divide-gray-100"}`}>
-              {filtered.map(u => (
+              {paginated.map(u => (
                 <tr key={u.id} className={theme === "dark" ? "hover:bg-[#2A2A4A]/40" : "hover:bg-[#F8F9FC]"}>
                   <td className={`px-4 py-3 text-sm ${theme === "dark" ? "text-[#A7A7C7]" : "text-[#5B5D78]"}`}>{u.id}</td>
                   <td className="px-4 py-3">
@@ -375,6 +394,9 @@ function UsersTab() {
                     </div>
                   </td>
                   <td className={`px-4 py-3 text-sm ${theme === "dark" ? "text-[#A7A7C7]" : "text-[#5B5D78]"}`}>{u.email}</td>
+                  <td className={`px-4 py-3 text-xs ${theme === "dark" ? "text-[#A7A7C7]" : "text-[#5B5D78]"}`}>
+                    {u.created_at ? new Date(u.created_at).toLocaleDateString(language === "bg" ? "bg-BG" : "en-US", { year: "numeric", month: "short", day: "numeric" }) : "—"}
+                  </td>
                   <td className="px-4 py-3">
                     {u.is_admin ? (
                       <span className="inline-flex items-center gap-1 text-xs font-medium px-2 py-1 rounded-full bg-amber-500/20 text-amber-400">
@@ -386,11 +408,15 @@ function UsersTab() {
                   </td>
                   <td className="px-4 py-3">
                     <div className="flex items-center justify-end gap-2">
-                      {!u.is_admin && (
-                        <button onClick={() => handleToggleAdmin(u.id)} disabled={actionLoading === u.id}
-                          className={`p-2 rounded-lg transition-colors ${theme === "dark" ? "hover:bg-amber-500/20 text-[#A7A7C7] hover:text-amber-400" : "hover:bg-amber-50 text-[#A7A7C7] hover:text-amber-600"}`}
-                          title={language === "bg" ? "Направи админ" : "Make admin"}>
-                          {actionLoading === u.id ? <Loader2 className="w-4 h-4 animate-spin" /> : <Shield className="w-4 h-4" />}
+                      {u.id !== currentUser?.id && (
+                        <button onClick={() => handleToggleAdmin(u.id, u.is_admin)} disabled={actionLoading === u.id}
+                          className={`p-2 rounded-lg transition-colors ${
+                            u.is_admin
+                              ? (theme === "dark" ? "hover:bg-red-500/20 text-amber-400 hover:text-red-400" : "hover:bg-red-50 text-amber-600 hover:text-red-600")
+                              : (theme === "dark" ? "hover:bg-amber-500/20 text-[#A7A7C7] hover:text-amber-400" : "hover:bg-amber-50 text-[#A7A7C7] hover:text-amber-600")
+                          }`}
+                          title={u.is_admin ? (language === "bg" ? "Премахни админ" : "Remove admin") : (language === "bg" ? "Направи админ" : "Make admin")}>
+                          {actionLoading === u.id ? <Loader2 className="w-4 h-4 animate-spin" /> : u.is_admin ? <ShieldOff className="w-4 h-4" /> : <Shield className="w-4 h-4" />}
                         </button>
                       )}
                       {u.id !== currentUser?.id && (
@@ -407,15 +433,33 @@ function UsersTab() {
             </tbody>
           </table>
         </div>
-        {filtered.length === 0 && (
+        {paginated.length === 0 && (
           <p className={`text-center py-8 text-sm ${theme === "dark" ? "text-[#A7A7C7]" : "text-[#5B5D78]"}`}>
             {search ? (language === "bg" ? "Няма резултати" : "No results") : (language === "bg" ? "Няма потребители" : "No users")}
           </p>
         )}
       </div>
-      <p className={`text-xs ${theme === "dark" ? "text-[#5B5D78]" : "text-[#A7A7C7]"}`}>
-        {language === "bg" ? `${filtered.length} от ${users.length} потребители` : `${filtered.length} of ${users.length} users`}
-      </p>
+
+      {/* Pagination */}
+      <div className="flex items-center justify-between">
+        <p className={`text-xs ${theme === "dark" ? "text-[#5B5D78]" : "text-[#A7A7C7]"}`}>
+          {language === "bg"
+            ? `${filtered.length} от ${users.length} потребители${totalPages > 1 ? ` · Стр. ${page + 1} от ${totalPages}` : ""}`
+            : `${filtered.length} of ${users.length} users${totalPages > 1 ? ` · Page ${page + 1} of ${totalPages}` : ""}`}
+        </p>
+        {totalPages > 1 && (
+          <div className="flex gap-2">
+            <button onClick={() => setPage(p => Math.max(0, p - 1))} disabled={page === 0}
+              className={`p-2 rounded-lg border ${theme === "dark" ? "border-[#2A2A4A] text-[#A7A7C7] hover:bg-[#2A2A4A] disabled:opacity-30" : "border-[#E2E4F0] text-[#A7A7C7] hover:bg-[#F8F9FC] disabled:opacity-30"}`}>
+              <ChevronLeft className="w-4 h-4" />
+            </button>
+            <button onClick={() => setPage(p => Math.min(totalPages - 1, p + 1))} disabled={page >= totalPages - 1}
+              className={`p-2 rounded-lg border ${theme === "dark" ? "border-[#2A2A4A] text-[#A7A7C7] hover:bg-[#2A2A4A] disabled:opacity-30" : "border-[#E2E4F0] text-[#A7A7C7] hover:bg-[#F8F9FC] disabled:opacity-30"}`}>
+              <ChevronRight className="w-4 h-4" />
+            </button>
+          </div>
+        )}
+      </div>
     </div>
   );
 }
@@ -437,7 +481,8 @@ function MoviesTab() {
   const [editingId, setEditingId] = useState<number | null>(null);
   const [editForm, setEditForm] = useState<MovieEditForm>({
     title: "", title_bg: "", genre: "", genre_bg: "",
-    summary_bg: "", poster_path: "", backdrop_path: "",
+    summary: "", summary_bg: "", release_date: "", runtime: "",
+    poster_path: "", backdrop_path: "",
   });
   const PAGE_SIZE = 20;
 
@@ -491,7 +536,8 @@ function MoviesTab() {
     setEditForm({
       title: m.title || "", title_bg: m.title_bg || "",
       genre: m.genre || "", genre_bg: m.genre_bg || "",
-      summary_bg: m.summary_bg || "",
+      summary: m.summary || "", summary_bg: m.summary_bg || "",
+      release_date: m.release_date || "", runtime: m.runtime != null ? String(m.runtime) : "",
       poster_path: m.poster_path || "", backdrop_path: m.backdrop_path || "",
     });
   };
@@ -499,13 +545,19 @@ function MoviesTab() {
   const saveEdit = async (movieId: number) => {
     setActionLoading(movieId);
     try {
-      const res = await api.put(`/admin/movies/${movieId}`, editForm);
-      // Update local state with response
+      const payload: Record<string, any> = { ...editForm };
+      // Convert runtime to int for the backend
+      if (payload.runtime) payload.runtime = parseInt(payload.runtime, 10) || null;
+      else payload.runtime = null;
+
+      await api.put(`/admin/movies/${movieId}`, payload);
       setMovies(prev => prev.map(m => m.id === movieId ? {
         ...m,
         title: editForm.title, title_bg: editForm.title_bg,
         genre: editForm.genre, genre_bg: editForm.genre_bg,
-        summary_bg: editForm.summary_bg,
+        summary: editForm.summary, summary_bg: editForm.summary_bg,
+        release_date: editForm.release_date,
+        runtime: editForm.runtime ? parseInt(editForm.runtime, 10) : undefined,
         poster_path: editForm.poster_path, backdrop_path: editForm.backdrop_path,
       } : m));
       setEditingId(null);
@@ -609,7 +661,7 @@ function MoviesTab() {
                             className="p-2 rounded-lg hover:bg-green-500/20 text-green-400" title="Save">
                             {actionLoading === m.id ? <Loader2 className="w-4 h-4 animate-spin" /> : <Check className="w-4 h-4" />}
                           </button>
-                          <button onClick={() => setEditingId(null)} className="p-2 rounded-lg hover:bg-[#F8F9FC]0/20 text-[#A7A7C7]" title="Cancel">
+                          <button onClick={() => setEditingId(null)} className="p-2 rounded-lg hover:bg-[#2A2A4A]/20 text-[#A7A7C7]" title="Cancel">
                             <X className="w-4 h-4" />
                           </button>
                         </>
@@ -637,7 +689,14 @@ function MoviesTab() {
               {movies.map(m => editingId === m.id ? (
                 <tr key={`edit-${m.id}`} className={theme === "dark" ? "bg-[#2A2A4A]/30" : "bg-blue-50/30"}>
                   <td colSpan={6} className="px-4 py-3">
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mb-3">
+                      <div>
+                        <label className={`block text-xs font-medium mb-1 ${theme === "dark" ? "text-[#A7A7C7]" : "text-[#5B5D78]"}`}>
+                          {language === "bg" ? "Описание EN" : "Summary (EN)"}
+                        </label>
+                        <textarea value={editForm.summary} onChange={e => setEditForm(f => ({ ...f, summary: e.target.value }))}
+                          rows={3} className={`${inputCls} resize-none`} placeholder="English summary..." />
+                      </div>
                       <div>
                         <label className={`block text-xs font-medium mb-1 ${theme === "dark" ? "text-[#A7A7C7]" : "text-[#5B5D78]"}`}>
                           {language === "bg" ? "Описание BG" : "Summary (BG)"}
@@ -645,13 +704,28 @@ function MoviesTab() {
                         <textarea value={editForm.summary_bg} onChange={e => setEditForm(f => ({ ...f, summary_bg: e.target.value }))}
                           rows={3} className={`${inputCls} resize-none`} placeholder={language === "bg" ? "Описание на български..." : "Bulgarian summary..."} />
                       </div>
+                    </div>
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                      <div>
+                        <label className={`block text-xs font-medium mb-1 ${theme === "dark" ? "text-[#A7A7C7]" : "text-[#5B5D78]"}`}>
+                          {language === "bg" ? "Дата на издаване" : "Release date"}
+                        </label>
+                        <input type="date" value={editForm.release_date} onChange={e => setEditForm(f => ({ ...f, release_date: e.target.value }))}
+                          className={inputCls} />
+                      </div>
+                      <div>
+                        <label className={`block text-xs font-medium mb-1 ${theme === "dark" ? "text-[#A7A7C7]" : "text-[#5B5D78]"}`}>
+                          {language === "bg" ? "Времетраене (мин)" : "Runtime (min)"}
+                        </label>
+                        <input type="number" value={editForm.runtime} onChange={e => setEditForm(f => ({ ...f, runtime: e.target.value }))}
+                          className={inputCls} placeholder="120" />
+                      </div>
                       <div>
                         <label className={`block text-xs font-medium mb-1 ${theme === "dark" ? "text-[#A7A7C7]" : "text-[#5B5D78]"}`}>
                           Poster path
                         </label>
                         <input value={editForm.poster_path} onChange={e => setEditForm(f => ({ ...f, poster_path: e.target.value }))}
                           className={inputCls} placeholder="/abc123.jpg" />
-                        <p className={`text-[10px] mt-1 ${theme === "dark" ? "text-[#5B5D78]" : "text-[#A7A7C7]"}`}>TMDb path (e.g. /1E5baAaEse26fej7uHcjOgEERB2.jpg)</p>
                       </div>
                       <div>
                         <label className={`block text-xs font-medium mb-1 ${theme === "dark" ? "text-[#A7A7C7]" : "text-[#5B5D78]"}`}>
@@ -659,7 +733,6 @@ function MoviesTab() {
                         </label>
                         <input value={editForm.backdrop_path} onChange={e => setEditForm(f => ({ ...f, backdrop_path: e.target.value }))}
                           className={inputCls} placeholder="/xyz789.jpg" />
-                        <p className={`text-[10px] mt-1 ${theme === "dark" ? "text-[#5B5D78]" : "text-[#A7A7C7]"}`}>TMDb path for background image</p>
                       </div>
                     </div>
                   </td>
@@ -709,16 +782,24 @@ function ReviewsTab() {
   const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState<number | null>(null);
   const [page, setPage] = useState(0);
+  const [search, setSearch] = useState("");
+  const [searchInput, setSearchInput] = useState("");
   const PAGE_SIZE = 20;
 
-  const fetchReviews = (pg: number) => {
+  const fetchReviews = useCallback((pg: number, q: string) => {
     setLoading(true);
-    api.get("/admin/reviews", { params: { skip: pg * PAGE_SIZE, limit: PAGE_SIZE } })
+    api.get("/admin/reviews", { params: { search: q, skip: pg * PAGE_SIZE, limit: PAGE_SIZE } })
       .then(r => { setReviews(r.data.reviews); setTotal(r.data.total); setLoading(false); })
       .catch(() => setLoading(false));
-  };
+  }, []);
 
-  useEffect(() => { fetchReviews(page); }, [page]);
+  useEffect(() => { fetchReviews(page, search); }, [page, search, fetchReviews]);
+
+  const handleSearch = (e: React.FormEvent) => {
+    e.preventDefault();
+    setSearch(searchInput.trim());
+    setPage(0);
+  };
 
   const handleDelete = async (reviewId: number) => {
     if (!confirm(language === "bg" ? "Изтрий това ревю?" : "Delete this review?")) return;
@@ -739,6 +820,26 @@ function ReviewsTab() {
 
   return (
     <div className="space-y-4">
+      {/* Search */}
+      <form onSubmit={handleSearch} className="flex gap-2 max-w-lg">
+        <div className="relative flex-1">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[#A7A7C7]" />
+          <input type="text" value={searchInput} onChange={e => setSearchInput(e.target.value)}
+            placeholder={language === "bg" ? "Търси по потребител или филм..." : "Search by user or movie..."}
+            className={`w-full pl-10 pr-4 py-2.5 rounded-lg border ${theme === "dark" ? "bg-[#2A2A4A] border-[#2A2A4A] text-white placeholder:text-[#A7A7C7]" : "bg-white border-[#E2E4F0] text-[#1A1B2E] placeholder:text-[#A7A7C7]"} focus:outline-none focus:ring-2 focus:ring-primary`}
+          />
+        </div>
+        <button type="submit" className="px-4 py-2.5 bg-primary text-white rounded-lg font-medium hover:brightness-110 transition">
+          {language === "bg" ? "Търси" : "Search"}
+        </button>
+        {search && (
+          <button type="button" onClick={() => { setSearchInput(""); setSearch(""); setPage(0); }}
+            className={`p-2.5 rounded-lg border ${theme === "dark" ? "border-[#2A2A4A] text-[#A7A7C7] hover:bg-[#2A2A4A]" : "border-[#E2E4F0] text-[#A7A7C7] hover:bg-[#F8F9FC]"}`}>
+            <X className="w-5 h-5" />
+          </button>
+        )}
+      </form>
+
       <div className={`rounded-xl overflow-hidden border ${theme === "dark" ? "border-[#2A2A4A]/50" : "border-[#E2E4F0]"}`}>
         <div className="overflow-x-auto">
           <table className="w-full">
@@ -826,9 +927,11 @@ function ActivityTab() {
   const { theme, language } = useApp();
   const [events, setEvents] = useState<AuditEvent[]>([]);
   const [loading, setLoading] = useState(true);
+  const [page, setPage] = useState(0);
+  const PAGE_SIZE = 25;
 
   useEffect(() => {
-    api.get("/admin/audit-log", { params: { limit: 100 } })
+    api.get("/admin/audit-log", { params: { limit: 200 } })
       .then(r => { setEvents(r.data.events || []); setLoading(false); })
       .catch(() => setLoading(false));
   }, []);
@@ -845,24 +948,50 @@ function ActivityTab() {
     );
   }
 
+  const totalPages = Math.ceil(events.length / PAGE_SIZE);
+  const paginated = events.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE);
+
   return (
-    <div className={`rounded-xl overflow-hidden border ${theme === "dark" ? "border-[#2A2A4A]/50" : "border-[#E2E4F0]"}`}>
-      <div className="overflow-x-auto">
-        <table className="w-full">
-          <thead>
-            <tr className={theme === "dark" ? "bg-[#2A2A4A]/80" : "bg-[#F8F9FC]"}>
-              <th className={`px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider ${theme === "dark" ? "text-[#A7A7C7]" : "text-[#5B5D78]"}`}>{language === "bg" ? "Действие" : "Action"}</th>
-              <th className={`px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider ${theme === "dark" ? "text-[#A7A7C7]" : "text-[#5B5D78]"}`}>{language === "bg" ? "Детайли" : "Details"}</th>
-              <th className={`px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider ${theme === "dark" ? "text-[#A7A7C7]" : "text-[#5B5D78]"}`}>{language === "bg" ? "От" : "By"}</th>
-              <th className={`px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider ${theme === "dark" ? "text-[#A7A7C7]" : "text-[#5B5D78]"}`}>{language === "bg" ? "Кога" : "When"}</th>
-              <th className={`px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider ${theme === "dark" ? "text-[#A7A7C7]" : "text-[#5B5D78]"}`}>IP</th>
-            </tr>
-          </thead>
-          <tbody className={`divide-y ${theme === "dark" ? "divide-gray-700/50" : "divide-gray-100"}`}>
-            {events.map((ev, i) => <AuditRow key={i} event={ev} />)}
-          </tbody>
-        </table>
+    <div className="space-y-4">
+      <div className={`rounded-xl overflow-hidden border ${theme === "dark" ? "border-[#2A2A4A]/50" : "border-[#E2E4F0]"}`}>
+        <div className="overflow-x-auto">
+          <table className="w-full">
+            <thead>
+              <tr className={theme === "dark" ? "bg-[#2A2A4A]/80" : "bg-[#F8F9FC]"}>
+                <th className={`px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider ${theme === "dark" ? "text-[#A7A7C7]" : "text-[#5B5D78]"}`}>{language === "bg" ? "Действие" : "Action"}</th>
+                <th className={`px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider ${theme === "dark" ? "text-[#A7A7C7]" : "text-[#5B5D78]"}`}>{language === "bg" ? "Детайли" : "Details"}</th>
+                <th className={`px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider ${theme === "dark" ? "text-[#A7A7C7]" : "text-[#5B5D78]"}`}>{language === "bg" ? "От" : "By"}</th>
+                <th className={`px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider ${theme === "dark" ? "text-[#A7A7C7]" : "text-[#5B5D78]"}`}>{language === "bg" ? "Кога" : "When"}</th>
+                <th className={`px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider ${theme === "dark" ? "text-[#A7A7C7]" : "text-[#5B5D78]"}`}>IP</th>
+              </tr>
+            </thead>
+            <tbody className={`divide-y ${theme === "dark" ? "divide-gray-700/50" : "divide-gray-100"}`}>
+              {paginated.map((ev, i) => <AuditRow key={page * PAGE_SIZE + i} event={ev} />)}
+            </tbody>
+          </table>
+        </div>
       </div>
+
+      {/* Pagination */}
+      {totalPages > 1 && (
+        <div className="flex items-center justify-between">
+          <p className={`text-xs ${theme === "dark" ? "text-[#5B5D78]" : "text-[#A7A7C7]"}`}>
+            {language === "bg"
+              ? `Стр. ${page + 1} от ${totalPages} (${events.length} записа)`
+              : `Page ${page + 1} of ${totalPages} (${events.length} events)`}
+          </p>
+          <div className="flex gap-2">
+            <button onClick={() => setPage(p => Math.max(0, p - 1))} disabled={page === 0}
+              className={`p-2 rounded-lg border ${theme === "dark" ? "border-[#2A2A4A] text-[#A7A7C7] hover:bg-[#2A2A4A] disabled:opacity-30" : "border-[#E2E4F0] text-[#A7A7C7] hover:bg-[#F8F9FC] disabled:opacity-30"}`}>
+              <ChevronLeft className="w-4 h-4" />
+            </button>
+            <button onClick={() => setPage(p => Math.min(totalPages - 1, p + 1))} disabled={page >= totalPages - 1}
+              className={`p-2 rounded-lg border ${theme === "dark" ? "border-[#2A2A4A] text-[#A7A7C7] hover:bg-[#2A2A4A] disabled:opacity-30" : "border-[#E2E4F0] text-[#A7A7C7] hover:bg-[#F8F9FC] disabled:opacity-30"}`}>
+              <ChevronRight className="w-4 h-4" />
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

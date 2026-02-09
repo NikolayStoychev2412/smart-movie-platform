@@ -1,12 +1,5 @@
 # app/models/movie.py
-"""
-Movie model with quality flags for diploma project.
-
-New flags:
-- has_bg_translation: True if Bulgarian translation is valid
-- has_text_for_embedding: True if summary exists for AI features
-- is_popular_seed: True if imported from popular/trending lists
-"""
+"""Movie model with quality flags."""
 
 from sqlalchemy import Column, Integer, String, Float, Text, Boolean, Date, DateTime, JSON
 from sqlalchemy.orm import relationship
@@ -17,92 +10,72 @@ from app.database import Base
 class Movie(Base):
     __tablename__ = "movies"
     
-    # === PRIMARY KEY ===
     id = Column(Integer, primary_key=True, index=True)
-    
-    # === EXTERNAL IDs ===
+
     tmdb_id = Column(Integer, unique=True, index=True)
     imdb_id = Column(String(20), index=True)
-    
-    # === ENGLISH CONTENT ===
+
     title = Column(String(500), nullable=False, index=True)
     original_title = Column(String(500))
     tagline = Column(String(500))
-    summary = Column(Text)  # English overview
-    
-    # === BULGARIAN CONTENT ===
-    title_bg = Column(String(500))  # Validated Bulgarian title
+    summary = Column(Text)
+
+    title_bg = Column(String(500))
     tagline_bg = Column(String(500))
-    summary_bg = Column(Text)  # Validated Bulgarian overview
-    
-    # === GENRES ===
-    genre = Column(String(500))  # English genres (comma-separated)
-    genre_bg = Column(String(500))  # Bulgarian genres
-    genres = Column(JSON)  # [{id, name}] - structured genre data
-    
-    # === DATES & DURATION ===
+    summary_bg = Column(Text)
+
+    genre = Column(String(500))
+    genre_bg = Column(String(500))
+    genres = Column(JSON)
+
     release_date = Column(Date)
     release_year = Column(Integer, index=True)
-    runtime = Column(Integer)  # Minutes
-    
-    # === RATINGS ===
-    # TMDb ratings (source of truth for cold start)
-    tmdb_rating = Column(Float, default=0)  # 0-10 scale
+    runtime = Column(Integer)
+    tmdb_rating = Column(Float, default=0)
     tmdb_vote_count = Column(Integer, default=0)
-    popularity = Column(Float, default=0, index=True)  # TMDb popularity score
-    
-    # Community ratings (your app)
-    average_rating = Column(Float, default=0)  # 0-10 scale (same as TMDb)
+    popularity = Column(Float, default=0, index=True)
+
+    average_rating = Column(Float, default=0)
     review_count = Column(Integer, default=0)
-    
-    # === IMAGES ===
-    poster_path = Column(String(200))  # TMDb path: /abc123.jpg
-    poster_url = Column(String(500))   # Full URL
+
+    poster_path = Column(String(200))
+    poster_url = Column(String(500))
     backdrop_path = Column(String(200))
     backdrop_url = Column(String(500))
-    
-    # === CAST & CREW (JSON) ===
-    cast = Column(JSON)  # [{id, name, character, profile_path, order}]
-    crew = Column(JSON)  # [{id, name, job, department}]
-    main_actors = Column(JSON)  # ["Actor 1", "Actor 2", ...]
+
+    cast = Column(JSON)
+    crew = Column(JSON)
+    main_actors = Column(JSON)
     director = Column(String(200))
-    
-    # === VIDEOS ===
-    videos = Column(JSON)  # [{key, name, type, official}]
+
+    videos = Column(JSON)
     trailer_youtube_key = Column(String(50))
-    
-    # === METADATA ===
-    status = Column(String(50))  # Released, Post Production, etc.
+
+    status = Column(String(50))
     adult = Column(Boolean, default=False)
     original_language = Column(String(10))
     budget = Column(Integer, default=0)
     revenue = Column(Integer, default=0)
     homepage = Column(String(500))
-    keywords = Column(JSON)  # ["keyword1", "keyword2", ...]
-    
-    # === PRODUCTION INFO ===
-    production_companies = Column(JSON)  # [{id, name, logo_path, origin_country}]
-    production_countries = Column(JSON)  # [{iso_3166_1, name}]
-    spoken_languages = Column(JSON)  # [{iso_639_1, name}]
-    belongs_to_collection = Column(JSON)  # {id, name, poster_path, backdrop_path}
-    
-    # === EMBEDDINGS ===
-    embedding = Column(JSON)  # Vector for semantic search
+    keywords = Column(JSON)
+
+    production_companies = Column(JSON)
+    production_countries = Column(JSON)
+    spoken_languages = Column(JSON)
+    belongs_to_collection = Column(JSON)
+
+    embedding = Column(JSON)
     embedding_model = Column(String(100))
     embedding_generated_at = Column(Float)
-    
-    # === QUALITY FLAGS ===
+
     has_bg_translation = Column(Boolean, default=False, index=True)
     has_text_for_embedding = Column(Boolean, default=True, index=True)
     is_popular_seed = Column(Boolean, default=False, index=True)
-    
-    # === TIMESTAMPS ===
+
     created_at = Column(DateTime, server_default=func.now())
     updated_at = Column(DateTime, server_default=func.now(), onupdate=func.now())
-    tmdb_last_updated = Column(Float)  # Unix timestamp of last TMDb sync
-    
-    # === RELATIONSHIPS ===
-    # Must match back_populates in Review, Watchlist, Favorite models
+    tmdb_last_updated = Column(Float)
+
     reviews = relationship("Review", back_populates="movie", cascade="all, delete-orphan")
     watchlist_entries = relationship("Watchlist", back_populates="movie", cascade="all, delete-orphan")
     favorited_by = relationship("Favorite", back_populates="movie", cascade="all, delete-orphan")

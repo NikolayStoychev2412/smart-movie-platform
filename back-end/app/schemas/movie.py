@@ -7,10 +7,6 @@ from typing import Optional, List, Dict
 from datetime import date
 
 
-# =========================================================================
-# NESTED SCHEMAS (for JSON fields)
-# =========================================================================
-
 class GenreSchema(BaseModel):
     """Genre with ID and name"""
     id: int
@@ -86,10 +82,6 @@ class CollectionSchema(BaseModel):
     backdrop_path: Optional[str] = None
 
 
-# =========================================================================
-# BASE SCHEMAS
-# =========================================================================
-
 class MovieBase(BaseModel):
     """Base movie fields"""
     title: str = Field(..., min_length=1, max_length=200)
@@ -163,7 +155,6 @@ class MovieUpdate(BaseModel):
     tagline: Optional[str] = None
     poster_url: Optional[str] = None
     
-    # All other fields optional...
     title_bg: Optional[str] = None
     genre_bg: Optional[str] = None
     summary_bg: Optional[str] = None
@@ -171,15 +162,10 @@ class MovieUpdate(BaseModel):
     runtime: Optional[int] = None
     release_date: Optional[date] = None
     
-    # Can update cast, crew, videos, etc.
     cast: Optional[List[Dict]] = None
     crew: Optional[List[Dict]] = None
     videos: Optional[List[Dict]] = None
 
-
-# =========================================================================
-# OUTPUT SCHEMAS
-# =========================================================================
 
 class MovieOut(BaseModel):
     """Standard movie output"""
@@ -290,10 +276,6 @@ class MovieWithVideos(MovieOut):
     trailer_youtube_key: Optional[str] = None
     trailer_url: Optional[str] = None
 
-
-# =========================================================================
-# HELPER FUNCTIONS
-# =========================================================================
 
 def format_runtime(minutes: Optional[int]) -> Optional[str]:
     """Format runtime as 'Xh Ym'"""

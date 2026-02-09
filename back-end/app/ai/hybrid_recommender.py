@@ -10,6 +10,7 @@ Hybrid recommendation system with:
 7. Quality boost (TMDB rating + community rating + favorite count)
 """
 import logging
+import math
 from typing import List, Tuple, Optional, Dict
 from sqlalchemy.orm import Session
 from sqlalchemy import func
@@ -36,6 +37,19 @@ WATCHLIST_WEIGHTS = {
 
 # Favorite weight (very strong positive signal)
 FAVORITE_WEIGHT = 2.0  # Favorites are strong indicators of taste
+
+# Mood to genre mapping (mood IDs from frontend → genres that match the vibe)
+MOOD_GENRE_MAP = {
+    "happy": ["Comedy", "Family", "Animation", "Musical"],
+    "thrilling": ["Action", "Thriller", "Crime", "Adventure"],
+    "thoughtful": ["Drama", "Documentary", "History"],
+    "emotional": ["Drama", "Romance", "War"],
+    "scary": ["Horror", "Thriller", "Mystery"],
+    "relaxed": ["Comedy", "Family", "Animation", "Romance"],
+}
+
+# How much mood influences the final score (0.0-1.0)
+MOOD_BOOST = 0.15
 
 # Dynamic weight thresholds
 MIN_ACTIVITY_FOR_BEHAVIOR = 3  # After this many activities, start reducing genre weight
@@ -155,13 +169,6 @@ class HybridRecommender:
             if movie:
                 return {'title': movie.title, 'title_bg': movie.title_bg or movie.title}
 
-        # Fourth try: currently watching
-        watching = [w for w in user_watchlist if w.status == WatchStatus.WATCHING]
-        if watching:
-            movie = db.query(Movie).filter(Movie.id == watching[0].movie_id).first()
-            if movie:
-                return {'title': movie.title, 'title_bg': movie.title_bg or movie.title}
-
         return None
     
     def recommend_for_user(
@@ -190,21 +197,23 @@ class HybridRecommender:
         user_watchlist = db.query(Watchlist).filter(Watchlist.user_id == user_id).all()
         user_favorites = db.query(Favorite).filter(Favorite.user_id == user_id).all()
         
-        # Calculate activity count (include favorites)
+        # Calculate activity count (include favorites, only completed/dropped from watchlist)
         activity_count = len(user_reviews) + len(user_favorites) + len([
-            w for w in user_watchlist 
-            if w.status in (WatchStatus.COMPLETED, WatchStatus.WATCHING, WatchStatus.DROPPED)
+            w for w in user_watchlist
+            if w.status in (WatchStatus.COMPLETED, WatchStatus.DROPPED)
         ])
         
-        # Get preferred genres
+        # Get preferred genres and mood
         preferred_genres = getattr(user, 'preferred_genres', None) or []
+        preferred_mood = getattr(user, 'preferred_mood', None)
+        mood_genres = MOOD_GENRE_MAP.get(preferred_mood, []) if preferred_mood else []
         has_genres = len(preferred_genres) > 0
-        
-        logger.info(f"User {user_id}: activity={activity_count}, genres={preferred_genres}, favorites={len(user_favorites)}")
+
+        logger.debug(f"User {user_id}: activity={activity_count}, genres={preferred_genres}, mood={preferred_mood}, favorites={len(user_favorites)}")
         
         # Calculate dynamic weights
         weights = self._calculate_dynamic_weights(activity_count, has_genres)
-        logger.info(f"Dynamic weights: {weights}")
+        logger.debug(f"Dynamic weights: {weights}")
         
         # Get the top movie for "Because you watched X" explanations
         top_user_movie = self._get_top_user_movie(db, user_reviews, user_watchlist, user_favorites)
@@ -321,24 +330,38 @@ class HybridRecommender:
             
             movie = data['movie']
             
-            # Base score from recommendation signals
-            base_score = sum(data['scores'].values())
-            
+            # Base score from recommendation signals (clamp to prevent >1)
+            base_score = min(1.0, sum(data['scores'].values()))
+
             # Quality score boost (TMDB rating + community + favorites)
             quality_score = self._calculate_quality_score(
-                movie, 
+                movie,
                 favorite_counts.get(movie_id, 0),
                 max_favorites
             )
-            
-            # Final score: 70% recommendation relevance + 30% quality
-            total_score = 0.7 * base_score + 0.3 * quality_score
-            
+            quality_score = min(1.0, max(0.0, quality_score))
+
+            # Mood boost: if user has a preferred mood, boost movies whose genres overlap
+            mood_score = 0.0
+            if mood_genres:
+                movie_genres_lower = [g.strip().lower() for g in (movie.genre or '').split(',')]
+                mood_matches = sum(1 for mg in mood_genres if mg.lower() in movie_genres_lower)
+                if mood_matches > 0:
+                    mood_score = MOOD_BOOST * (mood_matches / len(mood_genres))
+                    data['reasons'].append({
+                        'type': 'mood',
+                        'text': f"Matches your {preferred_mood} mood",
+                        'text_bg': f"Съвпада с вашето настроение",
+                    })
+
+            # Final score: 65% recommendation relevance + 25% quality + mood boost
+            total_score = min(1.0, 0.65 * base_score + 0.25 * quality_score + mood_score)
+
             # Build explanation with best reasons first
-            # Priority: content (specific movie) > genre > collaborative > popularity
+            # Priority: content (specific movie) > genre > mood > collaborative > popularity
             sorted_reasons = sorted(
                 data['reasons'],
-                key=lambda r: {'content': 0, 'genre': 1, 'collaborative': 2, 'popularity': 3}.get(r['type'], 4)
+                key=lambda r: {'content': 0, 'genre': 1, 'mood': 2, 'collaborative': 3, 'popularity': 4}.get(r['type'], 5)
             )
             
             explanation = {
@@ -346,7 +369,8 @@ class HybridRecommender:
                 'reasons_bg': [r['text_bg'] for r in sorted_reasons[:3] if 'text_bg' in r],
                 'score_breakdown': {
                     **{k: round(v, 3) for k, v in data['scores'].items()},
-                    'quality': round(quality_score, 3)
+                    'quality': round(quality_score, 3),
+                    'mood': round(mood_score, 3)
                 },
                 'total_score': round(total_score, 3),
                 'weights_used': weights,
@@ -381,12 +405,14 @@ class HybridRecommender:
         - Community rating (your app's ratings with confidence weighting)
         - Favorite count (strong engagement signal)
         """
-        # TMDB rating (0-10 normalized to 0-1)
-        tmdb_norm = (getattr(movie, 'tmdb_rating', None) or 0) / 10.0
-        
+        # TMDB rating (0-10 normalized to 0-1, clamped)
+        tmdb_raw = getattr(movie, 'tmdb_rating', None) or 0
+        tmdb_norm = max(0.0, min(1.0, tmdb_raw / 10.0))
+
         # Community rating with confidence weighting
         review_count = getattr(movie, 'review_count', None) or 0
-        app_rating = (movie.average_rating or 0) / 5.0  # Normalize 5-star to 0-1
+        app_raw = movie.average_rating or 0
+        app_rating = max(0.0, min(1.0, app_raw / 5.0 if app_raw <= 5 else app_raw / 10.0))
         
         # Confidence: more reviews = more trust in community rating
         confidence = review_count / (review_count + CONFIDENCE_K)
@@ -394,7 +420,6 @@ class HybridRecommender:
         
         # Favorite boost (log normalized to prevent outliers)
         if max_favorites > 0 and favorite_count > 0:
-            import math
             fav_norm = math.log(1 + favorite_count) / math.log(1 + max_favorites)
         else:
             fav_norm = 0
@@ -442,7 +467,8 @@ class HybridRecommender:
                 matched = [g for g in preferred_genres if g.lower() in movie_genres]
                 
                 genre_match_score = len(matched) / len(preferred_genres)
-                rating_score = (movie.average_rating or 0) / 5.0
+                raw_rating = movie.average_rating or 0
+                rating_score = min(1.0, raw_rating / 5.0 if raw_rating <= 5 else raw_rating / 10.0)
                 
                 # Combined score
                 score = genre_match_score * 0.6 + rating_score * 0.4
@@ -495,29 +521,21 @@ class HybridRecommender:
                     'weight': 1.0  # High weight for favorites
                 })
         
-        # From watchlist (completed/watching)
+        # From watchlist (completed only - user must have finished watching)
         reviewed_ids = {r.movie_id for r in user_reviews}
         for entry in user_watchlist:
             if entry.movie_id in reviewed_ids or entry.movie_id in favorited_ids:
                 continue
-            if entry.status in (WatchStatus.COMPLETED, WatchStatus.WATCHING):
+            if entry.status == WatchStatus.COMPLETED:
                 movie = db.query(Movie).filter(Movie.id == entry.movie_id).first()
                 vector = self.vector_store.get_vector(entry.movie_id)
                 if movie and vector is not None:
-                    weight = 0.8 if entry.status == WatchStatus.COMPLETED else 0.6
                     user_movies_data.append({
                         'movie': movie,
                         'vector': np.array(vector),
-                        'weight': weight
+                        'weight': 0.8
                     })
         
-        # Search similar movies
-        search_results = self.vector_store.search(
-            query_vector=user_vector,
-            top_k=limit
-        )
-        
-        # Search similar movies
         search_results = self.vector_store.search(
             query_vector=user_vector,
             top_k=limit
@@ -625,7 +643,7 @@ class HybridRecommender:
         for movie_id, avg_rating, count in popular_among_similar:
             movie = db.query(Movie).filter(Movie.id == movie_id).first()
             if movie:
-                score = (avg_rating / 5.0) * 0.7 + min(count / 10, 1.0) * 0.3
+                score = min(1.0, (avg_rating / 5.0)) * 0.7 + min(count / 10, 1.0) * 0.3
                 results.append((movie, score))
         
         return results
@@ -705,7 +723,7 @@ class HybridRecommender:
             if entry.movie_id in reviewed_movie_ids or entry.movie_id in favorite_ids:
                 continue
             
-            if entry.status == WatchStatus.PLANNED:
+            if entry.status in (WatchStatus.PLANNED, WatchStatus.WATCHING):
                 continue
             
             vector = self.vector_store.get_vector(entry.movie_id)
@@ -752,14 +770,16 @@ class HybridRecommender:
     ) -> set:
         """Get movie IDs to exclude from recommendations."""
         excluded = set()
-        
-        excluded.update(r.movie_id for r in user_reviews)
-        
+
+        # Always exclude movies the user already reviewed
+        for review in user_reviews:
+            excluded.add(review.movie_id)
+
         if exclude_watched:
             for entry in user_watchlist:
-                if entry.status in (WatchStatus.COMPLETED, WatchStatus.WATCHING):
+                if entry.status in (WatchStatus.COMPLETED, WatchStatus.WATCHING, WatchStatus.DROPPED):
                     excluded.add(entry.movie_id)
-        
+
         return excluded
     
     def _get_popular_movies(

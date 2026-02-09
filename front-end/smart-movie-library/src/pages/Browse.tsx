@@ -4,7 +4,7 @@ import type { Movie } from "../types";
 import { moviesApi } from "../api/movies";
 import api from "../api/client";
 import { useApp } from "../context/AppContext";
-import { Search, Sparkles, Filter, ChevronDown, X, Grid, List, ChevronLeft, ChevronRight, Film, TrendingUp, Heart } from "lucide-react";
+import { Search, Sparkles, Filter, X, Grid, List, ChevronLeft, ChevronRight, Film, TrendingUp, Heart, Star } from "lucide-react";
 
 // Cache for movies
 const movieCache = {
@@ -21,7 +21,7 @@ const movieCache = {
   },
 };
 
-type SortOption = "best" | "rating" | "popularity" | "release_date" | "title" | "relevance";
+type SortOption = "best" | "rating" | "popularity" | "release_date" | "title";
 type ViewMode = "grid" | "list";
 type MoodOption = "all" | "funny" | "scary" | "romantic" | "exciting" | "thoughtful" | "dark" | "uplifting";
 
@@ -40,15 +40,15 @@ const moodToGenres: Record<MoodOption, string[]> = {
   uplifting: ["Family", "Comedy", "Animation", "Musical"],
 };
 
-const moodLabels: Record<MoodOption, { en: string; bg: string; emoji: string }> = {
-  all: { en: "All Moods", bg: "Всички", emoji: "🎬" },
-  funny: { en: "Funny", bg: "Забавно", emoji: "😂" },
-  scary: { en: "Scary", bg: "Страшно", emoji: "😱" },
-  romantic: { en: "Romantic", bg: "Романтично", emoji: "💕" },
-  exciting: { en: "Exciting", bg: "Вълнуващо", emoji: "🔥" },
-  thoughtful: { en: "Thoughtful", bg: "За размисъл", emoji: "🤔" },
-  dark: { en: "Dark", bg: "Мрачно", emoji: "🌑" },
-  uplifting: { en: "Uplifting", bg: "Вдъхновяващо", emoji: "✨" },
+const moodLabels: Record<MoodOption, { en: string; bg: string }> = {
+  all: { en: "All Moods", bg: "Всички" },
+  funny: { en: "Funny", bg: "Забавно" },
+  scary: { en: "Scary", bg: "Страшно" },
+  romantic: { en: "Romantic", bg: "Романтично" },
+  exciting: { en: "Exciting", bg: "Вълнуващо" },
+  thoughtful: { en: "Thoughtful", bg: "За размисъл" },
+  dark: { en: "Dark", bg: "Мрачно" },
+  uplifting: { en: "Uplifting", bg: "Вдъхновяващо" },
 };
 
 // ============================================================================
@@ -94,7 +94,7 @@ function calculateCombinedRating(movie: Movie): number {
 
   if (hasApp && !hasTmdb) return appNorm;
   if (!hasApp && hasTmdb) return tmdbNorm;
-  if (!hasApp && !hasTmdb) return 0.5; // neutral fallback
+  if (!hasApp && !hasTmdb) return 0.35; // low-neutral fallback for unknown movies
 
   // Confidence curve: at K reviews, confidence = 50%
   const confidence = clamp01(reviewCount / (reviewCount + CONFIDENCE_K));
@@ -111,9 +111,12 @@ function calculateCombinedRating(movie: Movie): number {
  */
 function getPopProxy(movie: Movie): number {
   const m = movie as any;
+  // Prefer TMDb popularity (typically 1-1000+), already a normalized popularity index
   if (m.popularity && m.popularity > 0) return m.popularity;
-  if (m.tmdb_vote_count && m.tmdb_vote_count > 0) return m.tmdb_vote_count;
-  if (m.review_count && m.review_count > 0) return m.review_count;
+  // Scale tmdb_vote_count down to match popularity range (vote counts can be 100k+)
+  if (m.tmdb_vote_count && m.tmdb_vote_count > 0) return Math.sqrt(m.tmdb_vote_count);
+  // Scale review_count up to match (our reviews are typically 0-50)
+  if (m.review_count && m.review_count > 0) return m.review_count * 5;
   return 0;
 }
 
@@ -251,11 +254,11 @@ function MovieCardGrid({ movie, onClick, language, theme, snippet }: { movie: Mo
   const title = language === "bg" ? movie.title_bg || movie.title : movie.title;
   const posterUrl = movie.poster_path ? `https://image.tmdb.org/t/p/w342${movie.poster_path}` : movie.poster_url;
   const releaseDate = movie.release_date ? new Date(movie.release_date).toLocaleDateString(language === "bg" ? "bg-BG" : "en-US", { year: "numeric", month: "short", day: "numeric" }) : null;
-  
-  // Use TMDB rating for display (more reliable)
-  const displayRating = (movie as any).tmdb_rating || (movie as any).average_rating || 0;
-  const appRating = (movie as any).average_rating;
+
+  const tmdbRating = (movie as any).tmdb_rating || 0;
+  const appRating = (movie as any).average_rating || 0;
   const reviewCount = (movie as any).review_count || 0;
+  const displayAppRating = appRating <= 5 ? appRating : appRating / 2;
 
   return (
     <div className="cursor-pointer group" onClick={onClick}>
@@ -267,20 +270,34 @@ function MovieCardGrid({ movie, onClick, language, theme, snippet }: { movie: Mo
             <Film className="w-10 h-10 text-[#A7A7C7]" />
           </div>
         )}
-        <div className="absolute bottom-2 left-2">
-          <CircularRating rating={displayRating} size={36} isTmdb={true} />
+        {/* Ratings — hidden on snippet hover */}
+        <div className={`absolute bottom-2 left-2 transition-opacity duration-300 ${snippet ? "group-hover:opacity-0" : ""}`}>
+          <CircularRating rating={tmdbRating} size={36} isTmdb={true} />
         </div>
+        {reviewCount > 0 && appRating > 0 && (
+          <div className={`absolute bottom-2 right-2 flex items-center gap-1 bg-black/70 backdrop-blur-sm rounded px-1.5 py-0.5 transition-opacity duration-300 ${snippet ? "group-hover:opacity-0" : ""}`}>
+            <Star className="w-3 h-3 fill-yellow-400 text-yellow-400" />
+            <span className="text-white text-[10px] font-semibold">{displayAppRating.toFixed(1)}</span>
+            <span className="text-[#A7A7C7] text-[9px]">({reviewCount})</span>
+          </div>
+        )}
         <MovieBadge badge={movie._badge} language={language} />
+        {/* AI snippet hover overlay */}
+        {snippet && (
+          <div className="absolute inset-0 bg-gradient-to-t from-black/95 via-black/60 to-transparent opacity-0 group-hover:opacity-100 transition-all duration-300 flex flex-col justify-end p-3">
+            <div className="flex items-center gap-1.5 mb-1.5">
+              <Sparkles className="w-3 h-3 text-[#A78BFA]" />
+              <span className="text-[10px] font-bold text-[#A78BFA] uppercase tracking-wider">
+                {language === "bg" ? "AI съвпадение" : "AI Match"}
+              </span>
+            </div>
+            <p className="text-white/90 text-[11px] leading-relaxed line-clamp-4">{snippet}</p>
+          </div>
+        )}
       </div>
       <div className="pt-3 px-1">
         <h3 className={`font-bold text-sm line-clamp-2 group-hover:text-primary transition-colors ${theme === "dark" ? "text-white" : "text-[#1A1B2E]"}`}>{title}</h3>
         {releaseDate && <p className={`text-sm mt-0.5 ${theme === "dark" ? "text-[#A7A7C7]" : "text-[#5B5D78]"}`}>{releaseDate}</p>}
-        {reviewCount > 0 && appRating > 0 && (
-          <p className={`text-xs mt-0.5 ${theme === "dark" ? "text-[#A7A7C7]" : "text-[#5B5D78]"}`}>
-            ★ {Number(appRating).toFixed(1)}/5 · {reviewCount} {reviewCount === 1 ? (language === "bg" ? "ревю" : "review") : (language === "bg" ? "ревюта" : "reviews")}
-          </p>
-        )}
-        {snippet && <p className="text-xs mt-1 text-primary line-clamp-2 italic">{snippet}</p>}
       </div>
     </div>
   );
@@ -291,11 +308,11 @@ function MovieCardList({ movie, onClick, language, theme, snippet }: { movie: Mo
   const summary = language === "bg" ? movie.summary_bg || movie.summary : movie.summary;
   const posterUrl = movie.poster_path ? `https://image.tmdb.org/t/p/w185${movie.poster_path}` : movie.poster_url;
   const releaseDate = movie.release_date ? new Date(movie.release_date).toLocaleDateString(language === "bg" ? "bg-BG" : "en-US", { year: "numeric", month: "short", day: "numeric" }) : null;
-  
-  // Use TMDB rating for display
-  const displayRating = (movie as any).tmdb_rating || (movie as any).average_rating || 0;
-  const appRating = (movie as any).average_rating;
+
+  const tmdbRating = (movie as any).tmdb_rating || 0;
+  const appRating = (movie as any).average_rating || 0;
   const reviewCount = (movie as any).review_count || 0;
+  const displayAppRating = appRating <= 5 ? appRating : appRating / 2;
 
   return (
     <div className={`flex rounded-lg cursor-pointer transition-all overflow-hidden border ${theme === "dark" ? "bg-[#1A1A33] hover:bg-[#2A2A4A] border-[#2A2A4A]" : "bg-white hover:bg-[#F8F9FC] border-[#E2E4F0] shadow-sm"}`} onClick={onClick}>
@@ -315,21 +332,26 @@ function MovieCardList({ movie, onClick, language, theme, snippet }: { movie: Mo
       </div>
       <div className="flex-1 p-4 flex flex-col justify-center min-w-0">
         <div className="flex items-start gap-3">
-          <CircularRating rating={displayRating} size={40} isTmdb={true} />
+          <CircularRating rating={tmdbRating} size={40} isTmdb={true} />
+          {reviewCount > 0 && appRating > 0 && (
+            <div className="flex items-center gap-1 bg-black/70 backdrop-blur-sm rounded-lg px-2 py-1.5 self-center">
+              <Star className="w-3.5 h-3.5 fill-yellow-400 text-yellow-400" />
+              <span className="text-white text-xs font-semibold">{displayAppRating.toFixed(1)}</span>
+              <span className="text-[#A7A7C7] text-[10px]">({reviewCount})</span>
+            </div>
+          )}
           <div className="flex-1 min-w-0">
             <h3 className={`font-bold line-clamp-1 ${theme === "dark" ? "text-white" : "text-[#1A1B2E]"}`}>{title}</h3>
             <div className="flex items-center gap-2 flex-wrap">
               {releaseDate && <p className={`text-sm ${theme === "dark" ? "text-[#A7A7C7]" : "text-[#5B5D78]"}`}>{releaseDate}</p>}
-              {reviewCount > 0 && appRating > 0 && (
-                <p className={`text-xs ${theme === "dark" ? "text-[#A7A7C7]" : "text-[#5B5D78]"}`}>
-                  · ★ {Number(appRating).toFixed(1)}/5 ({reviewCount})
-                </p>
-              )}
             </div>
           </div>
         </div>
         {snippet ? (
-          <p className="text-sm mt-2 text-primary line-clamp-2 italic">{snippet}</p>
+          <div className="flex items-start gap-2 mt-2 px-3 py-2 rounded-lg bg-gradient-to-r from-primary/10 to-secondary/10 border border-primary/20">
+            <Sparkles className="w-3.5 h-3.5 text-primary flex-shrink-0 mt-0.5" />
+            <p className="text-xs text-primary line-clamp-2 leading-relaxed">{snippet}</p>
+          </div>
         ) : summary ? (
           <p className={`text-sm mt-2 line-clamp-2 ${theme === "dark" ? "text-[#A7A7C7]" : "text-[#5B5D78]"}`}>{summary}</p>
         ) : null}
@@ -438,7 +460,6 @@ export default function Browse() {
 
   // Filters
   const [searchQuery, setSearchQuery] = useState(params.get("q") || "");
-  const [searchMode, setSearchMode] = useState<"ai" | "title">(params.get("mode") === "title" ? "title" : "ai");
   const [selectedGenre, setSelectedGenre] = useState(params.get("genre") || "all");
   const [selectedMood, setSelectedMood] = useState<MoodOption>((params.get("mood") as MoodOption) || "all");
   const [sortBy, setSortBy] = useState<SortOption>((params.get("sort") as SortOption) || "best");
@@ -449,27 +470,13 @@ export default function Browse() {
   const [currentPage, setCurrentPage] = useState(parseInt(params.get("page") || "1"));
 
   // Search refs
-  const searchTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const activeQueryRef = useRef<string>("");
 
   // Is AI search active with results?
-  const isAISearchActive = searchQuery.trim() !== "" && searchMode === "ai" && searchResults.length > 0;
-
-  // Auto-switch away from relevance if not valid
-  useEffect(() => {
-    if (sortBy === "relevance" && !isAISearchActive) {
-      setSortBy("best");
-    }
-  }, [isAISearchActive, sortBy]);
-
-  // Auto-default to relevance when AI search activates
-  useEffect(() => {
-    if (isAISearchActive && sortBy !== "relevance") {
-      setSortBy("relevance");
-    }
-  }, [isAISearchActive]);
+  const isAISearchActive = searchQuery.trim() !== "" && searchResults.length > 0;
 
   // Fetch personal scores (for-me recommendations) — used to boost "Best for you" in AI search
+  // Re-fetches on mount AND when user returns to the tab (picks up watchlist/favorite changes)
   useEffect(() => {
     const fetchPersonalScores = async () => {
       const token = localStorage.getItem("token");
@@ -480,12 +487,10 @@ export default function Browse() {
       try {
         const response = await api.get("/ai/recommend/for-me", { params: { top_k: 50 } });
         const recs = response.data || [];
-        // Normalize scores 0..1 based on rank position (top=1.0, bottom=0.0)
         const scoreMap: Record<number, number> = {};
         recs.forEach((rec: any, idx: number) => {
           const movieId = rec.movie?.id;
           if (movieId) {
-            // Rank-based: top recommendation = 1.0, linearly decreasing
             scoreMap[movieId] = clamp01(1 - idx / Math.max(recs.length, 1));
           }
         });
@@ -495,6 +500,11 @@ export default function Browse() {
       }
     };
     fetchPersonalScores();
+
+    // Re-fetch when user returns to this tab (catches watchlist/favorite changes made elsewhere)
+    const onFocus = () => fetchPersonalScores();
+    window.addEventListener("focus", onFocus);
+    return () => window.removeEventListener("focus", onFocus);
   }, [isAuthenticated]);
 
   // Get unique genres
@@ -530,7 +540,7 @@ export default function Browse() {
     fetchMovies();
   }, []);
 
-  // Handle search from URL params
+  // Handle search from URL params (always AI semantic search)
   useEffect(() => {
     const q = params.get("q") || "";
     setSearchQuery(q);
@@ -542,62 +552,36 @@ export default function Browse() {
       return;
     }
 
-    const mode = params.get("mode") === "title" ? "title" : "ai";
-    setSearchMode(mode);
-
     const performSearch = async () => {
       setSearching(true);
 
-      if (mode === "title") {
-        // Title search - local filtering
-        const lower = q.toLowerCase();
-        const filtered = allMovies.filter((m) => {
-          const title = (m.title ?? "").toLowerCase();
-          const titleBg = (m.title_bg ?? "").toLowerCase();
-          return title.includes(lower) || titleBg.includes(lower);
+      try {
+        const response = await api.get('/ai/search', { params: { q, top_k: 50, language } });
+        const results = response.data || [];
+        setSearchResults(results.map((r: any) => r.movie));
+
+        const snippetMap: Record<number, string> = {};
+        results.forEach((r: any) => {
+          if (r.snippet) snippetMap[r.movie.id] = r.snippet;
         });
-        setSearchResults(filtered);
+        setSnippets(snippetMap);
+
+        const raw = results.map((r: any) => Number(r.relevance) || 0);
+        const minRel = raw.length > 1 ? Math.min(...raw) : 0;
+        const maxRel = raw.length > 0 ? Math.max(...raw) : 1;
+        const denom = maxRel - minRel || 1;
+
+        const relevanceMap: Record<number, number> = {};
+        results.forEach((r: any) => {
+          const rel = Number(r.relevance) || 0;
+          relevanceMap[r.movie.id] = clamp01((rel - minRel) / denom);
+        });
+        setRelevanceScores(relevanceMap);
+      } catch (err) {
+        console.error("AI search failed:", err);
+        setSearchResults([]);
         setSnippets({});
         setRelevanceScores({});
-      } else {
-        // AI search - call /ai/search endpoint
-        try {
-          const response = await api.get('/ai/search', { params: { q, top_k: 50, language } });
-          const results = response.data || [];
-          setSearchResults(results.map((r: any) => r.movie));
-          
-          // Store snippets
-          const snippetMap: Record<number, string> = {};
-          results.forEach((r: any) => {
-            if (r.snippet) snippetMap[r.movie.id] = r.snippet;
-          });
-          setSnippets(snippetMap);
-          
-          // Store relevance scores for grade calculation (min-max normalized)
-          const raw = results.map((r: any) => Number(r.relevance) || 0);
-          const minRel = Math.min(...raw, 0);
-          const maxRel = Math.max(...raw, 1);
-          const denom = maxRel - minRel || 1;
-
-          const relevanceMap: Record<number, number> = {};
-          results.forEach((r: any) => {
-            const rel = Number(r.relevance) || 0;
-            relevanceMap[r.movie.id] = clamp01((rel - minRel) / denom);
-          });
-          setRelevanceScores(relevanceMap);
-        } catch (err) {
-          console.error("AI search failed, falling back to title search:", err);
-          // Fallback to title search
-          const lower = q.toLowerCase();
-          const filtered = allMovies.filter((m) => {
-            const title = (m.title ?? "").toLowerCase();
-            const titleBg = (m.title_bg ?? "").toLowerCase();
-            return title.includes(lower) || titleBg.includes(lower);
-          });
-          setSearchResults(filtered);
-          setSnippets({});
-          setRelevanceScores({});
-        }
       }
 
       setSearching(false);
@@ -625,13 +609,13 @@ export default function Browse() {
       });
     }
 
-    // Filter by mood
+    // Filter by mood (always match against English genres since moodToGenres uses English names)
     if (selectedMood !== "all") {
       const moodGenres = moodToGenres[selectedMood];
       if (moodGenres.length > 0) {
         movies = movies.filter((m) => {
-          const genre = (language === "bg" ? m.genre_bg || m.genre : m.genre) || "";
-          return moodGenres.some((mg) => genre.toLowerCase().includes(mg.toLowerCase()));
+          const genre = (m.genre || "").toLowerCase();
+          return moodGenres.some((mg) => genre.includes(mg.toLowerCase()));
         });
       }
     }
@@ -640,7 +624,7 @@ export default function Browse() {
     const maxPopularity = Math.max(...movies.map(m => getPopProxy(m)), 1);
     const maxFavorites = Math.max(...movies.map(m => (m as MovieWithGrade).favorite_count || 0), 1);
     const maxCompleted = Math.max(...movies.map(m => (m as MovieWithGrade).completed_count || 0), 1);
-    const isAISearch = searchQuery.trim() !== "" && searchMode === "ai";
+    const isAISearch = searchQuery.trim() !== "";
 
     // Calculate grades for all movies (includes personal score + badges)
     movies.forEach(m => {
@@ -694,14 +678,10 @@ export default function Browse() {
           return dateB - dateA;
         });
         break;
-      case "relevance":
-        // AI search: FinalScore (semantic + personal + popularity + quality)
-        movies.sort((a, b) => (b._grade || 0) - (a._grade || 0));
-        break;
     }
-    
+
     return movies;
-  }, [allMovies, searchResults, searchQuery, searchMode, selectedGenre, selectedMood, sortBy, language, relevanceScores, personalScores]);
+  }, [allMovies, searchResults, searchQuery, selectedGenre, selectedMood, sortBy, language, relevanceScores, personalScores]);
 
   // Pagination
   const totalPages = Math.ceil(displayMovies.length / MOVIES_PER_PAGE);
@@ -715,66 +695,25 @@ export default function Browse() {
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
-  // Seamless search: clear stale results immediately when user types new text
+  // Clear stale results when user types (AI search fires on Enter)
   const handleInputChange = (value: string) => {
     setSearchQuery(value);
 
-    // If user is typing something new and we have old results, clear them
     if (value.trim() !== activeQueryRef.current) {
-      if (searchMode === "ai") {
-        // AI: clear old results so user doesn't see stale movies
-        // (actual search fires on Enter)
-        if (value.trim() === "") {
-          setSearchResults([]);
-          setSnippets({});
-          setRelevanceScores({});
-          activeQueryRef.current = "";
-          // Also clear URL params
-          const newParams = new URLSearchParams(params);
-          newParams.delete("q");
-          newParams.delete("mode");
-          setParams(newParams, { replace: true });
-        } else {
-          // Still typing — clear old results so they don't mislead
-          setSearchResults([]);
-          setSnippets({});
-          setRelevanceScores({});
-        }
+      if (value.trim() === "") {
+        setSearchResults([]);
+        setSnippets({});
+        setRelevanceScores({});
+        activeQueryRef.current = "";
+        const newParams = new URLSearchParams(params);
+        newParams.delete("q");
+        newParams.delete("mode");
+        setParams(newParams, { replace: true });
       } else {
-        // Title mode: debounce and auto-search as user types
-        if (searchTimerRef.current) clearTimeout(searchTimerRef.current);
-
-        if (value.trim() === "") {
-          setSearchResults([]);
-          setSnippets({});
-          setRelevanceScores({});
-          activeQueryRef.current = "";
-          const newParams = new URLSearchParams(params);
-          newParams.delete("q");
-          newParams.delete("mode");
-          setParams(newParams, { replace: true });
-        } else {
-          searchTimerRef.current = setTimeout(() => {
-            const trimmed = value.trim();
-            if (trimmed.length < MIN_SEARCH_LENGTH) {
-              // Too short — show all movies
-              setSearchResults([]);
-              activeQueryRef.current = "";
-              return;
-            }
-            const lower = trimmed.toLowerCase();
-            const filtered = allMovies.filter((m) => {
-              const t = (m.title ?? "").toLowerCase();
-              const tBg = (m.title_bg ?? "").toLowerCase();
-              return t.includes(lower) || tBg.includes(lower);
-            });
-            setSearchResults(filtered);
-            setSnippets({});
-            setRelevanceScores({});
-            activeQueryRef.current = value.trim();
-            setCurrentPage(1);
-          }, 250);
-        }
+        // Clear old results while typing — actual search fires on Enter
+        setSearchResults([]);
+        setSnippets({});
+        setRelevanceScores({});
       }
     }
   };
@@ -785,12 +724,12 @@ export default function Browse() {
     if (q.length < MIN_SEARCH_LENGTH) return;
     const newParams = new URLSearchParams();
     newParams.set("q", q);
-    newParams.set("mode", searchMode);
+    newParams.set("mode", "ai");
     if (selectedGenre !== "all") newParams.set("genre", selectedGenre);
     if (selectedMood !== "all") newParams.set("mood", selectedMood);
     if (sortBy !== "best") newParams.set("sort", sortBy);
     setParams(newParams);
-  }, [searchQuery, searchMode, selectedGenre, selectedMood, sortBy, setParams]);
+  }, [searchQuery, selectedGenre, selectedMood, sortBy, setParams]);
 
   const clearSearch = () => {
     setSearchQuery("");
@@ -798,7 +737,6 @@ export default function Browse() {
     setSnippets({});
     setRelevanceScores({});
     activeQueryRef.current = "";
-    if (searchTimerRef.current) clearTimeout(searchTimerRef.current);
     const newParams = new URLSearchParams(params);
     newParams.delete("q");
     newParams.delete("mode");
@@ -807,20 +745,15 @@ export default function Browse() {
 
   const handleMovieClick = (movie: Movie) => navigate(`/movie/${movie.id}`);
 
-  // Sort options - conditionally show relevance only for AI search
-  const sortLabels: Record<SortOption, { en: string; bg: string; icon?: string }> = {
-    best: { en: "Best", bg: "Най-добри", icon: "✨" },
-    rating: { en: "Rating", bg: "Рейтинг", icon: "⭐" },
-    popularity: { en: "Popularity", bg: "Популярност", icon: "🔥" },
-    release_date: { en: "Release Date", bg: "Дата", icon: "📅" },
-    title: { en: "Title", bg: "Заглавие", icon: "🔤" },
-    relevance: { en: "Relevance", bg: "Релевантност", icon: "🎯" },
+  const sortLabels: Record<SortOption, { en: string; bg: string }> = {
+    best: { en: "Best", bg: "Най-добри" },
+    rating: { en: "Rating", bg: "Рейтинг" },
+    popularity: { en: "Popularity", bg: "Популярност" },
+    release_date: { en: "Release Date", bg: "Дата" },
+    title: { en: "Title", bg: "Заглавие" },
   };
-  
-  // Available sort options (relevance only for AI search)
-  const availableSortOptions: SortOption[] = isAISearchActive 
-    ? ["relevance", "best", "rating", "popularity", "release_date", "title"]
-    : ["best", "rating", "popularity", "release_date", "title"];
+
+  const availableSortOptions: SortOption[] = ["best", "rating", "popularity", "release_date", "title"];
 
   return (
     <div className={`min-h-screen transition-colors ${theme === "dark" ? "bg-[#0B0B12]" : "bg-[#F8F9FC]"}`}>
@@ -831,74 +764,47 @@ export default function Browse() {
             {language === "bg" ? "Разгледай филми" : "Browse Movies"}
           </h1>
 
-          {/* Search */}
+          {/* AI Search */}
           <form onSubmit={handleSearch} className="mt-4">
-            <div className="flex flex-wrap sm:flex-nowrap gap-2">
-              <div className="relative flex-1">
-                <input
-                  type="text"
-                  value={searchQuery}
-                  onChange={(e) => handleInputChange(e.target.value)}
-                  placeholder={searchMode === "ai" 
-                    ? (language === "bg" ? "Опиши какъв филм търсиш..." : "Describe what movie you're looking for...")
-                    : (language === "bg" ? "Търси по заглавие..." : "Search by title...")}
-                  className={`w-full pl-12 pr-12 py-3 rounded-xl border focus:outline-none focus:ring-2 focus:ring-primary ${
-                    theme === "dark" ? "bg-[#1A1A33] border-[#2A2A4A] text-white placeholder-gray-500" : "bg-white border-[#E2E4F0] text-[#1A1B2E] placeholder-gray-400"
-                  }`}
-                />
-                {searchMode === "ai" ? (
-                  <Sparkles className={`absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 pointer-events-none ${theme === "dark" ? "text-primary" : "text-primary"}`} />
-                ) : (
-                  <Search className={`absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 pointer-events-none ${theme === "dark" ? "text-[#A7A7C7]" : "text-[#5B5D78]"}`} />
-                )}
-                <button
-                  type="button"
-                  onClick={clearSearch}
-                  className={`absolute right-3 top-1/2 -translate-y-1/2 flex items-center justify-center transition-colors ${
-                    searchQuery
-                      ? theme === "dark" ? "text-[#A7A7C7] hover:text-[#EDEDF7]" : "text-[#A7A7C7] hover:text-[#5B5D78]"
-                      : "pointer-events-none opacity-0"
-                  }`}
-                  tabIndex={searchQuery ? 0 : -1}
-                >
-                  <X className="w-4 h-4" />
-                </button>
-              </div>
-
-              {/* Search Mode Toggle */}
-              <div className={`flex rounded-xl border overflow-hidden flex-shrink-0 ${theme === "dark" ? "border-[#2A2A4A]" : "border-[#E2E4F0]"}`}>
-                <button
-                  type="button"
-                  onClick={() => { setSearchMode("ai"); if (searchQuery.trim() && searchMode !== "ai") { setSearchResults([]); setSnippets({}); setRelevanceScores({}); } }}
-                  className={`px-3 sm:px-4 py-3 flex items-center gap-1.5 sm:gap-2 font-medium transition-colors whitespace-nowrap ${
-                    searchMode === "ai"
-                      ? "bg-gradient-to-r from-primary to-secondary text-white"
-                      : theme === "dark" ? "bg-[#1A1A33] text-[#A7A7C7] hover:text-gray-200" : "bg-white text-[#5B5D78] hover:text-[#1A1B2E]"
-                  }`}
-                >
-                  <Sparkles className="w-4 h-4 flex-shrink-0" />
-                  <span className="text-sm">AI</span>
-                </button>
-                <button
-                  type="button"
-                  onClick={() => { setSearchMode("title"); if (searchQuery.trim() && searchMode !== "title") { setSearchResults([]); setSnippets({}); setRelevanceScores({}); } }}
-                  className={`px-3 sm:px-4 py-3 flex items-center gap-1.5 sm:gap-2 font-medium transition-colors whitespace-nowrap ${
-                    searchMode === "title"
-                      ? "bg-primary text-white"
-                      : theme === "dark" ? "bg-[#1A1A33] text-[#A7A7C7] hover:text-gray-200" : "bg-white text-[#5B5D78] hover:text-[#1A1B2E]"
-                  }`}
-                >
-                  <Search className="w-4 h-4 flex-shrink-0" />
-                  <span className="text-sm">{language === "bg" ? "Заглавие" : "Title"}</span>
-                </button>
-              </div>
+            <div className={`relative rounded-xl border-2 transition-all ${
+              searchQuery
+                ? "border-primary/50 shadow-lg shadow-primary/10"
+                : theme === "dark" ? "border-[#2A2A4A] hover:border-[#3A3A5A]" : "border-[#E2E4F0] hover:border-[#D0D2E4]"
+            }`}>
+              <Sparkles className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 pointer-events-none text-primary" />
+              <input
+                type="text"
+                value={searchQuery}
+                onChange={(e) => handleInputChange(e.target.value)}
+                placeholder={language === "bg" ? "Опиши какъв филм търсиш... напр. \"забавна комедия за семейството\"" : "Describe what you're looking for... e.g. \"fun family comedy\""}
+                className={`w-full pl-12 pr-12 py-3.5 rounded-xl bg-transparent focus:outline-none ${
+                  theme === "dark" ? "text-white placeholder-gray-500" : "text-[#1A1B2E] placeholder-gray-400"
+                }`}
+              />
+              <button
+                type="button"
+                onClick={clearSearch}
+                className={`absolute right-3 top-1/2 -translate-y-1/2 flex items-center justify-center transition-colors ${
+                  searchQuery
+                    ? theme === "dark" ? "text-[#A7A7C7] hover:text-[#EDEDF7]" : "text-[#A7A7C7] hover:text-[#5B5D78]"
+                    : "pointer-events-none opacity-0"
+                }`}
+                tabIndex={searchQuery ? 0 : -1}
+              >
+                <X className="w-4 h-4" />
+              </button>
             </div>
-            {/* AI mode hint: press Enter to search */}
-            {searchMode === "ai" && searchQuery.trim().length >= MIN_SEARCH_LENGTH && searchResults.length === 0 && !searching && (
-              <p className={`mt-2 text-xs ${theme === "dark" ? "text-[#A7A7C7]" : "text-[#5B5D78]"}`}>
-                {language === "bg" ? "Натисни Enter за AI търсене" : "Press Enter to search with AI"}
+            <div className="flex items-center justify-between mt-2">
+              <p className={`text-xs flex items-center gap-1.5 ${theme === "dark" ? "text-[#A7A7C7]" : "text-[#5B5D78]"}`}>
+                <Sparkles className="w-3 h-3 text-primary" />
+                {language === "bg" ? "AI семантично търсене — опиши жанр, настроение или сюжет" : "AI semantic search — describe genre, mood, or plot"}
               </p>
-            )}
+              {searchQuery.trim().length >= MIN_SEARCH_LENGTH && searchResults.length === 0 && !searching && (
+                <p className="text-xs font-medium text-primary">
+                  {language === "bg" ? "Натисни Enter \u21B5" : "Press Enter \u21B5"}
+                </p>
+              )}
+            </div>
           </form>
         </div>
       </div>
@@ -921,12 +827,12 @@ export default function Browse() {
                 </label>
                 <select
                   value={sortBy}
-                  onChange={(e) => setSortBy(e.target.value as SortOption)}
+                  onChange={(e) => { setSortBy(e.target.value as SortOption); setCurrentPage(1); }}
                   className={`w-full px-3 py-2 rounded-lg border ${theme === "dark" ? "bg-[#2A2A4A] border-[#2A2A4A] text-white" : "bg-[#F8F9FC] border-[#E2E4F0] text-[#1A1B2E]"}`}
                 >
                   {availableSortOptions.map((s) => (
                     <option key={s} value={s}>
-                      {sortLabels[s].icon} {language === "bg" ? sortLabels[s].bg : sortLabels[s].en}
+                      {language === "bg" ? sortLabels[s].bg : sortLabels[s].en}
                     </option>
                   ))}
                 </select>
@@ -963,7 +869,6 @@ export default function Browse() {
                           : theme === "dark" ? "bg-[#2A2A4A] border-[#2A2A4A] text-[#A7A7C7] hover:bg-[#3A3A5A]" : "bg-[#F8F9FC] border-[#E2E4F0] text-[#5B5D78] hover:bg-[#ECEEF8]"
                       }`}
                     >
-                      <span className="flex-shrink-0">{moodLabels[mood].emoji}</span>
                       <span className="truncate">{language === "bg" ? moodLabels[mood].bg : moodLabels[mood].en}</span>
                     </button>
                   ))}
@@ -979,7 +884,7 @@ export default function Browse() {
                   <div className="flex flex-wrap gap-2">
                     {searchQuery && (
                       <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs ${theme === "dark" ? "bg-primary/20 text-primary" : "bg-primary/10 text-primary"}`}>
-                        {searchMode === "ai" ? <Sparkles className="w-3 h-3 flex-shrink-0" /> : <Search className="w-3 h-3 flex-shrink-0" />}
+                        <Sparkles className="w-3 h-3 flex-shrink-0" />
                         <span className="truncate max-w-[120px]">"{searchQuery.length > 15 ? searchQuery.slice(0, 15) + "..." : searchQuery}"</span>
                         <button onClick={clearSearch} className="flex-shrink-0 w-4 h-4 flex items-center justify-center rounded hover:bg-primary/30 transition-colors"><X className="w-3 h-3" /></button>
                       </span>
@@ -992,7 +897,7 @@ export default function Browse() {
                     )}
                     {selectedMood !== "all" && (
                       <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs ${theme === "dark" ? "bg-amber-500/20 text-amber-400" : "bg-amber-100 text-amber-700"}`}>
-                        {moodLabels[selectedMood].emoji}
+                        {language === "bg" ? moodLabels[selectedMood].bg : moodLabels[selectedMood].en}
                         <button onClick={() => setSelectedMood("all")} className="flex-shrink-0 w-4 h-4 flex items-center justify-center rounded hover:bg-amber-500/30 transition-colors"><X className="w-3 h-3" /></button>
                       </span>
                     )}

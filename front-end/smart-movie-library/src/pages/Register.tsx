@@ -3,36 +3,11 @@ import { Link, useNavigate } from "react-router-dom";
 import { useApp } from "../context/AppContext";
 import { authApi } from "../api/auth";
 import api from "../api/client";
-import { 
-  Mail, Lock, Eye, EyeOff, UserPlus, AlertCircle, User, Check, 
+import {
+  Mail, Lock, Eye, EyeOff, UserPlus, AlertCircle, User, Check,
   ChevronRight, ChevronLeft, Film, Sparkles
 } from "lucide-react";
-
-// Available genres for selection
-const GENRES = [
-  { id: "action", en: "Action", bg: "Екшън", emoji: "💥" },
-  { id: "comedy", en: "Comedy", bg: "Комедия", emoji: "😂" },
-  { id: "drama", en: "Drama", bg: "Драма", emoji: "🎭" },
-  { id: "horror", en: "Horror", bg: "Ужаси", emoji: "😱" },
-  { id: "scifi", en: "Sci-Fi", bg: "Научна фантастика", emoji: "🚀" },
-  { id: "romance", en: "Romance", bg: "Романтика", emoji: "💕" },
-  { id: "thriller", en: "Thriller", bg: "Трилър", emoji: "😰" },
-  { id: "animation", en: "Animation", bg: "Анимация", emoji: "🎨" },
-  { id: "fantasy", en: "Fantasy", bg: "Фентъзи", emoji: "🧙" },
-  { id: "documentary", en: "Documentary", bg: "Документален", emoji: "📚" },
-  { id: "crime", en: "Crime", bg: "Криминален", emoji: "🔍" },
-  { id: "adventure", en: "Adventure", bg: "Приключенски", emoji: "🗺️" },
-];
-
-// Mood options
-const MOODS = [
-  { id: "happy", en: "Something fun & light", bg: "Нещо забавно и леко", emoji: "😊" },
-  { id: "thrilling", en: "Edge of my seat excitement", bg: "Вълнуващо и напрегнато", emoji: "🔥" },
-  { id: "thoughtful", en: "Make me think", bg: "Да ме накара да мисля", emoji: "🤔" },
-  { id: "emotional", en: "Touch my heart", bg: "Да ме трогне", emoji: "💔" },
-  { id: "scary", en: "Scare me!", bg: "Да ме изплаши!", emoji: "👻" },
-  { id: "relaxed", en: "Easy watching", bg: "Лесно за гледане", emoji: "😌" },
-];
+import { GENRES, MOODS } from "../constants/preferences";
 
 type Step = "account" | "genres" | "mood";
 
@@ -374,16 +349,13 @@ export default function Register() {
                           : "border-[#E2E4F0] hover:border-[#E2E4F0] bg-[#F8F9FC]"
                     }`}
                   >
-                    <div className="flex items-center gap-2">
-                      <span className="text-xl">{genre.emoji}</span>
-                      <span className={`font-medium text-sm ${
-                        isSelected 
-                          ? "text-primary" 
-                          : theme === "dark" ? "text-white" : "text-[#1A1B2E]"
-                      }`}>
-                        {language === "bg" ? genre.bg : genre.en}
-                      </span>
-                    </div>
+                    <span className={`font-medium text-sm ${
+                      isSelected
+                        ? "text-primary"
+                        : theme === "dark" ? "text-white" : "text-[#1A1B2E]"
+                    }`}>
+                      {language === "bg" ? genre.bg : genre.en}
+                    </span>
                   </button>
                 );
               })}
@@ -446,10 +418,9 @@ export default function Register() {
                     }`}
                   >
                     <div className="flex items-center gap-3">
-                      <span className="text-2xl">{mood.emoji}</span>
                       <span className={`font-medium ${
-                        isSelected 
-                          ? "text-primary" 
+                        isSelected
+                          ? "text-primary"
                           : theme === "dark" ? "text-white" : "text-[#1A1B2E]"
                       }`}>
                         {language === "bg" ? mood.bg : mood.en}

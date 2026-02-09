@@ -49,29 +49,21 @@ class ReviewAnalyzer:
         """Initialize HuggingFace sentiment pipeline"""
         global _sentiment_pipeline, _loaded_model_name
 
-        # Force use distilbert model - it works well for short AND long text
-        # The nlptown model only works for long reviews
-        SENTIMENT_MODEL = "distilbert-base-uncased-finetuned-sst-2-english"
+        # Use multilingual model so Bulgarian (and other languages) work correctly
+        SENTIMENT_MODEL = os.getenv(
+            "HF_SENTIMENT_MODEL",
+            "nlptown/bert-base-multilingual-uncased-sentiment"
+        )
 
         # Check if we need to reload (wrong model loaded or not loaded)
-        needs_reload = _sentiment_pipeline is None
-
-        if not needs_reload and _sentiment_pipeline is not None:
-            # Check if the loaded model is correct by examining its config
-            try:
-                current_model = _sentiment_pipeline.model.config._name_or_path
-                if "distilbert" not in current_model.lower() or "sst" not in current_model.lower():
-                    logger.warning(f"Wrong model loaded: {current_model}, reloading...")
-                    needs_reload = True
-            except Exception:
-                needs_reload = True
+        needs_reload = _sentiment_pipeline is None or _loaded_model_name != SENTIMENT_MODEL
 
         if needs_reload:
             from transformers import pipeline
             logger.info(f"Loading sentiment model: {SENTIMENT_MODEL}")
             _sentiment_pipeline = pipeline("sentiment-analysis", model=SENTIMENT_MODEL)
             _loaded_model_name = SENTIMENT_MODEL
-            logger.info(f"✓ Loaded HuggingFace model: {SENTIMENT_MODEL}")
+            logger.info(f"Loaded HuggingFace model: {SENTIMENT_MODEL}")
         else:
             logger.info(f"Using cached model: {_loaded_model_name}")
     
@@ -144,13 +136,15 @@ class ReviewAnalyzer:
                 label = r["label"].upper()
                 scores[label] = r["score"]
 
-        logger.info(f"Model output scores: {scores}")
+        logger.debug(f"Model output scores: {scores}")
 
         # Handle different model output formats
         if "1 STAR" in scores or "5 STARS" in scores:
-            # Star rating model (nlptown)
+            # Star rating model (nlptown multilingual) - supports Bulgarian
             star_scores = {i: scores.get(f"{i} STAR" if i == 1 else f"{i} STARS", 0) for i in range(1, 6)}
             weighted_avg = sum(i * star_scores[i] for i in range(1, 6))
+
+            logger.debug(f"Star model weighted average: {weighted_avg}")
 
             if weighted_avg >= 3.5:
                 sentiment = SentimentLabel.POSITIVE
@@ -161,28 +155,32 @@ class ReviewAnalyzer:
             else:
                 sentiment = SentimentLabel.NEUTRAL
                 confidence = 0.6
-        else:
-            # Binary model (distilbert-sst-2) - POSITIVE/NEGATIVE only
+        elif "POSITIVE" in scores or "NEGATIVE" in scores:
+            # Binary/ternary model - POSITIVE/NEGATIVE/NEUTRAL
             pos_score = scores.get("POSITIVE", 0)
             neg_score = scores.get("NEGATIVE", 0)
+            neu_score = scores.get("NEUTRAL", 0)
 
-            logger.info(f"Sentiment scores - POSITIVE: {pos_score}, NEGATIVE: {neg_score}")
+            logger.debug(f"Sentiment scores - POS: {pos_score}, NEG: {neg_score}, NEU: {neu_score}")
 
-            # Determine sentiment - binary model so use clear thresholds
-            # Only mark as neutral if scores are VERY close (within 0.1)
-            score_diff = abs(pos_score - neg_score)
-            if score_diff < 0.1:
-                # Very close scores = truly neutral
+            if neu_score > pos_score and neu_score > neg_score:
                 sentiment = SentimentLabel.NEUTRAL
-                confidence = 0.5 + (0.1 - score_diff) * 5  # 0.5 to 1.0
+                confidence = neu_score
             elif pos_score > neg_score:
                 sentiment = SentimentLabel.POSITIVE
                 confidence = pos_score
             else:
                 sentiment = SentimentLabel.NEGATIVE
                 confidence = neg_score
+        else:
+            # Fallback: LABEL_0/LABEL_1/LABEL_2 format
+            label_map = {"LABEL_0": "NEGATIVE", "LABEL_1": "NEUTRAL", "LABEL_2": "POSITIVE"}
+            mapped = {label_map.get(k, k): v for k, v in scores.items()}
+            best_label = max(mapped, key=mapped.get)
+            sentiment = SentimentLabel(best_label.lower()) if best_label.lower() in [e.value for e in SentimentLabel] else SentimentLabel.NEUTRAL
+            confidence = mapped[best_label]
 
-            logger.info(f"Result: {sentiment.value} with confidence {confidence}")
+        logger.debug(f"Result: {sentiment.value} with confidence {confidence}")
         
         # Extract keywords
         keywords = self._extract_keywords(text)
@@ -236,24 +234,31 @@ Respond in JSON format:
         }
     
     def _extract_keywords(self, text: str, max_keywords: int = 5) -> List[str]:
-        """Simple keyword extraction"""
+        """Simple keyword extraction (supports English and Bulgarian)"""
         stop_words = {
+            # English
             "the", "a", "an", "and", "or", "but", "in", "on", "at", "to", "for",
             "of", "with", "is", "was", "are", "were", "this", "that", "it",
-            "very", "really", "movie", "film", "watch", "watched", "see", "seen"
+            "very", "really", "movie", "film", "watch", "watched", "see", "seen",
+            "have", "has", "had", "been", "being", "would", "could", "should",
+            # Bulgarian
+            "филм", "филма", "филмът", "много", "беше", "като", "това",
+            "тази", "този", "които", "която", "който", "което", "има", "може",
+            "ще", "при", "без", "след", "преди", "между", "също", "още",
+            "само", "вече", "нещо", "всичко", "защото", "когато", "обаче",
         }
-        
+
         words = text.lower().split()
         word_freq = {}
-        
+
         for word in words:
             word = word.strip(".,!?;:\"'()")
-            
-            if len(word) < 4 or word in stop_words or not word.isalpha():
+
+            if len(word) < 3 or word in stop_words or not word.isalpha():
                 continue
-            
+
             word_freq[word] = word_freq.get(word, 0) + 1
-        
+
         sorted_words = sorted(word_freq.items(), key=lambda x: x[1], reverse=True)
         return [word for word, _ in sorted_words[:max_keywords]]
     

@@ -1,6 +1,6 @@
 # app/routers/reviews.py
 from fastapi import APIRouter, Depends, HTTPException, status
-from sqlalchemy.exc import IntegrityError  # ✅ FIXED: Correct import
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 from app.schemas.review import ReviewCreate, ReviewOut
 from app.models.movie import Movie
@@ -82,13 +82,38 @@ def list_reviews(movie_id: int, db: Session = Depends(get_db)):
     return result
 
 
-@router.get("/my-reviews", response_model=list[ReviewOut])
+@router.get("/my-reviews")
 def get_my_reviews(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
-    """Get all reviews by the current user"""
-    return db.query(Review).filter(Review.user_id == current_user.id).all()
+    """Get all reviews by the current user with movie info"""
+    reviews = db.query(Review).filter(Review.user_id == current_user.id).order_by(Review.created_at.desc()).all()
+
+    result = []
+    for review in reviews:
+        movie = review.movie
+        result.append({
+            "id": review.id,
+            "user_id": review.user_id,
+            "movie_id": review.movie_id,
+            "rating": review.rating,
+            "comment": review.comment,
+            "created_at": review.created_at,
+            "user_name": current_user.name,
+            "movie": {
+                "id": movie.id,
+                "title": movie.title,
+                "title_bg": movie.title_bg,
+                "poster_url": movie.poster_url,
+                "poster_path": movie.poster_path,
+                "release_year": movie.release_year,
+                "genre": movie.genre,
+                "genre_bg": movie.genre_bg,
+            } if movie else None
+        })
+
+    return result
 
 
 @router.put("/{review_id}", response_model=ReviewOut)

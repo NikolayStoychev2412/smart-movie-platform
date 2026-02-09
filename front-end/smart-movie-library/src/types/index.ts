@@ -89,6 +89,8 @@ export interface Review {
   rating?: number;
   created_at?: string;
   updated_at?: string;
+  movie_id?: number;
+  movie?: Movie;
 }
 
 // Auth types - matching backend UserResponse

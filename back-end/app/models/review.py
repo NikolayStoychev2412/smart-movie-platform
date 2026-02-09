@@ -1,5 +1,5 @@
 # app/models/review.py
-from sqlalchemy import Column, Integer, String, ForeignKey, Float, Text, DateTime, func,UniqueConstraint
+from sqlalchemy import Column, Integer, String, ForeignKey, Float, Text, DateTime, func, UniqueConstraint
 from sqlalchemy.orm import relationship
 from app.database import Base
 
@@ -13,7 +13,6 @@ class Review(Base):
     comment = Column(Text)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     
-    # ✅ ADD THIS:
     __table_args__ = (
         UniqueConstraint('user_id', 'movie_id', name='unique_user_movie_review'),
     )
