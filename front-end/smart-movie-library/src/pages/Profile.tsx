@@ -33,9 +33,9 @@ interface ProfileCounts {
 function SkeletonCard({ theme }: { theme: string }) {
   return (
     <div className="flex-shrink-0 w-[140px] animate-pulse" style={{ scrollSnapAlign: "start" }}>
-      <div className={`w-full aspect-[2/3] rounded-lg ${theme === "dark" ? "bg-gray-800" : "bg-gray-200"}`} />
-      <div className={`h-3 mt-2 rounded ${theme === "dark" ? "bg-gray-800" : "bg-gray-200"} w-[80%]`} />
-      <div className={`h-3 mt-1.5 rounded ${theme === "dark" ? "bg-gray-800" : "bg-gray-200"} w-[50%]`} />
+      <div className={`w-full aspect-[2/3] rounded-lg ${theme === "dark" ? "bg-[#2A2A4A]" : "bg-gray-200"}`} />
+      <div className={`h-3 mt-2 rounded ${theme === "dark" ? "bg-[#2A2A4A]" : "bg-gray-200"} w-[80%]`} />
+      <div className={`h-3 mt-1.5 rounded ${theme === "dark" ? "bg-[#2A2A4A]" : "bg-gray-200"} w-[50%]`} />
     </div>
   );
 }
@@ -100,13 +100,13 @@ function MovieCarousel({
   // Empty state with CTA
   if (movies.length === 0) {
     return (
-      <div className={`text-center py-12 rounded-xl ${theme === "dark" ? "bg-gray-900/50" : "bg-gray-100"}`}>
-        <EmptyIcon className={`w-12 h-12 mx-auto mb-3 ${theme === "dark" ? "text-gray-700" : "text-gray-400"}`} />
-        <p className={`text-sm mb-4 ${theme === "dark" ? "text-gray-500" : "text-gray-500"}`}>{emptyText}</p>
+      <div className={`text-center py-12 rounded-xl ${theme === "dark" ? "bg-[#1A1A33]/50" : "bg-[#F3F4FF]"}`}>
+        <EmptyIcon className={`w-12 h-12 mx-auto mb-3 ${theme === "dark" ? "text-[#5B5D78]" : "text-[#A7A7C7]"}`} />
+        <p className={`text-sm mb-4 ${theme === "dark" ? "text-[#A7A7C7]" : "text-[#5B5D78]"}`}>{emptyText}</p>
         {emptyCta && (
           <Link
             to={emptyCta.to}
-            className="inline-flex items-center gap-2 px-5 py-2.5 rounded-full bg-tmdb-light-blue text-tmdb-dark-blue font-semibold text-sm hover:brightness-110 transition"
+            className="inline-flex items-center gap-2 px-5 py-2.5 rounded-full bg-primary text-white font-semibold text-sm hover:brightness-110 transition"
           >
             <Compass className="w-4 h-4" />
             {emptyCta.label}
@@ -123,7 +123,7 @@ function MovieCarousel({
         <button
           onClick={() => scroll("left")}
           className={`hidden md:block absolute -left-4 top-1/2 -translate-y-1/2 z-10 p-2 rounded-full shadow-lg opacity-0 group-hover:opacity-100 transition-all ${
-            theme === "dark" ? "bg-gray-800 text-white hover:bg-gray-700" : "bg-white text-gray-800 hover:bg-gray-50 border"
+            theme === "dark" ? "bg-[#2A2A4A] text-white hover:bg-[#2A2A4A]" : "bg-white text-gray-800 hover:bg-[#F8F9FC] border"
           }`}
         >
           <ChevronLeft className="w-5 h-5" />
@@ -134,7 +134,7 @@ function MovieCarousel({
         <button
           onClick={() => scroll("right")}
           className={`hidden md:block absolute -right-4 top-1/2 -translate-y-1/2 z-10 p-2 rounded-full shadow-lg opacity-0 group-hover:opacity-100 transition-all ${
-            theme === "dark" ? "bg-gray-800 text-white hover:bg-gray-700" : "bg-white text-gray-800 hover:bg-gray-50 border"
+            theme === "dark" ? "bg-[#2A2A4A] text-white hover:bg-[#2A2A4A]" : "bg-white text-gray-800 hover:bg-[#F8F9FC] border"
           }`}
         >
           <ChevronRight className="w-5 h-5" />
@@ -162,8 +162,8 @@ function MovieCarousel({
                 {posterUrl ? (
                   <img src={posterUrl} alt={title} className="w-full aspect-[2/3] object-cover group-hover/card:scale-105 transition-transform duration-300" loading="lazy" />
                 ) : (
-                  <div className={`w-full aspect-[2/3] flex items-center justify-center ${theme === "dark" ? "bg-gray-800" : "bg-gray-200"}`}>
-                    <Film className="w-10 h-10 text-gray-500" />
+                  <div className={`w-full aspect-[2/3] flex items-center justify-center ${theme === "dark" ? "bg-[#2A2A4A]" : "bg-gray-200"}`}>
+                    <Film className="w-10 h-10 text-[#A7A7C7]" />
                   </div>
                 )}
                 {badge}
@@ -181,8 +181,8 @@ function MovieCarousel({
                 </div>
               </div>
               <div className="pt-2 px-0.5">
-                <h3 className={`font-medium text-sm line-clamp-2 group-hover/card:text-tmdb-light-blue transition-colors ${
-                  theme === "dark" ? "text-white" : "text-gray-900"
+                <h3 className={`font-medium text-sm line-clamp-2 group-hover/card:text-primary transition-colors ${
+                  theme === "dark" ? "text-white" : "text-[#1A1B2E]"
                 }`}>
                   {title}
                 </h3>
@@ -222,12 +222,12 @@ function SectionHeader({
         <div className={`p-1.5 rounded-lg ${iconColor}`}>
           <Icon className="w-5 h-5" />
         </div>
-        <h2 className={`text-lg font-semibold ${theme === "dark" ? "text-white" : "text-gray-900"}`}>
+        <h2 className={`text-lg font-semibold ${theme === "dark" ? "text-white" : "text-[#1A1B2E]"}`}>
           {label}
         </h2>
         {count !== undefined && count > 0 && (
           <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${
-            theme === "dark" ? "bg-gray-800 text-gray-400" : "bg-gray-200 text-gray-600"
+            theme === "dark" ? "bg-[#2A2A4A] text-[#A7A7C7]" : "bg-gray-200 text-[#5B5D78]"
           }`}>
             {count}
           </span>
@@ -236,7 +236,7 @@ function SectionHeader({
       {viewAllTo && (
         <Link
           to={viewAllTo}
-          className="flex items-center gap-1 text-sm font-medium text-tmdb-light-blue hover:text-tmdb-light-blue/80 transition-colors"
+          className="flex items-center gap-1 text-sm font-medium text-primary hover:text-primary/80 transition-colors"
         >
           {viewAllLabel || "View All"}
           <ArrowRight className="w-4 h-4" />
@@ -264,7 +264,7 @@ function FavoritesSection({ theme, language, onCount }: { theme: string; languag
   const movies = favorites.map(f => ({
     movie: f.movie,
     badge: (
-      <div className="absolute top-2 right-2 p-1.5 rounded-full bg-pink-500">
+      <div className="absolute top-2 right-2 p-1.5 rounded-full bg-secondary">
         <Heart className="w-3 h-3 text-white fill-white" />
       </div>
     ),
@@ -462,32 +462,32 @@ function ProfileSettings({ theme, language, user }: { theme: string; language: s
   return (
     <div className="max-w-xl space-y-6">
       {/* Profile Info */}
-      <div className={`rounded-xl p-6 ${theme === "dark" ? "bg-gray-900/80 border border-gray-800" : "bg-white border border-gray-200"}`}>
-        <h3 className={`text-lg font-semibold mb-4 ${theme === "dark" ? "text-white" : "text-gray-900"}`}>
+      <div className={`rounded-xl p-6 ${theme === "dark" ? "bg-[#1A1A33]/80 border border-[#2A2A4A]" : "bg-white border border-[#E2E4F0] shadow-sm"}`}>
+        <h3 className={`text-lg font-semibold mb-4 ${theme === "dark" ? "text-white" : "text-[#1A1B2E]"}`}>
           {language === "bg" ? "Информация за профила" : "Profile Information"}
         </h3>
         <div className="space-y-4">
           <div>
-            <label className={`block text-xs font-medium uppercase tracking-wider mb-1 ${theme === "dark" ? "text-gray-500" : "text-gray-400"}`}>
+            <label className={`block text-xs font-medium uppercase tracking-wider mb-1 ${theme === "dark" ? "text-[#A7A7C7]" : "text-[#5B5D78]"}`}>
               {language === "bg" ? "Име" : "Name"}
             </label>
-            <p className={`font-medium ${theme === "dark" ? "text-white" : "text-gray-900"}`}>{user.name}</p>
+            <p className={`font-medium ${theme === "dark" ? "text-white" : "text-[#1A1B2E]"}`}>{user.name}</p>
           </div>
           <div>
-            <label className={`block text-xs font-medium uppercase tracking-wider mb-1 ${theme === "dark" ? "text-gray-500" : "text-gray-400"}`}>
+            <label className={`block text-xs font-medium uppercase tracking-wider mb-1 ${theme === "dark" ? "text-[#A7A7C7]" : "text-[#5B5D78]"}`}>
               {language === "bg" ? "Имейл" : "Email"}
             </label>
-            <p className={`font-medium ${theme === "dark" ? "text-white" : "text-gray-900"}`}>{user.email}</p>
+            <p className={`font-medium ${theme === "dark" ? "text-white" : "text-[#1A1B2E]"}`}>{user.email}</p>
           </div>
         </div>
       </div>
 
       {/* Change Password */}
-      <div className={`rounded-xl p-6 ${theme === "dark" ? "bg-gray-900/80 border border-gray-800" : "bg-white border border-gray-200"}`}>
-        <h3 className={`text-lg font-semibold mb-1 ${theme === "dark" ? "text-white" : "text-gray-900"}`}>
+      <div className={`rounded-xl p-6 ${theme === "dark" ? "bg-[#1A1A33]/80 border border-[#2A2A4A]" : "bg-white border border-[#E2E4F0] shadow-sm"}`}>
+        <h3 className={`text-lg font-semibold mb-1 ${theme === "dark" ? "text-white" : "text-[#1A1B2E]"}`}>
           {language === "bg" ? "Смяна на парола" : "Change Password"}
         </h3>
-        <p className={`text-sm mb-5 ${theme === "dark" ? "text-gray-500" : "text-gray-400"}`}>
+        <p className={`text-sm mb-5 ${theme === "dark" ? "text-[#A7A7C7]" : "text-[#5B5D78]"}`}>
           {language === "bg" ? "Използвай поне 8 символа с букви и цифри" : "Use 8+ characters with letters and numbers"}
         </p>
 
@@ -499,37 +499,37 @@ function ProfileSettings({ theme, language, user }: { theme: string; language: s
 
         <div className="space-y-4">
           <div className="relative">
-            <label className={`block text-sm font-medium mb-2 ${theme === "dark" ? "text-gray-300" : "text-gray-700"}`}>
+            <label className={`block text-sm font-medium mb-2 ${theme === "dark" ? "text-[#A7A7C7]" : "text-[#5B5D78]"}`}>
               {language === "bg" ? "Текуща парола" : "Current Password"}
             </label>
             <input
               type={showCurrentPassword ? "text" : "password"}
               value={currentPassword}
               onChange={e => setCurrentPassword(e.target.value)}
-              className={`w-full px-4 py-3 pr-12 rounded-lg border focus:outline-none focus:ring-2 focus:ring-tmdb-light-blue ${
-                theme === "dark" ? "bg-gray-800 border-gray-700 text-white" : "bg-gray-50 border-gray-300 text-gray-900"
+              className={`w-full px-4 py-3 pr-12 rounded-lg border focus:outline-none focus:ring-2 focus:ring-primary ${
+                theme === "dark" ? "bg-[#2A2A4A] border-[#2A2A4A] text-white" : "bg-[#F8F9FC] border-[#E2E4F0] text-[#1A1B2E]"
               }`}
             />
             <button type="button" onClick={() => setShowCurrentPassword(!showCurrentPassword)}
-              className={`absolute right-3 top-[38px] ${theme === "dark" ? "text-gray-500" : "text-gray-400"}`}>
+              className={`absolute right-3 top-[38px] ${theme === "dark" ? "text-[#A7A7C7]" : "text-[#5B5D78]"}`}>
               {showCurrentPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
             </button>
           </div>
 
           <div className="relative">
-            <label className={`block text-sm font-medium mb-2 ${theme === "dark" ? "text-gray-300" : "text-gray-700"}`}>
+            <label className={`block text-sm font-medium mb-2 ${theme === "dark" ? "text-[#A7A7C7]" : "text-[#5B5D78]"}`}>
               {language === "bg" ? "Нова парола" : "New Password"}
             </label>
             <input
               type={showNewPassword ? "text" : "password"}
               value={newPassword}
               onChange={e => setNewPassword(e.target.value)}
-              className={`w-full px-4 py-3 pr-12 rounded-lg border focus:outline-none focus:ring-2 focus:ring-tmdb-light-blue ${
-                theme === "dark" ? "bg-gray-800 border-gray-700 text-white" : "bg-gray-50 border-gray-300 text-gray-900"
+              className={`w-full px-4 py-3 pr-12 rounded-lg border focus:outline-none focus:ring-2 focus:ring-primary ${
+                theme === "dark" ? "bg-[#2A2A4A] border-[#2A2A4A] text-white" : "bg-[#F8F9FC] border-[#E2E4F0] text-[#1A1B2E]"
               }`}
             />
             <button type="button" onClick={() => setShowNewPassword(!showNewPassword)}
-              className={`absolute right-3 top-[38px] ${theme === "dark" ? "text-gray-500" : "text-gray-400"}`}>
+              className={`absolute right-3 top-[38px] ${theme === "dark" ? "text-[#A7A7C7]" : "text-[#5B5D78]"}`}>
               {showNewPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
             </button>
             <PasswordStrength password={newPassword} language={language} />
@@ -538,7 +538,7 @@ function ProfileSettings({ theme, language, user }: { theme: string; language: s
           <button
             onClick={handleChangePassword}
             disabled={saving || !currentPassword || !newPassword}
-            className="px-6 py-2.5 bg-tmdb-light-blue text-tmdb-dark-blue font-semibold rounded-lg hover:bg-tmdb-light-blue/90 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+            className="px-6 py-2.5 bg-primary text-white font-semibold rounded-lg hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
           >
             {saving && <Loader2 className="w-4 h-4 animate-spin" />}
             {language === "bg" ? "Смени паролата" : "Change Password"}
@@ -574,12 +574,12 @@ export default function Profile() {
   const initial = user.name?.charAt(0).toUpperCase() || "U";
 
   return (
-    <div className={`min-h-screen ${theme === "dark" ? "bg-tmdb-dark" : "bg-gray-50"}`}>
+    <div className={`min-h-screen ${theme === "dark" ? "bg-[#0B0B12]" : "bg-[#F8F9FC]"}`}>
       {/* =============== HEADER / BANNER =============== */}
       <div className="relative overflow-hidden">
         {/* Gradient background */}
-        <div className="absolute inset-0 bg-gradient-to-br from-tmdb-dark-blue via-[#0d253f] to-[#1a1a2e]" />
-        <div className="absolute inset-0 bg-gradient-to-r from-tmdb-light-blue/10 via-tmdb-light-green/5 to-transparent" />
+        <div className="absolute inset-0 bg-gradient-to-br from-[#121226] via-[#0B0B12] to-[#0B0B12]" />
+        <div className="absolute inset-0 bg-gradient-to-r from-primary/10 via-secondary/5 to-transparent" />
         {/* Subtle pattern */}
         <div className="absolute inset-0 opacity-[0.03]" style={{
           backgroundImage: "radial-gradient(circle at 25% 50%, white 1px, transparent 1px)",
@@ -592,33 +592,33 @@ export default function Profile() {
             <div className="flex items-center gap-5">
               <div className="relative">
                 {/* Glow ring */}
-                <div className="absolute -inset-1 bg-gradient-to-br from-tmdb-light-green to-tmdb-light-blue rounded-full opacity-60 blur-sm" />
-                <div className="relative w-20 h-20 md:w-24 md:h-24 rounded-full bg-gradient-to-br from-tmdb-light-green to-tmdb-light-blue flex items-center justify-center ring-2 ring-white/10">
-                  <span className="text-3xl md:text-4xl font-bold text-tmdb-dark-blue">{initial}</span>
+                <div className="absolute -inset-1 bg-gradient-to-br from-[#A78BFA] to-[#2DD4BF] rounded-full opacity-60 blur-sm" />
+                <div className="relative w-20 h-20 md:w-24 md:h-24 rounded-full bg-gradient-to-br from-[#A78BFA] to-[#2DD4BF] flex items-center justify-center ring-2 ring-white/10">
+                  <span className="text-3xl md:text-4xl font-bold text-white">{initial}</span>
                 </div>
               </div>
               <div>
                 <h1 className="text-2xl md:text-3xl font-bold text-white">{user.name}</h1>
-                <p className="text-gray-400 text-sm md:text-base mt-0.5 hidden sm:block">{user.email}</p>
+                <p className="text-[#A7A7C7] text-sm md:text-base mt-0.5 hidden sm:block">{user.email}</p>
               </div>
             </div>
 
             {/* Right: Stat pills */}
             <div className="flex gap-3 md:ml-auto flex-wrap">
               <div className={`flex items-center gap-2 px-4 py-2.5 rounded-xl ${theme === "dark" ? "bg-white/5 border border-white/10" : "bg-white/10 border border-white/20"}`}>
-                <Heart className="w-4 h-4 text-pink-400" />
+                <Heart className="w-4 h-4 text-secondary" />
                 <span className="text-white font-semibold text-lg">{counts.favorites}</span>
-                <span className="text-gray-400 text-sm hidden sm:inline">{language === "bg" ? "Любими" : "Favorites"}</span>
+                <span className="text-[#A7A7C7] text-sm hidden sm:inline">{language === "bg" ? "Любими" : "Favorites"}</span>
               </div>
               <div className={`flex items-center gap-2 px-4 py-2.5 rounded-xl ${theme === "dark" ? "bg-white/5 border border-white/10" : "bg-white/10 border border-white/20"}`}>
                 <Check className="w-4 h-4 text-green-400" />
                 <span className="text-white font-semibold text-lg">{counts.completed}</span>
-                <span className="text-gray-400 text-sm hidden sm:inline">{language === "bg" ? "Гледани" : "Completed"}</span>
+                <span className="text-[#A7A7C7] text-sm hidden sm:inline">{language === "bg" ? "Гледани" : "Completed"}</span>
               </div>
               <div className={`flex items-center gap-2 px-4 py-2.5 rounded-xl ${theme === "dark" ? "bg-white/5 border border-white/10" : "bg-white/10 border border-white/20"}`}>
                 <Bookmark className="w-4 h-4 text-blue-400" />
                 <span className="text-white font-semibold text-lg">{counts.watchlist}</span>
-                <span className="text-gray-400 text-sm hidden sm:inline">{language === "bg" ? "За гледане" : "Watchlist"}</span>
+                <span className="text-[#A7A7C7] text-sm hidden sm:inline">{language === "bg" ? "За гледане" : "Watchlist"}</span>
               </div>
             </div>
           </div>
@@ -629,8 +629,8 @@ export default function Profile() {
               onClick={() => setActiveTab("overview")}
               className={`flex items-center gap-2 px-5 py-2.5 rounded-lg font-medium text-sm transition-all ${
                 activeTab === "overview"
-                  ? "bg-tmdb-light-blue text-tmdb-dark-blue shadow-sm"
-                  : "text-gray-400 hover:text-white"
+                  ? "bg-primary text-white shadow-sm"
+                  : "text-[#A7A7C7] hover:text-[#EDEDF7]"
               }`}
             >
               <Film className="w-4 h-4" />
@@ -640,8 +640,8 @@ export default function Profile() {
               onClick={() => setActiveTab("settings")}
               className={`flex items-center gap-2 px-5 py-2.5 rounded-lg font-medium text-sm transition-all ${
                 activeTab === "settings"
-                  ? "bg-tmdb-light-blue text-tmdb-dark-blue shadow-sm"
-                  : "text-gray-400 hover:text-white"
+                  ? "bg-primary text-white shadow-sm"
+                  : "text-[#A7A7C7] hover:text-[#EDEDF7]"
               }`}
             >
               <Settings className="w-4 h-4" />
@@ -661,7 +661,7 @@ export default function Profile() {
             {/* Favorites */}
             <section>
               <SectionHeader
-                icon={Heart} iconColor="bg-pink-500/10 text-pink-500"
+                icon={Heart} iconColor="bg-secondary/10 text-secondary"
                 label={language === "bg" ? "Любими филми" : "Favorite Movies"}
                 count={counts.favorites}
                 viewAllTo="/browse" viewAllLabel={language === "bg" ? "Виж всички" : "View All"}

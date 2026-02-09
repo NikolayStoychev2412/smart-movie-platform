@@ -8,10 +8,52 @@ export default {
   theme: {
     extend: {
       colors: {
-        "tmdb-dark": "#0d1117",
-        "tmdb-dark-blue": "#032541",
-        "tmdb-light-blue": "#01b4e4",
-        "tmdb-light-green": "#90cea1",
+        // === MIDNIGHT VIOLET PALETTE ===
+        
+        // Primary — Violet
+        primary: {
+          DEFAULT: "#7C3AED",
+          hover: "#6D28D9",
+          pressed: "#5B21B6",
+          subtle: "#EDE9FE",  // for light mode highlights
+        },
+        
+        // Secondary — Teal
+        secondary: {
+          DEFAULT: "#14B8A6",
+          hover: "#0D9488",
+          pressed: "#0F766E",
+          subtle: "#CCFBF1",  // for light mode highlights
+        },
+        
+        // Dark theme surfaces
+        dark: {
+          bg: "#0B0B12",
+          surface: "#121226",
+          "surface-2": "#1A1A33",
+          border: "#2A2A4A",
+          text: "#EDEDF7",
+          muted: "#A7A7C7",
+        },
+        
+        // Light theme surfaces
+        light: {
+          bg: "#FAFAFF",
+          surface: "#FFFFFF",
+          "surface-2": "#F3F4FF",
+          border: "#E6E7F5",
+          text: "#121225",
+          muted: "#4B4B6A",
+        },
+        
+        // Status colors
+        success: "#22C55E",
+        warning: "#F59E0B",
+        error: "#EF4444",
+        
+        // Legacy aliases (for gradual migration)
+        accent: "#7C3AED",
+        "accent-light": "#A78BFA",
       },
     },
   },

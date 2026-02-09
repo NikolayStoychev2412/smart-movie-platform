@@ -13,10 +13,10 @@ from app.utils.ratings import recalculate_movie_rating
 router = APIRouter(prefix="/reviews", tags=["Reviews"])
 
 
-@router.post("/movies/{movie_id}", response_model=ReviewOut, status_code=status.HTTP_201_CREATED)
+@router.post("/movies/{movie_id}", status_code=status.HTTP_201_CREATED)
 def create_review(
-    movie_id: int, 
-    review: ReviewCreate, 
+    movie_id: int,
+    review: ReviewCreate,
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
@@ -25,7 +25,7 @@ def create_review(
     movie = db.query(Movie).filter(Movie.id == movie_id).first()
     if not movie:
         raise HTTPException(status_code=404, detail="Movie not found")
-    
+
     # Create review - database constraint handles duplicates
     db_review = Review(
         user_id=current_user.id,
@@ -33,7 +33,7 @@ def create_review(
         rating=review.rating,
         comment=review.comment
     )
-    
+
     try:
         db.add(db_review)
         db.commit()
@@ -48,13 +48,38 @@ def create_review(
     # Recalculate movie rating
     recalculate_movie_rating(db, movie_id)
 
-    return db_review
+    # Return with user_name
+    return {
+        "id": db_review.id,
+        "user_id": db_review.user_id,
+        "movie_id": db_review.movie_id,
+        "rating": db_review.rating,
+        "comment": db_review.comment,
+        "created_at": db_review.created_at,
+        "user_name": current_user.name
+    }
 
 
-@router.get("/movies/{movie_id}", response_model=list[ReviewOut])
+@router.get("/movies/{movie_id}")
 def list_reviews(movie_id: int, db: Session = Depends(get_db)):
     """Get all reviews for a movie (public)"""
-    return db.query(Review).filter(Review.movie_id == movie_id).all()
+    reviews = db.query(Review).filter(Review.movie_id == movie_id).order_by(Review.created_at.desc()).all()
+
+    # Add user_name to each review
+    result = []
+    for review in reviews:
+        review_dict = {
+            "id": review.id,
+            "user_id": review.user_id,
+            "movie_id": review.movie_id,
+            "rating": review.rating,
+            "comment": review.comment,
+            "created_at": review.created_at,
+            "user_name": review.user.name if review.user else "User"
+        }
+        result.append(review_dict)
+
+    return result
 
 
 @router.get("/my-reviews", response_model=list[ReviewOut])

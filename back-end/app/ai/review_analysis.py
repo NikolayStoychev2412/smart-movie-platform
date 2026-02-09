@@ -10,9 +10,11 @@ from enum import Enum
 
 logger = logging.getLogger(__name__)
 
-# Lazy imports
+# Lazy imports - set to None to force reload on server restart
 _sentiment_pipeline = None
 _openai_client = None
+_loaded_model_name = None
+_MODEL_VERSION = 2  # Increment this to force model reload
 
 
 class SentimentLabel(str, Enum):
@@ -45,14 +47,33 @@ class ReviewAnalyzer:
     
     def _init_huggingface(self):
         """Initialize HuggingFace sentiment pipeline"""
-        global _sentiment_pipeline
-        
-        if _sentiment_pipeline is None:
+        global _sentiment_pipeline, _loaded_model_name
+
+        # Force use distilbert model - it works well for short AND long text
+        # The nlptown model only works for long reviews
+        SENTIMENT_MODEL = "distilbert-base-uncased-finetuned-sst-2-english"
+
+        # Check if we need to reload (wrong model loaded or not loaded)
+        needs_reload = _sentiment_pipeline is None
+
+        if not needs_reload and _sentiment_pipeline is not None:
+            # Check if the loaded model is correct by examining its config
+            try:
+                current_model = _sentiment_pipeline.model.config._name_or_path
+                if "distilbert" not in current_model.lower() or "sst" not in current_model.lower():
+                    logger.warning(f"Wrong model loaded: {current_model}, reloading...")
+                    needs_reload = True
+            except Exception:
+                needs_reload = True
+
+        if needs_reload:
             from transformers import pipeline
-            
-            model_name = os.getenv("HF_SENTIMENT_MODEL", "distilbert-base-uncased-finetuned-sst-2-english")
-            _sentiment_pipeline = pipeline("sentiment-analysis", model=model_name)
-            logger.info(f"Loaded HuggingFace model: {model_name}")
+            logger.info(f"Loading sentiment model: {SENTIMENT_MODEL}")
+            _sentiment_pipeline = pipeline("sentiment-analysis", model=SENTIMENT_MODEL)
+            _loaded_model_name = SENTIMENT_MODEL
+            logger.info(f"✓ Loaded HuggingFace model: {SENTIMENT_MODEL}")
+        else:
+            logger.info(f"Using cached model: {_loaded_model_name}")
     
     def _init_openai(self):
         """Initialize OpenAI client"""
@@ -102,19 +123,66 @@ class ReviewAnalyzer:
     def _analyze_hf(self, text: str) -> Dict:
         """Analyze using HuggingFace model"""
         global _sentiment_pipeline
-        
-        # Get sentiment
-        result = _sentiment_pipeline(text[:512])[0]
-        
-        # Map labels
-        label_map = {
-            "POSITIVE": SentimentLabel.POSITIVE,
-            "NEGATIVE": SentimentLabel.NEGATIVE,
-            "NEUTRAL": SentimentLabel.NEUTRAL
-        }
-        
-        sentiment = label_map.get(result["label"].upper(), SentimentLabel.NEUTRAL)
-        confidence = result["score"]
+
+        # Get sentiment - get all labels with scores for better analysis
+        try:
+            results = _sentiment_pipeline(text[:512], top_k=None)
+        except Exception:
+            # Fallback to single result if top_k not supported
+            results = [_sentiment_pipeline(text[:512])[0]]
+
+        # Flatten results if nested
+        if results and isinstance(results[0], list):
+            results = results[0]
+        elif isinstance(results, dict):
+            results = [results]
+
+        # Build score map
+        scores = {}
+        for r in results:
+            if isinstance(r, dict) and "label" in r:
+                label = r["label"].upper()
+                scores[label] = r["score"]
+
+        logger.info(f"Model output scores: {scores}")
+
+        # Handle different model output formats
+        if "1 STAR" in scores or "5 STARS" in scores:
+            # Star rating model (nlptown)
+            star_scores = {i: scores.get(f"{i} STAR" if i == 1 else f"{i} STARS", 0) for i in range(1, 6)}
+            weighted_avg = sum(i * star_scores[i] for i in range(1, 6))
+
+            if weighted_avg >= 3.5:
+                sentiment = SentimentLabel.POSITIVE
+                confidence = min(0.95, 0.5 + (weighted_avg - 3.5) * 0.3)
+            elif weighted_avg <= 2.5:
+                sentiment = SentimentLabel.NEGATIVE
+                confidence = min(0.95, 0.5 + (2.5 - weighted_avg) * 0.3)
+            else:
+                sentiment = SentimentLabel.NEUTRAL
+                confidence = 0.6
+        else:
+            # Binary model (distilbert-sst-2) - POSITIVE/NEGATIVE only
+            pos_score = scores.get("POSITIVE", 0)
+            neg_score = scores.get("NEGATIVE", 0)
+
+            logger.info(f"Sentiment scores - POSITIVE: {pos_score}, NEGATIVE: {neg_score}")
+
+            # Determine sentiment - binary model so use clear thresholds
+            # Only mark as neutral if scores are VERY close (within 0.1)
+            score_diff = abs(pos_score - neg_score)
+            if score_diff < 0.1:
+                # Very close scores = truly neutral
+                sentiment = SentimentLabel.NEUTRAL
+                confidence = 0.5 + (0.1 - score_diff) * 5  # 0.5 to 1.0
+            elif pos_score > neg_score:
+                sentiment = SentimentLabel.POSITIVE
+                confidence = pos_score
+            else:
+                sentiment = SentimentLabel.NEGATIVE
+                confidence = neg_score
+
+            logger.info(f"Result: {sentiment.value} with confidence {confidence}")
         
         # Extract keywords
         keywords = self._extract_keywords(text)

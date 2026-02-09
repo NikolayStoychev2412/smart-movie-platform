@@ -8,6 +8,7 @@ from typing import List, Optional
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy import select, func, and_
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import selectinload
 
 from app.database import get_async_db
 from app.models.movie import Movie
@@ -404,21 +405,25 @@ async def get_movie_reviews(
     if not movie_result.first():
         raise HTTPException(status_code=404, detail="Movie not found")
     
-    # Get reviews
-    query = select(Review).where(Review.movie_id == movie_id).order_by(Review.created_at.desc())
+    # Get reviews with user relationship loaded
+    query = (
+        select(Review)
+        .options(selectinload(Review.user))
+        .where(Review.movie_id == movie_id)
+        .order_by(Review.created_at.desc())
+    )
     result = await db.execute(query)
     reviews = result.scalars().all()
-    
+
     return [
         {
             "id": r.id,
             "user_id": r.user_id,
             "movie_id": r.movie_id,
             "rating": r.rating,
-            "content": r.content,
-            "review_text": r.content,  # Alias for frontend compatibility
+            "comment": r.comment,
             "created_at": r.created_at,
-            "updated_at": r.updated_at,
+            "user_name": r.user.name if r.user else "User",
         }
         for r in reviews
     ]
