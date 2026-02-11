@@ -137,8 +137,7 @@ function ReviewForm({ movieId, theme, language, onReviewAdded }: {
       try {
         const response = await api.post('/ai/analyze-review', { text: comment });
         setSentiment(response.data);
-      } catch (err) {
-        console.error('Sentiment analysis failed:', err);
+      } catch {
         setSentiment(null);
       } finally {
         setAnalyzing(false);
@@ -785,7 +784,7 @@ export default function MovieDetails() {
           setReviews(Array.isArray(r) ? r : []); 
         } catch { setReviews([]); }
         try { const s = await moviesApi.getSimilar(parseInt(id)); setSimilarMovies(Array.isArray(s) ? s.map((x:any) => x.movie||x).slice(0,10) : []); } catch { setSimilarMovies([]); }
-      } catch (e) { console.error(e); setError("Failed to load"); }
+      } catch { setError("Failed to load"); }
       finally { setLoading(false); }
     };
     fetchData();
@@ -900,8 +899,8 @@ export default function MovieDetails() {
       if (id) {
         moviesApi.getById(parseInt(id)).then(data => setMovie(data as MovieDetail));
       }
-    } catch (err) {
-      console.error('Failed to delete review:', err);
+    } catch {
+      // Failed to delete review
     }
   };
 
@@ -921,8 +920,8 @@ export default function MovieDetails() {
         await api.post(`/favorites/${id}`);
         setIsFavorite(true);
       }
-    } catch (err) {
-      console.error('Failed to toggle favorite:', err);
+    } catch {
+      // Failed to toggle favorite
     } finally {
       setFavoriteLoading(false);
     }

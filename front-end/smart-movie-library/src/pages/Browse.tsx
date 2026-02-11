@@ -531,8 +531,8 @@ export default function Browse() {
         const data = await moviesApi.getAll();
         movieCache.set(data);
         setAllMovies(data);
-      } catch (err) {
-        console.error("Failed to fetch movies:", err);
+      } catch {
+        // Failed to fetch movies
       } finally {
         setLoading(false);
       }
@@ -577,8 +577,7 @@ export default function Browse() {
           relevanceMap[r.movie.id] = clamp01((rel - minRel) / denom);
         });
         setRelevanceScores(relevanceMap);
-      } catch (err) {
-        console.error("AI search failed:", err);
+      } catch {
         setSearchResults([]);
         setSnippets({});
         setRelevanceScores({});

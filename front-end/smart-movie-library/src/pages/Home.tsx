@@ -728,8 +728,8 @@ export default function Home() {
           .slice(0, 20);
         setRecentMovies(recent);
 
-      } catch (err) {
-        console.error("Failed to fetch movies:", err);
+      } catch {
+        // Failed to fetch movies
       } finally {
         setLoading(false);
       }
@@ -759,8 +759,7 @@ export default function Home() {
           hasActivity: personalizedCount >= 3,
           personalizedCount
         });
-      } catch (err) {
-        console.error("Failed to fetch recommendations:", err);
+      } catch {
         setForYouRecs([]);
         setUserState({ isLoggedIn: true, hasActivity: false, personalizedCount: 0 });
       }

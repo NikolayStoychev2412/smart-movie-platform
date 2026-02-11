@@ -15,6 +15,7 @@ def recalculate_movie_rating(db: Session, movie_id: int) -> float:
     movie = db.query(Movie).filter(Movie.id == movie_id).first()
     if movie:
         movie.average_rating = round(float(avg_rating), 1) if avg_rating else 0.0
+        movie.review_count = count or 0
         db.commit()
         return movie.average_rating
     

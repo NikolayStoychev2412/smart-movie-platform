@@ -218,7 +218,7 @@ def get_all_reviews(
                 "movie_id": r.Review.movie_id,
                 "movie_title": r.movie_title,
                 "rating": r.Review.rating,
-                "comment": r.Review.content if hasattr(r.Review, 'content') else getattr(r.Review, 'comment', None),
+                "comment": r.Review.comment,
                 "created_at": str(r.Review.created_at) if r.Review.created_at else None,
             }
             for r in reviews
