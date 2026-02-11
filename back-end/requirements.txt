@@ -1,33 +1,45 @@
-# requirements.txt - Updated with async and performance dependencies
-# Add these to your existing requirements.txt
+# =============================================================================
+# CORE
+# =============================================================================
+fastapi>=0.109.0
+uvicorn[standard]>=0.27.0
+sqlalchemy>=2.0.0
+pydantic>=2.0.0
+pydantic-settings>=2.0.0
+python-dotenv>=1.0.0
+python-multipart
 
 # =============================================================================
-# ASYNC DATABASE SUPPORT
+# DATABASE (PostgreSQL)
 # =============================================================================
-# For SQLite (development)
-aiosqlite>=0.19.0
-
-# For PostgreSQL (production) - uncomment if using PostgreSQL
-# asyncpg>=0.29.0
+psycopg2-binary>=2.9.0
+asyncpg>=0.29.0
 
 # =============================================================================
-# FASTER JSON SERIALIZATION
+# AUTH & SECURITY
+# =============================================================================
+python-jose[cryptography]
+passlib[bcrypt]
+argon2-cffi
+bleach
+
+# =============================================================================
+# AI / ML
+# =============================================================================
+sentence-transformers
+faiss-cpu
+transformers
+torch
+
+# =============================================================================
+# JSON SERIALIZATION
 # =============================================================================
 orjson>=3.9.0
 
 # =============================================================================
-# EXISTING DEPENDENCIES (keep these)
+# HTTP (for scripts)
 # =============================================================================
-# fastapi>=0.109.0
-# uvicorn[standard]>=0.27.0
-# sqlalchemy>=2.0.0
-# pydantic>=2.0.0
-# python-jose[cryptography]
-# passlib[bcrypt]
-# python-multipart
-# sentence-transformers
-# faiss-cpu  # or faiss-gpu for GPU support
-# bleach
+requests
 
 # =============================================================================
 # OPTIONAL: Production performance

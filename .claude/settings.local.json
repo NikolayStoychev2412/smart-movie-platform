@@ -1,9 +1,0 @@
-{
-  "permissions": {
-    "allow": [
-      "Bash(npm run build:*)",
-      "Bash(npx vite build)",
-      "Bash(del \"D:\\\\Apps\\\\SchoolProjects\\\\smart-movie-platform\\\\back-end\\\\scripts\\\\__init__.py\")"
-    ]
-  }
-}
