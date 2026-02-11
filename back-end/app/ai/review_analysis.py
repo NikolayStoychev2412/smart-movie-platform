@@ -1,7 +1,6 @@
 # app/ai/review_analysis.py
 """
-Review sentiment analysis and summarization.
-Supports both local models (HuggingFace) and OpenAI.
+Review sentiment analysis and summarization using HuggingFace models.
 """
 import os
 import logging
@@ -12,7 +11,6 @@ logger = logging.getLogger(__name__)
 
 # Lazy imports - set to None to force reload on server restart
 _sentiment_pipeline = None
-_openai_client = None
 _loaded_model_name = None
 _MODEL_VERSION = 2  # Increment this to force model reload
 
@@ -26,25 +24,13 @@ class SentimentLabel(str, Enum):
 
 class ReviewAnalyzer:
     """Analyze movie reviews for sentiment and key themes"""
-    
-    def __init__(self, provider: str = "huggingface"):
-        """
-        Initialize review analyzer.
-        
-        Args:
-            provider: "huggingface" or "openai"
-        """
-        self.provider = provider.lower()
-        
-        if self.provider == "huggingface":
-            self._init_huggingface()
-        elif self.provider == "openai":
-            self._init_openai()
-        else:
-            raise ValueError(f"Unknown provider: {provider}")
-        
+
+    def __init__(self):
+        """Initialize review analyzer with HuggingFace."""
+        self.provider = "huggingface"
+        self._init_huggingface()
         logger.info(f"Initialized ReviewAnalyzer with {self.provider}")
-    
+
     def _init_huggingface(self):
         """Initialize HuggingFace sentiment pipeline"""
         global _sentiment_pipeline, _loaded_model_name
@@ -66,26 +52,14 @@ class ReviewAnalyzer:
             logger.info(f"Loaded HuggingFace model: {SENTIMENT_MODEL}")
         else:
             logger.info(f"Using cached model: {_loaded_model_name}")
-    
-    def _init_openai(self):
-        """Initialize OpenAI client"""
-        global _openai_client
-        
-        if _openai_client is None:
-            import openai
-            api_key = os.getenv("OPENAI_API_KEY")
-            if not api_key:
-                raise ValueError("OPENAI_API_KEY not set")
-            _openai_client = openai.OpenAI(api_key=api_key)
-            logger.info("Initialized OpenAI client for review analysis")
-    
+
     def analyze(self, text: str) -> Dict:
         """
         Analyze review text for sentiment and summary.
-        
+
         Args:
             text: Review text to analyze
-            
+
         Returns:
             Dict with sentiment, confidence, summary, and keywords
         """
@@ -96,12 +70,9 @@ class ReviewAnalyzer:
                 "summary": "",
                 "keywords": []
             }
-        
+
         try:
-            if self.provider == "huggingface":
-                return self._analyze_hf(text)
-            elif self.provider == "openai":
-                return self._analyze_openai(text)
+            return self._analyze_hf(text)
         except Exception as e:
             logger.error(f"Error analyzing review: {e}")
             return {
@@ -111,7 +82,7 @@ class ReviewAnalyzer:
                 "keywords": [],
                 "error": str(e)
             }
-    
+
     def _analyze_hf(self, text: str) -> Dict:
         """Analyze using HuggingFace model"""
         global _sentiment_pipeline
@@ -181,58 +152,20 @@ class ReviewAnalyzer:
             confidence = mapped[best_label]
 
         logger.debug(f"Result: {sentiment.value} with confidence {confidence}")
-        
+
         # Extract keywords
         keywords = self._extract_keywords(text)
-        
+
         # Generate summary
         summary = self._generate_summary(text)
-        
+
         return {
             "sentiment": sentiment,
             "confidence": round(confidence, 3),
             "summary": summary,
             "keywords": keywords
         }
-    
-    def _analyze_openai(self, text: str) -> Dict:
-        """Analyze using OpenAI API"""
-        global _openai_client
-        
-        prompt = f"""Analyze this movie review and provide:
-1. Sentiment (positive/negative/neutral)
-2. A one-sentence summary
-3. 3-5 keywords
 
-Review: {text}
-
-Respond in JSON format:
-{{
-  "sentiment": "positive|negative|neutral",
-  "summary": "one sentence",
-  "keywords": ["word1", "word2", ...]
-}}"""
-        
-        response = _openai_client.chat.completions.create(
-            model="gpt-3.5-turbo",
-            messages=[
-                {"role": "system", "content": "You are a movie review analyzer."},
-                {"role": "user", "content": prompt}
-            ],
-            temperature=0.3,
-            max_tokens=150
-        )
-        
-        import json
-        result = json.loads(response.choices[0].message.content)
-        
-        return {
-            "sentiment": SentimentLabel(result["sentiment"].lower()),
-            "confidence": 0.9,
-            "summary": result["summary"],
-            "keywords": result["keywords"]
-        }
-    
     def _extract_keywords(self, text: str, max_keywords: int = 5) -> List[str]:
         """Simple keyword extraction (supports English and Bulgarian)"""
         stop_words = {
@@ -261,78 +194,29 @@ Respond in JSON format:
 
         sorted_words = sorted(word_freq.items(), key=lambda x: x[1], reverse=True)
         return [word for word, _ in sorted_words[:max_keywords]]
-    
+
     def _generate_summary(self, text: str, max_length: int = 100) -> str:
         """Generate a simple summary"""
         sentences = text.split('.')
         if sentences and len(sentences[0]) <= max_length:
             return sentences[0].strip() + "."
-        
+
         if len(text) <= max_length:
             return text
-        
+
         return text[:max_length].rsplit(' ', 1)[0] + "..."
 
 
-def analyze_review(text: str, provider: str = None) -> Dict:
+def analyze_review(text: str) -> Dict:
     """
     Convenience function to analyze a review.
-    
+
     Example:
         >>> result = analyze_review("Amazing movie, loved it!")
         >>> print(result["sentiment"])
         "positive"
     """
-    if provider is None:
-        provider = os.getenv("REVIEW_ANALYSIS_PROVIDER", "huggingface")
-    
-    analyzer = ReviewAnalyzer(provider)
+    analyzer = ReviewAnalyzer()
     return analyzer.analyze(text)
 
 
-def get_review_statistics(analyses: List[Dict]) -> Dict:
-    """Get aggregate statistics from multiple review analyses"""
-    if not analyses:
-        return {
-            "total": 0,
-            "positive": 0,
-            "negative": 0,
-            "neutral": 0,
-            "avg_confidence": 0.0,
-            "common_keywords": []
-        }
-    
-    sentiment_counts = {
-        SentimentLabel.POSITIVE: 0,
-        SentimentLabel.NEGATIVE: 0,
-        SentimentLabel.NEUTRAL: 0
-    }
-    
-    total_confidence = 0.0
-    all_keywords = []
-    
-    for analysis in analyses:
-        sentiment = analysis.get("sentiment", SentimentLabel.NEUTRAL)
-        if isinstance(sentiment, str):
-            sentiment = SentimentLabel(sentiment)
-        
-        sentiment_counts[sentiment] += 1
-        total_confidence += analysis.get("confidence", 0.0)
-        all_keywords.extend(analysis.get("keywords", []))
-    
-    # Count keyword frequency
-    keyword_freq = {}
-    for keyword in all_keywords:
-        keyword_freq[keyword] = keyword_freq.get(keyword, 0) + 1
-    
-    common_keywords = sorted(keyword_freq.items(), key=lambda x: x[1], reverse=True)[:10]
-    
-    return {
-        "total": len(analyses),
-        "positive": sentiment_counts[SentimentLabel.POSITIVE],
-        "negative": sentiment_counts[SentimentLabel.NEGATIVE],
-        "neutral": sentiment_counts[SentimentLabel.NEUTRAL],
-        "positive_percentage": round(sentiment_counts[SentimentLabel.POSITIVE] / len(analyses) * 100, 1),
-        "avg_confidence": round(total_confidence / len(analyses), 3),
-        "common_keywords": [kw for kw, _ in common_keywords]
-    }

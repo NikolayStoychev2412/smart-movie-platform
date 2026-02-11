@@ -260,61 +260,8 @@ button:disabled {
   background-color: rgba(124, 58, 237, 0.35);
 }
 
-/* ==================== CAROUSEL ==================== */
-.carousel-scroll {
-  overflow-x: auto;
-  overflow-y: hidden;
-  -webkit-overflow-scrolling: touch;
-  scroll-behavior: smooth;
-  scrollbar-width: none;
-  -ms-overflow-style: none;
-}
-
-.carousel-scroll::-webkit-scrollbar {
-  display: none;
-}
-
-/* ==================== MOVIE CARDS ==================== */
-.group:hover .group-hover\:scale-105 {
-  transform: scale(1.05);
-}
-
 /* ==================== MODAL/OVERLAY ==================== */
 .fixed.inset-0.bg-black\/90 {
   backdrop-filter: blur(4px);
 }
 
-/* ==================== CUSTOM SCROLLBAR ==================== */
-.custom-scrollbar::-webkit-scrollbar {
-  width: 8px;
-  height: 8px;
-}
-
-.custom-scrollbar::-webkit-scrollbar-track {
-  background: transparent;
-}
-
-.light .custom-scrollbar::-webkit-scrollbar-thumb {
-  background: #D0D2E4;
-  border-radius: 4px;
-}
-
-.light .custom-scrollbar::-webkit-scrollbar-thumb:hover {
-  background: #B0B2C4;
-}
-
-.dark .custom-scrollbar::-webkit-scrollbar-thumb {
-  background: #2A2A4A;
-  border-radius: 4px;
-}
-
-.dark .custom-scrollbar::-webkit-scrollbar-thumb:hover {
-  background: #3A3A5A;
-}
-
-/* ==================== LIGHT THEME SPECIFIC OVERRIDES ==================== */
-
-/* Light mode hover states should be visible */
-.light [class*="hover:bg-[#F3F4FF]"]:hover {
-  background-color: #ECEEF8 !important;
-}

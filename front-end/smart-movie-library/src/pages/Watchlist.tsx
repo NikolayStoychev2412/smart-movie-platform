@@ -20,7 +20,7 @@ interface WatchlistItem {
 
 export default function Watchlist() {
   const navigate = useNavigate();
-  const { language, theme, isAuthenticated } = useApp();
+  const { language, theme } = useApp();
   
   const [items, setItems] = useState<WatchlistItem[]>([]);
   const [loading, setLoading] = useState(true);
@@ -47,7 +47,6 @@ export default function Watchlist() {
       const response = await api.get('/watchlist/');
       setItems(response.data || []);
     } catch (err: any) {
-      console.error('Error fetching watchlist:', err);
       // If unauthorized, redirect to login
       if (err.response?.status === 401) {
         navigate('/login', { state: { from: '/watchlist' } });
@@ -64,8 +63,8 @@ export default function Watchlist() {
       setItems(items.map(item => 
         item.movie_id === movieId ? { ...item, status: newStatus } : item
       ));
-    } catch (err) {
-      console.error('Error updating status:', err);
+    } catch {
+      // Status update failed
     }
   };
 
@@ -73,8 +72,8 @@ export default function Watchlist() {
     try {
       await api.delete(`/watchlist/${movieId}`);
       setItems(items.filter(item => item.movie_id !== movieId));
-    } catch (err) {
-      console.error('Error removing from watchlist:', err);
+    } catch {
+      // Remove failed
     }
   };
 

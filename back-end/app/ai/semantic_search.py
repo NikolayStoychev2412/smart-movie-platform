@@ -53,7 +53,7 @@ class SemanticSearch:
         if expanded_query != query:
             logger.debug(f"Expanded: '{query}' -> '{expanded_query}'")
         
-        # Generate query embedding - multilingual model handles any language!
+        # Generate query embedding
         query_vector = get_embedding(expanded_query)
         
         # Apply filters if provided
@@ -144,7 +144,7 @@ class SemanticSearch:
             "funny": "funny comedy hilarious amusing",
             "sad": "sad emotional tearjerker dramatic",
             
-            # Bulgarian - model understands these!
+            # Bulgarian
             "хорър": "хорър страшен ужас",
             "комедия": "комедия смешен забавен",
             "екшън": "екшън приключение",
@@ -223,7 +223,7 @@ class SemanticSearch:
         Search movies by mood/emotion.
         Supports Bulgarian and English mood words.
         """
-        # Mood expansions - multilingual model understands both!
+        # Mood expansions
         mood_queries = {
             # English moods
             "uplifting": "inspiring hopeful heartwarming feel-good positive",
@@ -235,7 +235,7 @@ class SemanticSearch:
             "exciting": "exciting thrilling action-packed intense adventure",
             "thoughtful": "thoughtful philosophical deep meaningful",
             
-            # Bulgarian moods - model understands these directly!
+            # Bulgarian moods
             "весел": "весел щастлив позитивен радостен",
             "тъмен": "тъмен мрачен депресиращ",
             "романтичен": "романтичен любовен страстен",

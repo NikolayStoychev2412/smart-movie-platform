@@ -387,7 +387,11 @@ def get_recent_activity(
     activities = []
 
     # Get recent reviews
-    reviews = db.query(Review).filter(
+    from sqlalchemy.orm import selectinload
+
+    reviews = db.query(Review).options(
+        selectinload(Review.movie)
+    ).filter(
         Review.user_id == current_user.id
     ).order_by(Review.created_at.desc()).limit(limit).all()
 
@@ -407,7 +411,9 @@ def get_recent_activity(
             })
 
     # Get recent favorites
-    favorites = db.query(Favorite).filter(
+    favorites = db.query(Favorite).options(
+        selectinload(Favorite.movie)
+    ).filter(
         Favorite.user_id == current_user.id
     ).order_by(Favorite.created_at.desc()).limit(limit).all()
 
@@ -426,7 +432,9 @@ def get_recent_activity(
             })
 
     # Get recent watchlist additions
-    watchlist_entries = db.query(Watchlist).filter(
+    watchlist_entries = db.query(Watchlist).options(
+        selectinload(Watchlist.movie)
+    ).filter(
         Watchlist.user_id == current_user.id
     ).order_by(Watchlist.created_at.desc()).limit(limit).all()
 

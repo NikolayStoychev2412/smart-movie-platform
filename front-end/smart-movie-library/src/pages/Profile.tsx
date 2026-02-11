@@ -1286,8 +1286,8 @@ function MyReviewsSection({
       });
       setEditingId(null);
       fetchReviews();
-    } catch (err) {
-      console.error("Failed to update review:", err);
+    } catch {
+      // Failed to update review
     } finally {
       setSaving(false);
     }
@@ -1301,8 +1301,8 @@ function MyReviewsSection({
     try {
       await api.delete(`/reviews/${reviewId}`);
       fetchReviews();
-    } catch (err) {
-      console.error("Failed to delete review:", err);
+    } catch {
+      // Failed to delete review
     } finally {
       setDeleting(null);
     }

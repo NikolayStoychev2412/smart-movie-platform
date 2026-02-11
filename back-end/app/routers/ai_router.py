@@ -1,30 +1,21 @@
 # app/routers/ai_router.py
 """AI-powered features API endpoints."""
-import asyncio
 import hashlib
-from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime, timedelta
-from functools import lru_cache
 from typing import List, Optional, Dict, Any
 from app.utils.rate_limit import search_rate_limit, recommend_rate_limit, review_rate_limit
 from fastapi import APIRouter, Depends, HTTPException, Path, Query, status, Request
-from sqlalchemy.ext.asyncio import AsyncSession # type: ignore
-from sqlalchemy.orm import Session # type: ignore
+from sqlalchemy.orm import Session
 from pydantic import BaseModel, Field, field_validator
 import bleach # type: ignore
 
-from app.database import get_async_db, get_db
+from app.database import get_db
 from app.models.user import User
 from app.models.movie import Movie
 from app.schemas.movie import MovieOut
 from app.utils.security import get_current_user
-from app.utils.rate_limit import rate_limit_dependency
 
 router = APIRouter(prefix="/ai", tags=["AI Features"])
-
-# Thread pool for CPU-bound AI tasks
-# Reuse pool across requests for efficiency
-AI_THREAD_POOL = ThreadPoolExecutor(max_workers=4, thread_name_prefix="ai_worker")
 
 
 class SearchCache:
@@ -33,28 +24,28 @@ class SearchCache:
         self.max_size = max_size
         self.ttl = ttl_seconds
         self._cache: Dict[str, tuple] = {}  # key -> (result, timestamp)
-    
+
     def _make_key(self, query: str, **kwargs) -> str:
         params = f"{query}:{sorted(kwargs.items())}"
         return hashlib.md5(params.encode()).hexdigest()
-    
+
     def get(self, query: str, **kwargs) -> Optional[Any]:
         key = self._make_key(query, **kwargs)
         if key not in self._cache:
             return None
-        
+
         result, timestamp = self._cache[key]
         if datetime.now() - timestamp > timedelta(seconds=self.ttl):
             del self._cache[key]
             return None
-        
+
         return result
-    
+
     def set(self, query: str, result: Any, **kwargs):
         if len(self._cache) >= self.max_size:
             oldest_key = min(self._cache, key=lambda k: self._cache[k][1])
             del self._cache[oldest_key]
-        
+
         key = self._make_key(query, **kwargs)
         self._cache[key] = (result, datetime.now())
 
@@ -68,7 +59,7 @@ class RecommendationOut(BaseModel):
     movie: MovieOut
     score: float = Field(..., description="Overall recommendation score (0-1)")
     explanation: dict = Field(..., description="Score breakdown by component")
-    
+
     class Config:
         from_attributes = True
 
@@ -77,7 +68,7 @@ class SearchResultOut(BaseModel):
     movie: MovieOut
     relevance: float = Field(..., description="Relevance score (0-1)")
     snippet: str = Field(..., description="Relevant excerpt from summary")
-    
+
     class Config:
         from_attributes = True
 
@@ -91,7 +82,7 @@ class ReviewAnalysisOut(BaseModel):
 
 class ReviewAnalysisRequest(BaseModel):
     text: str = Field(..., min_length=10, max_length=5000)
-    
+
     @field_validator('text')
     @classmethod
     def sanitize_text(cls, v):
@@ -102,20 +93,8 @@ class ReviewAnalysisRequest(BaseModel):
         return v.strip()
 
 
-async def run_in_threadpool(func, *args, **kwargs):
-    """
-    Run a CPU-bound function in the thread pool.
-    This prevents blocking the event loop during AI inference.
-    """
-    loop = asyncio.get_event_loop()
-    return await loop.run_in_executor(
-        AI_THREAD_POOL,
-        lambda: func(*args, **kwargs)
-    )
-
-
 @router.get("/search", response_model=List[SearchResultOut])
-async def semantic_movie_search(
+def semantic_movie_search(
     request: Request,
     q: str = Query(..., min_length=2, description="Search query"),
     top_k: int = Query(20, ge=1, le=50),
@@ -144,11 +123,9 @@ async def semantic_movie_search(
         if min_rating is not None:
             filters["min_rating"] = min_rating
 
-        # Run search in thread pool (CPU-bound!)
         from app.ai.semantic_search import semantic_search
 
-        results = await run_in_threadpool(
-            semantic_search,
+        results = semantic_search(
             db,
             query=q,
             top_k=top_k,
@@ -191,7 +168,7 @@ async def semantic_movie_search(
         search_cache.set(q, response, top_k=top_k, genre=genre, min_rating=min_rating, language=language)
 
         return response
-    
+
     except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
@@ -200,7 +177,7 @@ async def semantic_movie_search(
 
 
 @router.get("/search/by-mood/{mood}", response_model=List[SearchResultOut])
-async def search_movies_by_mood(
+def search_movies_by_mood(
     mood: str = Path(..., description="Mood (e.g., 'scary', 'funny', 'страшен')"),
     top_k: int = Query(20, ge=1, le=50),
     db: Session = Depends(get_db),
@@ -216,13 +193,12 @@ async def search_movies_by_mood(
     cached = mood_cache.get(mood, top_k=top_k)
     if cached:
         return cached
-    
+
     try:
         from app.ai.semantic_search import search_by_mood
-        
-        # Run in thread pool
-        results = await run_in_threadpool(search_by_mood, db, mood, top_k)
-        
+
+        results = search_by_mood(db, mood, top_k)
+
         response = [
             SearchResultOut(
                 movie=MovieOut.model_validate(movie),
@@ -231,13 +207,13 @@ async def search_movies_by_mood(
             )
             for movie, score, snippet in results
         ]
-        
+
         # Fallback
         if not response:
             movies = db.query(Movie).filter(
                 Movie.summary.ilike(f"%{mood}%")
             ).order_by(Movie.average_rating.desc()).limit(top_k).all()
-            
+
             response = [
                 SearchResultOut(
                     movie=MovieOut.model_validate(movie),
@@ -246,12 +222,12 @@ async def search_movies_by_mood(
                 )
                 for movie in movies
             ]
-        
+
         # Cache
         mood_cache.set(mood, response, top_k=top_k)
-        
+
         return response
-    
+
     except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
@@ -260,7 +236,7 @@ async def search_movies_by_mood(
 
 
 @router.get("/recommend/for-me", response_model=List[RecommendationOut])
-async def get_personalized_recommendations(
+def get_personalized_recommendations(
     request: Request,
     top_k: int = Query(20, ge=1, le=50),
     exclude_watched: bool = Query(True),
@@ -271,16 +247,14 @@ async def get_personalized_recommendations(
     """Get personalized movie recommendations based on your history."""
     try:
         from app.ai.hybrid_recommender import recommend_for_user
-        
-        # Run in thread pool
-        results = await run_in_threadpool(
-            recommend_for_user,
+
+        results = recommend_for_user(
             db,
             user_id=current_user.id,
             top_k=top_k,
             exclude_watched=exclude_watched
         )
-        
+
         if not results:
             popular = db.query(Movie).order_by(Movie.average_rating.desc()).limit(top_k).all()
             return [
@@ -291,7 +265,7 @@ async def get_personalized_recommendations(
                 )
                 for movie in popular
             ]
-        
+
         return [
             RecommendationOut(
                 movie=MovieOut.model_validate(movie),
@@ -300,7 +274,7 @@ async def get_personalized_recommendations(
             )
             for movie, score, breakdown in results
         ]
-    
+
     except Exception as e:
         popular = db.query(Movie).order_by(Movie.average_rating.desc()).limit(top_k).all()
         return [
@@ -314,7 +288,7 @@ async def get_personalized_recommendations(
 
 
 @router.get("/recommend/similar/{movie_id}", response_model=List[RecommendationOut])
-async def get_similar_movies(
+def get_similar_movies(
     movie_id: int,
     top_k: int = Query(10, ge=1, le=50),
     db: Session = Depends(get_db)
@@ -322,20 +296,19 @@ async def get_similar_movies(
     """Find movies similar to a specific movie."""
     try:
         from app.ai.hybrid_recommender import find_similar_movies
-        
-        # Run in thread pool
-        results = await run_in_threadpool(find_similar_movies, db, movie_id, top_k)
-        
+
+        results = find_similar_movies(db, movie_id, top_k)
+
         if not results:
             movie = db.query(Movie).filter(Movie.id == movie_id).first()
             if not movie:
                 raise HTTPException(status_code=404, detail="Movie not found")
-            
+
             similar = db.query(Movie).filter(
                 Movie.genre.ilike(f"%{movie.genre}%"),
                 Movie.id != movie_id
             ).order_by(Movie.average_rating.desc()).limit(top_k).all()
-            
+
             return [
                 RecommendationOut(
                     movie=MovieOut.model_validate(m),
@@ -344,7 +317,7 @@ async def get_similar_movies(
                 )
                 for m in similar
             ]
-        
+
         return [
             RecommendationOut(
                 movie=MovieOut.model_validate(movie),
@@ -353,7 +326,7 @@ async def get_similar_movies(
             )
             for movie, score in results
         ]
-    
+
     except HTTPException:
         raise
     except Exception as e:
@@ -364,26 +337,24 @@ async def get_similar_movies(
 
 
 @router.post("/analyze-review", response_model=ReviewAnalysisOut)
-async def analyze_review_sentiment(
+def analyze_review_sentiment(
     request: Request,
     review_request: ReviewAnalysisRequest,
-    db: Session = Depends(get_db),
     _rate_limit: None = Depends(review_rate_limit)
 ):
     """Analyze sentiment and extract insights from review text."""
     try:
         from app.ai.review_analysis import analyze_review
-        
-        # Run in thread pool
-        result = await run_in_threadpool(analyze_review, review_request.text)
-        
+
+        result = analyze_review(review_request.text)
+
         return ReviewAnalysisOut(
             sentiment=result["sentiment"],
             confidence=result["confidence"],
             summary=result["summary"],
             keywords=result["keywords"]
         )
-    
+
     except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
@@ -392,17 +363,17 @@ async def analyze_review_sentiment(
 
 
 @router.get("/info")
-async def get_ai_system_info():
+def get_ai_system_info():
     """Get information about the AI system."""
     from app.ai.embeddings import get_model_info
-    
+
     try:
         from app.ai.vector_store import get_vector_store
         store = get_vector_store()
         stats = store.stats()
     except Exception as e:
         stats = {"error": str(e)}
-    
+
     return {
         "embeddings": get_model_info(),
         "vector_store": {"type": "FAISS", **stats},

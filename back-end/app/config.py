@@ -21,13 +21,11 @@ class Settings(BaseSettings):
     CORS_ORIGINS: str = "http://localhost:3000"
 
     # AI / Embeddings
-    EMBEDDINGS_PROVIDER: str = "sentence-transformers"
     ST_MODEL_NAME: str = "all-MiniLM-L6-v2"
     EMBEDDING_DIMENSION: int = 384
     FAISS_INDEX_PATH: str = "data/faiss_index"
 
     # Review / Sentiment
-    REVIEW_ANALYSIS_PROVIDER: str = "huggingface"
     HF_SENTIMENT_MODEL: str = "nlptown/bert-base-multilingual-uncased-sentiment"
 
     # Rate limiting

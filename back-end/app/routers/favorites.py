@@ -1,6 +1,6 @@
 # app/routers/favorites.py
 from fastapi import APIRouter, Depends, HTTPException, status
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, selectinload
 from sqlalchemy.exc import IntegrityError
 from pydantic import BaseModel
 from typing import List
@@ -37,10 +37,12 @@ def get_user_favorites(
     db: Session = Depends(get_db)
 ):
     """Get all favorites for the current user"""
-    favorites = db.query(Favorite).filter(
+    favorites = db.query(Favorite).options(
+        selectinload(Favorite.movie)
+    ).filter(
         Favorite.user_id == current_user.id
     ).order_by(Favorite.created_at.desc()).all()
-    
+
     return favorites
 
 

@@ -110,26 +110,20 @@ export default function Register() {
 
     try {
       // 1. Register the user
-      console.log("[Register] Starting registration...");
       const { user, token } = await authApi.register(name, email, password);
-      console.log("[Register] Registration successful, token:", token ? "received" : "MISSING");
       
       // 2. Save preferences to backend
       if (token) {
-        console.log("[Register] Saving preferences:", { selectedGenres, selectedMood });
         try {
-          const prefResponse = await api.post('/users/preferences', {
+          await api.post('/users/preferences', {
             preferred_genres: selectedGenres,
             preferred_mood: selectedMood,
           }, {
             headers: { Authorization: `Bearer ${token}` }
           });
-          console.log("[Register] Preferences saved successfully:", prefResponse.data);
-        } catch (prefErr: any) {
-          console.error("[Register] Failed to save preferences:", prefErr.response?.status, prefErr.response?.data || prefErr.message);
+        } catch {
+          // Preferences save failed silently — user can update later in settings
         }
-      } else {
-        console.warn("[Register] No token available, skipping preferences save");
       }
       
       // 3. Store user with preferences locally
@@ -143,7 +137,6 @@ export default function Register() {
       setUser(userWithPrefs);
       navigate("/", { replace: true });
     } catch (err) {
-      console.error("[Register] Error:", err);
       setError(err instanceof Error ? err.message : language === "bg" ? "Грешка при регистрация" : "Registration failed");
     } finally {
       setLoading(false);
@@ -160,7 +153,6 @@ export default function Register() {
       setUser(user);
       navigate("/", { replace: true });
     } catch (err) {
-      console.error("[Register] Error:", err);
       setError(err instanceof Error ? err.message : language === "bg" ? "Грешка при регистрация" : "Registration failed");
     } finally {
       setLoading(false);

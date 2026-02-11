@@ -3,12 +3,12 @@
 Translate all movies to Bulgarian.
 
 Strategy (best quality first):
-  1. TMDb API — official Bulgarian translations (highest quality)
-  2. MyMemory API — free, no API key, GET requests only
-  3. LibreTranslate — free, open-source, no API key needed
-  4. Genre dictionary — instant, hardcoded mapping
+  1. TMDb API -- official Bulgarian translations (highest quality)
+  2. MyMemory API -- free, no API key, GET requests only
+  3. LibreTranslate -- free, open-source, no API key needed
+  4. Genre dictionary -- instant, hardcoded mapping
 
-No extra packages needed — uses only requests (already installed).
+No extra packages needed -- uses only requests (already installed).
 
 Run:
     python scripts/translate_movies.py --stats        # Check progress
@@ -35,19 +35,18 @@ from sqlalchemy import or_
 from app.database import SyncSessionLocal
 from app.models.movie import Movie
 
-# ─── TMDb setup ───────────────────────────────────────────────────────────────
+# TMDb setup
 TMDB_API_KEY = os.getenv("TMDB_API_KEY")
 TMDB_BASE_URL = "https://api.themoviedb.org/3"
 
-# ─── LibreTranslate (free, no API key) ──────────────────────────────────────
-# Free public instances — fallback chain
+# LibreTranslate (free, no API key)
 LIBRE_ENDPOINTS = [
     "https://libretranslate.de",
     "https://translate.argosopentech.com",
     "https://libretranslate.com",
 ]
-_libre_url = None       # Will be auto-detected
-_libre_works = None     # True/False after test translation
+_libre_url = None
+_libre_works = None
 
 
 def _find_libre_endpoint():
@@ -56,11 +55,10 @@ def _find_libre_endpoint():
     if _libre_url and _libre_works:
         return _libre_url
     if _libre_works is False:
-        return None  # Already tested, doesn't work
+        return None
 
     for url in LIBRE_ENDPOINTS:
         try:
-            # Step 1: Check if endpoint responds
             r = requests.get(f"{url}/languages", timeout=5)
             if r.status_code != 200:
                 continue
@@ -68,7 +66,6 @@ def _find_libre_endpoint():
             if 'bg' not in langs:
                 continue
 
-            # Step 2: Test with a real translation to confirm it works
             test = requests.post(
                 f"{url}/translate",
                 json={"q": "Hello", "source": "en", "target": "bg", "format": "text"},
@@ -91,7 +88,7 @@ def _find_libre_endpoint():
 
 
 def libre_translate(text: str) -> str:
-    """Translate EN→BG via LibreTranslate (free). Returns '' on failure."""
+    """Translate EN->BG via LibreTranslate (free). Returns '' on failure."""
     if not text or not text.strip():
         return ""
     url = _find_libre_endpoint()
@@ -124,16 +121,15 @@ def libre_translate(text: str) -> str:
         return ""
 
 
-# ─── MyMemory API (free, no API key, GET requests) ──────────────────────────
+# MyMemory API (free, no API key, GET requests)
 MYMEMORY_URL = "https://api.mymemory.translated.net/get"
 
 
 def mymemory_translate(text: str) -> str:
-    """Translate EN→BG via MyMemory (free, no key). Returns '' on failure."""
+    """Translate EN->BG via MyMemory (free, no key). Returns '' on failure."""
     if not text or not text.strip():
         return ""
     try:
-        # MyMemory has a 500 char limit per request
         chunk = text[:500]
         r = requests.get(
             MYMEMORY_URL,
@@ -143,7 +139,6 @@ def mymemory_translate(text: str) -> str:
         if r.status_code == 200:
             data = r.json()
             translated = data.get("responseData", {}).get("translatedText", "")
-            # MyMemory returns the original text on failure
             if translated and translated.lower() != chunk.lower():
                 return translated
         return ""
@@ -157,7 +152,6 @@ def mymemory_translate_long(text: str) -> str:
         return ""
     if len(text) <= 500:
         return mymemory_translate(text)
-    # Split into sentences and translate in chunks
     sentences = re.split(r'(?<=[.!?])\s+', text)
     chunks = []
     current = ""
@@ -176,14 +170,13 @@ def mymemory_translate_long(text: str) -> str:
         if result:
             translated_parts.append(result)
         else:
-            return ""  # If any chunk fails, give up
-        time.sleep(0.5)  # Rate limiting
+            return ""
+        time.sleep(0.5)
     return " ".join(translated_parts)
 
 
-# ─── Validation ──────────────────────────────────────────────────────────────
+# Validation
 CYRILLIC_RE = re.compile(r'[А-Яа-яЁёЪъ]')
-# Foreign scripts that should NOT appear in Bulgarian text
 FOREIGN_RE = re.compile(
     r'[\u3040-\u309F'    # Hiragana
     r'\u30A0-\u30FF'     # Katakana
@@ -206,16 +199,14 @@ def _is_valid_bg(text_bg: str | None, text_en: str | None) -> bool:
         return False
     bg = text_bg.strip()
     en = (text_en or '').strip()
-    # Reject if same as English
     if bg.lower() == en.lower():
         return False
-    # Reject if contains foreign scripts (CJK, Korean, Arabic, Tamil, Thai, etc.)
     if FOREIGN_RE.search(bg):
         return False
     return True
 
 
-# ─── Genre translations (instant, no API call) ──────────────────────────────
+# Genre translations (instant, no API call)
 GENRE_MAP = {
     "action": "Екшън",
     "adventure": "Приключенски",
@@ -263,7 +254,7 @@ def translate_genre(genre: str) -> str:
     return result or genre
 
 
-# ─── TMDb fetcher ────────────────────────────────────────────────────────────
+# TMDb fetcher
 _tmdb_session = None
 _tmdb_genre_map_bg = None
 
@@ -296,10 +287,7 @@ def _get_tmdb_genre_map_bg() -> dict:
 
 
 def fetch_tmdb_bg(tmdb_id: int) -> dict | None:
-    """
-    Fetch Bulgarian title/summary/tagline from TMDb for a movie.
-    Returns dict with bg fields or None on failure.
-    """
+    """Fetch Bulgarian title/summary/tagline from TMDb for a movie."""
     s = _get_tmdb_session()
     if not s or not tmdb_id:
         return None
@@ -318,7 +306,7 @@ def fetch_tmdb_bg(tmdb_id: int) -> dict | None:
         return None
 
 
-# ─── Main translation logic ─────────────────────────────────────────────────
+# Main translation logic
 
 def needs_translation(movie: Movie) -> bool:
     """Check if any bg field is missing."""
@@ -337,11 +325,9 @@ def _translate_text(text: str, long: bool = False) -> str:
     """Try all translation sources: LibreTranslate -> MyMemory. Returns '' on failure."""
     if not text or not text.strip():
         return ""
-    # Try LibreTranslate first
     result = libre_translate(text)
     if result and _is_valid_bg(result, text):
         return result
-    # Try MyMemory
     if long:
         result = mymemory_translate_long(text)
     else:
@@ -360,7 +346,7 @@ def translate_single(movie: Movie) -> dict:
       2. LibreTranslate (free fallback)
       3. MyMemory API (free, no key)
       4. Genre dictionary (instant)
-      5. English fallback (last resort — better than empty)
+      5. English fallback (last resort)
     """
     updated = {}
     title_en = movie.title or ''
@@ -368,7 +354,6 @@ def translate_single(movie: Movie) -> dict:
     tagline_en = movie.tagline or ''
     genre_en = movie.genre or ''
 
-    # ── Try TMDb API first ────────────────────────────────────────────────
     tmdb_data = fetch_tmdb_bg(movie.tmdb_id) if movie.tmdb_id else None
 
     # Title
@@ -378,7 +363,6 @@ def translate_single(movie: Movie) -> dict:
             title_bg = tmdb_data['title_bg']
         if not title_bg:
             title_bg = _translate_text(title_en)
-        # Last resort: keep English title (better than empty)
         if not title_bg and title_en:
             title_bg = title_en
         if title_bg:
@@ -391,7 +375,6 @@ def translate_single(movie: Movie) -> dict:
             summary_bg = tmdb_data['summary_bg']
         if not summary_bg:
             summary_bg = _translate_text(summary_en, long=True)
-        # Last resort: keep English summary
         if not summary_bg and summary_en:
             summary_bg = summary_en
         if summary_bg:
@@ -434,20 +417,18 @@ def translate_single(movie: Movie) -> dict:
     return updated
 
 
-# ─── Batch runner ────────────────────────────────────────────────────────────
+# Batch runner
 
 def translate_movies(limit: int = None, skip_existing: bool = True):
     """Translate movies to Bulgarian."""
 
-    print("\n" + "=" * 60)
-    print("  TRANSLATING MOVIES TO BULGARIAN")
-    print("=" * 60)
+    print("\nTranslating movies to Bulgarian")
     if TMDB_API_KEY:
         print("  TMDb API: available (primary source)")
     else:
         print("  TMDb API: not available")
     _find_libre_endpoint()
-    print("=" * 60 + "\n")
+    print()
 
     db = SyncSessionLocal()
 
@@ -474,7 +455,7 @@ def translate_movies(limit: int = None, skip_existing: bool = True):
             movies = [m for m in movies if needs_translation(m)]
 
         if not movies:
-            print("All movies already translated!")
+            print("All movies already translated.")
             return
 
         print(f"Found {len(movies)} movies to translate\n")
@@ -483,7 +464,6 @@ def translate_movies(limit: int = None, skip_existing: bool = True):
         failed = 0
 
         for i, movie in enumerate(movies, 1):
-            # Show what's missing before attempting
             missing = []
             if not movie.title_bg or not movie.title_bg.strip():
                 missing.append("title")
@@ -521,15 +501,11 @@ def translate_movies(limit: int = None, skip_existing: bool = True):
                 failed += 1
                 continue
 
-        print("\n" + "=" * 60)
-        print("  Translation complete!")
-        print(f"    Translated: {translated}")
-        print(f"    Failed:     {failed}")
-        print(f"    Skipped:    {len(movies) - translated - failed}")
-        print("=" * 60 + "\n")
+        print(f"\nTranslation complete: {translated} translated, {failed} failed, "
+              f"{len(movies) - translated - failed} skipped")
 
     except KeyboardInterrupt:
-        print("\n\nInterrupted! Saving progress...")
+        print("\n\nInterrupted. Saving progress...")
         db.commit()
         print("Progress saved. Run again to continue.")
 
@@ -555,19 +531,14 @@ def show_stats():
 
         pct = lambda n: f"{n/total*100:.0f}%"
 
-        print("\n" + "=" * 55)
-        print("  TRANSLATION STATISTICS")
-        print("=" * 55)
+        print(f"\nTranslation statistics:")
         print(f"  Total movies:        {total}")
         print(f"  With tmdb_id:        {with_tmdb_id} ({pct(with_tmdb_id)})")
-        print("-" * 55)
         print(f"  title_bg:            {with_title} / {total}  ({pct(with_title)})")
         print(f"  summary_bg:          {with_summary} / {total}  ({pct(with_summary)})")
         print(f"  genre_bg:            {with_genre} / {total}  ({pct(with_genre)})")
         print(f"  tagline_bg:          {with_tagline} / {total}  ({pct(with_tagline)})")
-        print("-" * 55)
         print(f"  Need translation:    {total - with_title}")
-        print("=" * 55)
 
         sample = db.query(Movie).filter(Movie.title_bg != None, Movie.title_bg != "").first()
         if sample:
@@ -596,9 +567,7 @@ def audit_movies(fix: bool = False):
 
     With --fix: clears bad fields and re-translates via TMDb/LibreTranslate.
     """
-    print("\n" + "=" * 65)
-    print("  AUDIT: CHECKING ALL MOVIES FOR TRANSLATION QUALITY")
-    print("=" * 65)
+    print("\nAudit: checking all movies for translation quality\n")
 
     if fix:
         print("  Mode: AUDIT + FIX (will re-translate problematic movies)")
@@ -607,7 +576,7 @@ def audit_movies(fix: bool = False):
         _find_libre_endpoint()
     else:
         print("  Mode: REPORT ONLY (use --fix to auto-fix issues)")
-    print("=" * 65 + "\n")
+    print()
 
     db = SyncSessionLocal()
 
@@ -616,16 +585,15 @@ def audit_movies(fix: bool = False):
         total = len(movies)
         print(f"Checking {total} movies...\n")
 
-        # Issue categories
         issues = {
-            'title_same_as_en': [],      # title_bg == title (English fallback)
-            'title_no_cyrillic': [],      # title_bg has no Cyrillic chars
-            'title_foreign_chars': [],    # title_bg has CJK/Arabic/etc.
-            'title_missing': [],          # title_bg is empty/null
-            'summary_en_missing': [],     # No English summary at all
-            'summary_bg_missing': [],     # No Bulgarian summary
-            'summary_same_as_en': [],     # summary_bg == summary (English fallback)
-            'genre_bg_missing': [],       # No Bulgarian genre
+            'title_same_as_en': [],
+            'title_no_cyrillic': [],
+            'title_foreign_chars': [],
+            'title_missing': [],
+            'summary_en_missing': [],
+            'summary_bg_missing': [],
+            'summary_same_as_en': [],
+            'genre_bg_missing': [],
         }
 
         for movie in movies:
@@ -636,7 +604,6 @@ def audit_movies(fix: bool = False):
             genre_en = (movie.genre or '').strip()
             genre_bg = (movie.genre_bg or '').strip()
 
-            # Title checks
             if not title_bg:
                 issues['title_missing'].append(movie)
             elif title_bg.lower() == title_en.lower():
@@ -644,11 +611,8 @@ def audit_movies(fix: bool = False):
             elif FOREIGN_RE.search(title_bg):
                 issues['title_foreign_chars'].append(movie)
             elif not CYRILLIC_RE.search(title_bg):
-                # No Cyrillic at all — might be fine for short titles like "X-Men"
-                # but flag it for review
                 issues['title_no_cyrillic'].append(movie)
 
-            # Summary checks
             if not summary_en:
                 issues['summary_en_missing'].append(movie)
             elif not summary_bg:
@@ -656,11 +620,9 @@ def audit_movies(fix: bool = False):
             elif summary_bg.lower() == summary_en.lower():
                 issues['summary_same_as_en'].append(movie)
 
-            # Genre check
             if genre_en and not genre_bg:
                 issues['genre_bg_missing'].append(movie)
 
-        # ── Print report ──────────────────────────────────────────────
         total_issues = sum(len(v) for v in issues.values())
 
         labels = {
@@ -681,19 +643,16 @@ def audit_movies(fix: bool = False):
                 continue
 
             print(f"\n  [!!] {label}: {len(group)}")
-            for m in group[:15]:  # Show up to 15 examples
+            for m in group[:15]:
                 title_bg_show = (m.title_bg or '(empty)')[:50]
                 print(f"       id={m.id:4d}  {m.title[:35]:<36s} -> {title_bg_show}")
             if len(group) > 15:
                 print(f"       ... and {len(group) - 15} more")
 
-        print(f"\n{'=' * 65}")
-        print(f"  TOTAL ISSUES: {total_issues} across {total} movies")
+        print(f"\nTotal issues: {total_issues} across {total} movies")
         ok_count = total - len(set(m.id for v in issues.values() for m in v))
-        print(f"  CLEAN MOVIES: {ok_count} / {total}")
-        print(f"{'=' * 65}")
+        print(f"Clean movies: {ok_count} / {total}")
 
-        # ── Fix mode ─────────────────────────────────────────────────
         if not fix:
             if total_issues > 0:
                 print(f"\n  Run with --audit --fix to auto-fix these issues.\n")
@@ -701,7 +660,7 @@ def audit_movies(fix: bool = False):
 
         # Collect all movies that need fixing
         to_fix = set()
-        clear_fields = {}  # movie_id -> set of fields to clear before re-translate
+        clear_fields = {}
 
         for m in issues['title_missing'] + issues['title_foreign_chars']:
             to_fix.add(m.id)
@@ -728,7 +687,7 @@ def audit_movies(fix: bool = False):
             clear_fields.setdefault(m.id, set()).add('genre_bg')
 
         if not to_fix:
-            print("\n  Nothing to fix!")
+            print("\n  Nothing to fix.")
             return
 
         print(f"\n  Fixing {len(to_fix)} movies...\n")
@@ -740,7 +699,6 @@ def audit_movies(fix: bool = False):
             if movie.id not in to_fix:
                 continue
 
-            # Clear the bad fields so translate_single will re-fill them
             fields_to_clear = clear_fields.get(movie.id, set())
             for field in fields_to_clear:
                 setattr(movie, field, None)
@@ -755,7 +713,6 @@ def audit_movies(fix: bool = False):
                         setattr(movie, key, val)
                     db.commit()
 
-                    # Check if the fix actually improved things
                     new_title_bg = (movie.title_bg or '').strip()
                     title_en = (movie.title or '').strip()
                     got_cyrillic = CYRILLIC_RE.search(new_title_bg) if new_title_bg else False
@@ -786,9 +743,7 @@ def audit_movies(fix: bool = False):
                 db.rollback()
                 still_bad += 1
 
-        print(f"\n{'=' * 65}")
-        print(f"  Fix complete: {fixed} fixed, {still_bad} still need attention")
-        print(f"{'=' * 65}\n")
+        print(f"\nFix complete: {fixed} fixed, {still_bad} still need attention\n")
 
     finally:
         db.close()
@@ -819,9 +774,7 @@ def main():
         translate_movies(limit=args.limit, skip_existing=not args.force)
         show_stats()
     else:
-        print("\n" + "=" * 60)
-        print("  MOVIE TRANSLATOR (TMDb + LibreTranslate)")
-        print("=" * 60)
+        print("\nMovie Translator (TMDb + LibreTranslate)")
         print("\nUsage:")
         print("  python scripts/translate_movies.py --stats        # Check progress")
         print("  python scripts/translate_movies.py --limit 10     # Test with 10")
@@ -829,8 +782,7 @@ def main():
         print("  python scripts/translate_movies.py --all --force  # Re-translate all")
         print("  python scripts/translate_movies.py --audit        # Check quality")
         print("  python scripts/translate_movies.py --audit --fix  # Fix bad translations")
-        print("\nNo extra packages needed! Uses TMDb API + LibreTranslate (free).")
-        print("=" * 60 + "\n")
+        print("\nNo extra packages needed. Uses TMDb API + LibreTranslate (free).\n")
 
 
 if __name__ == "__main__":
@@ -841,6 +793,4 @@ if __name__ == "__main__":
         sys.exit(1)
     except Exception as e:
         print(f"\nFatal error: {e}")
-        import traceback
-        traceback.print_exc()
         sys.exit(1)

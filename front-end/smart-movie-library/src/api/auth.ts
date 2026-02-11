@@ -22,8 +22,7 @@ export const authApi = {
     formBody.set("password", password);
 
     const url = `${API_BASE}/auth/login`;
-    console.log("[Auth] POST", url);
-    
+
     let tokenResponse: Response;
     try {
       tokenResponse = await fetch(url, {
@@ -36,10 +35,7 @@ export const authApi = {
       throw new Error("Cannot connect to server");
     }
 
-    console.log("[Auth] Status:", tokenResponse.status);
-    
     const responseText = await tokenResponse.text();
-    console.log("[Auth] Response:", responseText);
     
     if (!tokenResponse.ok) {
       let errorMessage = "Invalid email or password";
@@ -63,7 +59,6 @@ export const authApi = {
     const token = tokenData.access_token;
     localStorage.setItem("token", token);
 
-    console.log("[Auth] Token saved, fetching user profile...");
     const user = await authApi.getMe();
     
     return { token, user };
@@ -74,8 +69,7 @@ export const authApi = {
    */
   register: async (name: string, email: string, password: string): Promise<{ token: string; user: User }> => {
     const url = `${API_BASE}/auth/register`;
-    console.log("[Auth] POST", url);
-    
+
     let response: Response;
     try {
       response = await fetch(url, {
@@ -88,9 +82,7 @@ export const authApi = {
       throw new Error("Cannot connect to server");
     }
 
-    console.log("[Auth] Status:", response.status);
     const responseText = await response.text();
-    console.log("[Auth] Response:", responseText);
 
     if (!response.ok) {
       let errorMessage = "Registration failed";
@@ -110,7 +102,6 @@ export const authApi = {
     }
 
     // After registration, log the user in
-    console.log("[Auth] Registration successful, logging in...");
     return authApi.login(email, password);
   },
 
@@ -122,13 +113,10 @@ export const authApi = {
     if (!token) throw new Error("Not authenticated");
 
     const url = `${API_BASE}/auth/me`;
-    console.log("[Auth] GET", url);
-    
+
     const response = await fetch(url, {
       headers: { "Authorization": `Bearer ${token}` },
     });
-
-    console.log("[Auth] /me status:", response.status);
 
     if (!response.ok) {
       if (response.status === 401) {
@@ -140,14 +128,12 @@ export const authApi = {
     }
 
     const user: User = await response.json();
-    console.log("[Auth] User:", user);
     return user;
   },
 
   logout: async (): Promise<void> => {
     localStorage.removeItem("token");
     localStorage.removeItem("user");
-    console.log("[Auth] Logged out");
   },
 
   isAuthenticated: (): boolean => !!localStorage.getItem("token"),

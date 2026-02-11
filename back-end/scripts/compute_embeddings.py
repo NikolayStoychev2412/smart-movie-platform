@@ -1,7 +1,6 @@
 #!/usr/bin/env python3
 """
-Compute and store embeddings for all movies
-===================================================================
+Compute and store embeddings for all movies.
 
 Run this script once to build the initial index, and periodically to update.
 
@@ -17,7 +16,6 @@ import logging
 import time
 from pathlib import Path
 
-# Add project root to path
 project_root = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(project_root))
 
@@ -26,7 +24,6 @@ from app.models.movie import Movie
 from app.ai.embeddings import get_embedding_provider
 from app.ai.vector_store import get_vector_store
 
-# Setup logging
 logging.basicConfig(
     level=logging.INFO,
     format='%(asctime)s - %(levelname)s - %(message)s'
@@ -35,10 +32,7 @@ logger = logging.getLogger(__name__)
 
 
 def build_movie_text(movie: Movie) -> str:
-    """
-    Build rich text representation of a movie for embedding.
-    Combines title, genre, and summary.
-    """
+    """Build rich text representation of a movie for embedding."""
     parts = []
 
     if movie.title:
@@ -54,13 +48,7 @@ def build_movie_text(movie: Movie) -> str:
 
 
 def compute_embeddings(batch_size: int = 10, force_rebuild: bool = False):
-    """
-    Compute embeddings for all movies and store in vector index + database.
-
-    Args:
-        batch_size: Number of movies to process at once
-        force_rebuild: If True, rebuild entire index from scratch
-    """
+    """Compute embeddings for all movies and store in vector index + database."""
     logger.info("Starting embedding computation...")
 
     db = SyncSessionLocal()
@@ -68,17 +56,15 @@ def compute_embeddings(batch_size: int = 10, force_rebuild: bool = False):
     vector_store = get_vector_store()
 
     try:
-        # Get all movies
         movies = db.query(Movie).all()
         total_movies = len(movies)
 
         if total_movies == 0:
-            logger.warning("No movies found in database!")
+            logger.warning("No movies found in database.")
             return
 
         logger.info(f"Found {total_movies} movies in database")
 
-        # Check if rebuild needed
         current_vectors = vector_store.stats()["total_vectors"]
         if current_vectors > 0 and not force_rebuild:
             logger.info(f"Index already has {current_vectors} vectors")
@@ -87,12 +73,10 @@ def compute_embeddings(batch_size: int = 10, force_rebuild: bool = False):
                 logger.info("Skipping rebuild")
                 return
 
-        # Clear index if rebuilding
         if force_rebuild or current_vectors > 0:
             logger.info("Clearing existing index...")
             vector_store.clear()
 
-        # Process in batches
         processed = 0
         skipped = 0
         current_time = time.time()
@@ -104,7 +88,6 @@ def compute_embeddings(batch_size: int = 10, force_rebuild: bool = False):
 
             logger.info(f"Processing batch {batch_num}/{total_batches} ({len(batch)} movies)...")
 
-            # Build texts
             batch_texts = []
             batch_ids = []
             batch_movies = []
@@ -124,18 +107,15 @@ def compute_embeddings(batch_size: int = 10, force_rebuild: bool = False):
             if not batch_texts:
                 continue
 
-            # Generate embeddings
             logger.info(f"   Generating {len(batch_texts)} embeddings...")
             embeddings = embedding_provider.get_embeddings_batch(batch_texts)
 
-            # Add to vector store
             logger.info(f"   Adding to vector store...")
             vector_store.add_vectors(batch_ids, embeddings)
 
-            # Save embeddings to database
             logger.info(f"   Saving embeddings to database...")
             for movie, embedding in zip(batch_movies, embeddings):
-                movie.embedding = embedding  # Store as JSON array
+                movie.embedding = embedding
                 movie.embedding_model = embedding_provider.model_name
                 movie.embedding_generated_at = current_time
 
@@ -143,27 +123,21 @@ def compute_embeddings(batch_size: int = 10, force_rebuild: bool = False):
 
             processed += len(batch_texts)
 
-            # Progress update
             logger.info(f"   Progress: {processed}/{total_movies} ({processed/total_movies*100:.1f}%)")
 
-        # Save index to disk
         logger.info("Saving vector store to disk...")
         vector_store.save()
 
-        # Final stats
         stats = vector_store.stats()
-        logger.info("=" * 70)
-        logger.info("Embedding computation complete!")
+        logger.info("Embedding computation complete.")
         logger.info(f"   Total movies processed: {processed}")
         logger.info(f"   Skipped: {skipped}")
         logger.info(f"   Vectors in index: {stats['total_vectors']}")
         logger.info(f"   Dimension: {stats['dimension']}")
         logger.info(f"   Index saved to: {stats['index_path']}")
-        logger.info(f"   Database updated: yes")
-        logger.info("=" * 70)
 
     except KeyboardInterrupt:
-        logger.warning("\nInterrupted by user")
+        logger.warning("Interrupted by user")
         logger.info("Saving partial progress...")
         vector_store.save()
         db.commit()
@@ -179,10 +153,7 @@ def compute_embeddings(batch_size: int = 10, force_rebuild: bool = False):
 
 
 def update_single_movie(movie_id: int):
-    """
-    Update embedding for a single movie.
-    Useful for when a movie is added or updated.
-    """
+    """Update embedding for a single movie."""
     logger.info(f"Updating embedding for movie {movie_id}...")
 
     db = SyncSessionLocal()
@@ -190,39 +161,32 @@ def update_single_movie(movie_id: int):
     vector_store = get_vector_store()
 
     try:
-        # Get movie
         movie = db.query(Movie).filter(Movie.id == movie_id).first()
 
         if not movie:
-            logger.error(f"Movie {movie_id} not found!")
+            logger.error(f"Movie {movie_id} not found.")
             return False
 
-        # Build text
         text = build_movie_text(movie)
 
         if not text or len(text.strip()) < 10:
             logger.error(f"Movie has insufficient text for embedding")
             return False
 
-        # Generate embedding
-        logger.info(f"   Generating embedding...")
+        logger.info("   Generating embedding...")
         embedding = embedding_provider.get_embedding(text)
 
-        # Remove old vector if exists
         vector_store.remove_vector(movie_id)
 
-        # Add new vector
-        logger.info(f"   Adding to vector store...")
+        logger.info("   Adding to vector store...")
         vector_store.add_vectors([movie_id], [embedding])
 
-        # Save to database
-        logger.info(f"   Saving to database...")
+        logger.info("   Saving to database...")
         movie.embedding = embedding
         movie.embedding_model = embedding_provider.model_name
         movie.embedding_generated_at = time.time()
         db.commit()
 
-        # Save vector store
         vector_store.save()
 
         logger.info(f"Successfully updated embedding for '{movie.title}'")
@@ -238,19 +202,17 @@ def update_single_movie(movie_id: int):
 
 
 def verify_index():
-    """Verify the integrity of the vector index"""
+    """Verify the integrity of the vector index."""
     logger.info("Verifying vector index...")
 
     db = SyncSessionLocal()
     vector_store = get_vector_store()
 
     try:
-        # Get stats
         stats = vector_store.stats()
         logger.info(f"   Total vectors in FAISS: {stats['total_vectors']}")
         logger.info(f"   Dimension: {stats['dimension']}")
 
-        # Check database
         movies_with_embeddings = db.query(Movie).filter(
             Movie.embedding.isnot(None)
         ).count()
@@ -258,18 +220,15 @@ def verify_index():
 
         logger.info(f"   Movies with embeddings in DB: {movies_with_embeddings}/{total_movies}")
 
-        # Check if all movies have vectors
         movies = db.query(Movie).all()
         missing_faiss = []
         missing_db = []
 
         for movie in movies:
-            # Check FAISS
             vector = vector_store.get_vector(movie.id)
             if vector is None:
                 missing_faiss.append((movie.id, movie.title))
 
-            # Check database
             if movie.embedding is None:
                 missing_db.append((movie.id, movie.title))
 
@@ -280,7 +239,7 @@ def verify_index():
             if len(missing_faiss) > 5:
                 logger.warning(f"   ... and {len(missing_faiss) - 5} more")
         else:
-            logger.info("All movies have FAISS vectors!")
+            logger.info("All movies have FAISS vectors.")
 
         if missing_db:
             logger.warning(f"{len(missing_db)} movies missing embeddings in database:")
@@ -289,7 +248,7 @@ def verify_index():
             if len(missing_db) > 5:
                 logger.warning(f"   ... and {len(missing_db) - 5} more")
         else:
-            logger.info("All movies have database embeddings!")
+            logger.info("All movies have database embeddings.")
 
         return len(missing_faiss) == 0 and len(missing_db) == 0
 
@@ -298,39 +257,31 @@ def verify_index():
 
 
 def rebuild_faiss_from_db():
-    """
-    Rebuild FAISS index from embeddings stored in database.
-    Useful if FAISS files are lost but database still has embeddings.
-    """
+    """Rebuild FAISS index from embeddings stored in database."""
     logger.info("Rebuilding FAISS index from database...")
 
     db = SyncSessionLocal()
     vector_store = get_vector_store()
 
     try:
-        # Clear existing index
         vector_store.clear()
 
-        # Get all movies with embeddings
         movies = db.query(Movie).filter(
             Movie.embedding.isnot(None)
         ).all()
 
         if not movies:
-            logger.error("No movies with embeddings found in database!")
+            logger.error("No movies with embeddings found in database.")
             return
 
         logger.info(f"Found {len(movies)} movies with embeddings")
 
-        # Extract IDs and embeddings
         movie_ids = [m.id for m in movies]
         embeddings = [m.embedding for m in movies]
 
-        # Add to FAISS
         logger.info("   Adding to FAISS index...")
         vector_store.add_vectors(movie_ids, embeddings)
 
-        # Save
         logger.info("Saving FAISS index...")
         vector_store.save()
 
@@ -345,7 +296,7 @@ def rebuild_faiss_from_db():
 
 
 def main():
-    """Main CLI interface"""
+    """Main CLI interface."""
     parser = argparse.ArgumentParser(
         description="Compute and manage movie embeddings for semantic search"
     )
@@ -384,9 +335,7 @@ def main():
 
     args = parser.parse_args()
 
-    print("\n" + "=" * 70)
-    print("Movie Embedding Manager")
-    print("=" * 70 + "\n")
+    print("\nMovie Embedding Manager\n")
 
     if args.verify:
         verify_index()
@@ -400,9 +349,7 @@ def main():
             force_rebuild=args.force_rebuild
         )
 
-    print("\n" + "=" * 70)
-    print("Done!")
-    print("=" * 70 + "\n")
+    print("\nDone.\n")
 
 
 if __name__ == "__main__":

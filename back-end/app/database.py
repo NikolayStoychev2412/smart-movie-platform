@@ -3,7 +3,6 @@
 Database configuration with async support for better performance.
 """
 import os
-from contextlib import asynccontextmanager
 from typing import AsyncGenerator
 
 # Load .env file FIRST before anything else
@@ -91,20 +90,6 @@ async def get_async_db() -> AsyncGenerator[AsyncSession, None]:
     async with AsyncSessionLocal() as session:
         try:
             yield session
-        finally:
-            await session.close()
-
-
-@asynccontextmanager
-async def get_async_session() -> AsyncGenerator[AsyncSession, None]:
-    """Async context manager for database sessions."""
-    async with AsyncSessionLocal() as session:
-        try:
-            yield session
-            await session.commit()
-        except Exception:
-            await session.rollback()
-            raise
         finally:
             await session.close()
 

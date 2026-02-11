@@ -2,84 +2,9 @@
 """
 Enhanced Movie schemas with full TMDb support
 """
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, Field
 from typing import Optional, List, Dict
 from datetime import date
-
-
-class GenreSchema(BaseModel):
-    """Genre with ID and name"""
-    id: int
-    name: str
-
-
-class CastMemberSchema(BaseModel):
-    """Cast member (actor)"""
-    id: int
-    name: str
-    character: Optional[str] = None
-    profile_path: Optional[str] = None
-    order: int = 999
-    
-    @property
-    def profile_url(self) -> Optional[str]:
-        if self.profile_path:
-            return f"https://image.tmdb.org/t/p/w185{self.profile_path}"
-        return None
-
-
-class CrewMemberSchema(BaseModel):
-    """Crew member (director, writer, etc.)"""
-    id: int
-    name: str
-    job: str
-    department: str
-    profile_path: Optional[str] = None
-    
-    @property
-    def profile_url(self) -> Optional[str]:
-        if self.profile_path:
-            return f"https://image.tmdb.org/t/p/w185{self.profile_path}"
-        return None
-
-
-class VideoSchema(BaseModel):
-    """Movie video (trailer, teaser, clip)"""
-    id: str
-    key: str  # YouTube video ID
-    name: str
-    site: str = "YouTube"
-    type: str  # Trailer, Teaser, Clip, etc.
-    size: int = 1080
-    official: bool = False
-    
-    @property
-    def url(self) -> str:
-        if self.site == "YouTube":
-            return f"https://www.youtube.com/watch?v={self.key}"
-        return ""
-    
-    @property
-    def embed_url(self) -> str:
-        if self.site == "YouTube":
-            return f"https://www.youtube.com/embed/{self.key}"
-        return ""
-
-
-class ProductionCompanySchema(BaseModel):
-    """Production company"""
-    id: int
-    name: str
-    logo_path: Optional[str] = None
-    origin_country: Optional[str] = None
-
-
-class CollectionSchema(BaseModel):
-    """Movie collection (franchise)"""
-    id: int
-    name: str
-    poster_path: Optional[str] = None
-    backdrop_path: Optional[str] = None
 
 
 class MovieBase(BaseModel):
@@ -257,47 +182,3 @@ class MovieDetailOut(MovieOut):
     backdrop_url_large: Optional[str] = None
 
 
-class MovieSearchResult(BaseModel):
-    """Search result with relevance"""
-    movie: MovieOut
-    relevance: float = Field(..., ge=0, le=1)
-    snippet: str = ""
-
-
-class MovieWithCast(MovieOut):
-    """Movie with cast info"""
-    cast: Optional[List[Dict]] = None
-    director: Optional[str] = None
-
-
-class MovieWithVideos(MovieOut):
-    """Movie with video info"""
-    videos: Optional[List[Dict]] = None
-    trailer_youtube_key: Optional[str] = None
-    trailer_url: Optional[str] = None
-
-
-def format_runtime(minutes: Optional[int]) -> Optional[str]:
-    """Format runtime as 'Xh Ym'"""
-    if not minutes:
-        return None
-    
-    hours = minutes // 60
-    mins = minutes % 60
-    
-    if hours > 0:
-        return f"{hours}h {mins}m"
-    return f"{mins}m"
-
-
-def format_money(amount: Optional[int]) -> Optional[str]:
-    """Format budget/revenue with $ and M/B"""
-    if not amount or amount == 0:
-        return None
-    
-    if amount >= 1_000_000_000:
-        return f"${amount / 1_000_000_000:.1f}B"
-    elif amount >= 1_000_000:
-        return f"${amount / 1_000_000:.0f}M"
-    else:
-        return f"${amount:,}"

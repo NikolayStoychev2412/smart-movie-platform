@@ -4,7 +4,7 @@ Watchlist management endpoints.
 Users can track movies they plan to watch, are watching, completed, or dropped.
 """
 from fastapi import APIRouter, Depends, HTTPException, status, Query
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, selectinload
 from typing import List, Optional
 
 from app.database import get_db
@@ -29,19 +29,7 @@ def add_to_watchlist(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
-    """
-    Add a movie to your watchlist with a status.
-    
-    **Statuses:**
-    - `planned`: Want to watch (doesn't affect recommendations)
-    - `watching`: Currently watching
-    - `completed`: Finished watching
-    - `dropped`: Started but quit
-    
-    If movie already in watchlist, returns 400 error.
-    Use PUT to update status instead.
-    """
-    # Check if movie exists
+    """Add a movie to your watchlist with a status."""
     movie = db.query(Movie).filter(Movie.id == entry.movie_id).first()
     if not movie:
         raise HTTPException(status_code=404, detail="Movie not found")
@@ -78,36 +66,30 @@ def get_my_watchlist(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
-    """
-    Get your watchlist with movie details.
-    
-    **Query params:**
-    - `status`: Filter by specific status (planned, watching, completed, dropped)
-    """
-    query = db.query(Watchlist).filter(Watchlist.user_id == current_user.id)
-    
+    """Get your watchlist with movie details."""
+    query = db.query(Watchlist).options(
+        selectinload(Watchlist.movie)
+    ).filter(Watchlist.user_id == current_user.id)
+
     # Filter by status if provided
     if status:
         query = query.filter(Watchlist.status == WatchStatus(status.value))
-    
+
     # Order by most recent first
     entries = query.order_by(Watchlist.updated_at.desc()).all()
-    
-    # Include movie details
-    result = []
-    for entry in entries:
-        movie = db.query(Movie).filter(Movie.id == entry.movie_id).first()
-        if movie:
-            result.append({
-                "id": entry.id,
-                "movie_id": entry.movie_id,
-                "status": entry.status.value,
-                "created_at": entry.created_at,
-                "updated_at": entry.updated_at,
-                "movie": MovieOut.model_validate(movie).model_dump()
-            })
-    
-    return result
+
+    return [
+        {
+            "id": entry.id,
+            "movie_id": entry.movie_id,
+            "status": entry.status.value,
+            "created_at": entry.created_at,
+            "updated_at": entry.updated_at,
+            "movie": MovieOut.model_validate(entry.movie).model_dump()
+        }
+        for entry in entries
+        if entry.movie
+    ]
 
 
 @router.get("/stats")
@@ -145,11 +127,7 @@ def update_watchlist_status(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
-    """
-    Update the status of a movie in your watchlist.
-    
-    Example: Change from "watching" to "completed"
-    """
+    """Update the status of a movie in your watchlist."""
     entry = db.query(Watchlist).filter(
         Watchlist.user_id == current_user.id,
         Watchlist.movie_id == movie_id

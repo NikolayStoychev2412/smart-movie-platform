@@ -1,8 +1,5 @@
 # app/models/watchlist.py
-"""
-Watchlist model for tracking user's movie viewing status.
-Supports: planned, watching, completed, dropped statuses.
-"""
+"""Watchlist model for tracking user's movie viewing status."""
 from sqlalchemy import Column, Integer, String, ForeignKey, DateTime, func, Enum as SQLEnum, UniqueConstraint
 from sqlalchemy.orm import relationship
 from enum import Enum

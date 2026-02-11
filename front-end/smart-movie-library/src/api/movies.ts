@@ -1,18 +1,11 @@
-import type { Movie, Review, CastMember, CrewMember } from "../types";
+import type { Movie, Review } from "../types";
 
 // Use VITE_API_URL directly - FastAPI routes are at root level (/movies, not /api/movies)
 const API_BASE = import.meta.env.VITE_API_URL || "http://localhost:8000";
 
-export interface CastResponse {
-  cast: CastMember[];
-  crew: CrewMember[];
-}
-
 async function fetchJson<T>(url: string, options?: RequestInit): Promise<T> {
   const token = localStorage.getItem("token");
-  
-  console.log("[Movies API]", options?.method || "GET", url);
-  
+
   const response = await fetch(url, {
     ...options,
     headers: {
@@ -23,7 +16,6 @@ async function fetchJson<T>(url: string, options?: RequestInit): Promise<T> {
   });
 
   if (!response.ok) {
-    console.error("[Movies API] Error:", response.status, response.statusText);
     throw new Error(`API Error: ${response.status}`);
   }
 
@@ -43,50 +35,9 @@ export const moviesApi = {
     return fetchJson<Movie[]>(`${API_BASE}/movies/search?q=${encodeURIComponent(query)}`);
   },
 
-  getCast: async (id: number): Promise<CastMember[]> => {
-    try {
-      const response = await fetchJson<CastResponse | CastMember[]>(`${API_BASE}/movies/${id}/cast`);
-      if (Array.isArray(response)) return response;
-      return response.cast || [];
-    } catch {
-      return [];
-    }
-  },
-
-  getCrew: async (id: number): Promise<CrewMember[]> => {
-    try {
-      const response = await fetchJson<CastResponse>(`${API_BASE}/movies/${id}/cast`);
-      return response.crew || [];
-    } catch {
-      return [];
-    }
-  },
-
-  getCredits: async (id: number): Promise<CastResponse> => {
-    try {
-      return await fetchJson<CastResponse>(`${API_BASE}/movies/${id}/credits`);
-    } catch {
-      return { cast: [], crew: [] };
-    }
-  },
-
   getReviews: async (id: number): Promise<Review[]> => {
     try {
       return await fetchJson<Review[]>(`${API_BASE}/movies/${id}/reviews`);
-    } catch {
-      return [];
-    }
-  },
-
-  getRecommendations: async (id: number): Promise<Movie[]> => {
-    try {
-      // Use AI similar movies endpoint - returns RecommendationOut[]
-      const response = await fetchJson<any[]>(`${API_BASE}/ai/recommend/similar/${id}?top_k=10`);
-      // Extract movies from RecommendationOut format
-      if (response.length > 0 && response[0].movie) {
-        return response.map(r => r.movie);
-      }
-      return response;
     } catch {
       return [];
     }

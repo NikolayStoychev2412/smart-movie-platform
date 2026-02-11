@@ -15,8 +15,8 @@ class User(Base):
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     
     # User preferences for cold-start recommendations
-    preferred_genres = Column(JSON, default=list)  # ["action", "comedy", "drama"]
-    preferred_mood = Column(String, nullable=True)  # "happy", "thrilling", "thoughtful", etc.
+    preferred_genres = Column(JSON, default=list)
+    preferred_mood = Column(String, nullable=True)
     
     # Relationships
     reviews = relationship("Review", back_populates="user", cascade="all, delete")

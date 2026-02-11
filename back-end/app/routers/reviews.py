@@ -1,7 +1,7 @@
 # app/routers/reviews.py
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.exc import IntegrityError
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, selectinload
 from app.schemas.review import ReviewCreate, ReviewOut
 from app.models.movie import Movie
 from app.models.review import Review
@@ -63,12 +63,12 @@ def create_review(
 @router.get("/movies/{movie_id}")
 def list_reviews(movie_id: int, db: Session = Depends(get_db)):
     """Get all reviews for a movie (public)"""
-    reviews = db.query(Review).filter(Review.movie_id == movie_id).order_by(Review.created_at.desc()).all()
+    reviews = db.query(Review).options(
+        selectinload(Review.user)
+    ).filter(Review.movie_id == movie_id).order_by(Review.created_at.desc()).all()
 
-    # Add user_name to each review
-    result = []
-    for review in reviews:
-        review_dict = {
+    return [
+        {
             "id": review.id,
             "user_id": review.user_id,
             "movie_id": review.movie_id,
@@ -77,9 +77,8 @@ def list_reviews(movie_id: int, db: Session = Depends(get_db)):
             "created_at": review.created_at,
             "user_name": review.user.name if review.user else "User"
         }
-        result.append(review_dict)
-
-    return result
+        for review in reviews
+    ]
 
 
 @router.get("/my-reviews")
@@ -88,7 +87,9 @@ def get_my_reviews(
     db: Session = Depends(get_db)
 ):
     """Get all reviews by the current user with movie info"""
-    reviews = db.query(Review).filter(Review.user_id == current_user.id).order_by(Review.created_at.desc()).all()
+    reviews = db.query(Review).options(
+        selectinload(Review.movie)
+    ).filter(Review.user_id == current_user.id).order_by(Review.created_at.desc()).all()
 
     result = []
     for review in reviews:

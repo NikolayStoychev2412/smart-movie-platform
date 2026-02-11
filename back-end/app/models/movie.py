@@ -24,7 +24,7 @@ class Movie(Base):
     tagline_bg = Column(String(500))
     summary_bg = Column(Text)
 
-    genre = Column(String(500))
+    genre = Column(String(500), index=True)
     genre_bg = Column(String(500))
     genres = Column(JSON)
 
