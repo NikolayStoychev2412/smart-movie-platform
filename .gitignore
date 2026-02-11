@@ -1,0 +1,10 @@
+# Claude Code
+.claude/
+
+# Stray node_modules at root
+node_modules/
+package-lock.json
+
+# OS
+.DS_Store
+Thumbs.db
