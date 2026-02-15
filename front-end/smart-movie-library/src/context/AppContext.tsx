@@ -118,23 +118,28 @@ export function AppProvider({ children }: { children: ReactNode }) {
     }
 
     // Token exists — verify it's still valid with the backend
-    fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:8000'}/users/me`, {
+    fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:8000'}/auth/me`, {
       headers: { Authorization: `Bearer ${token}` },
     })
       .then(res => {
-        if (!res.ok) throw new Error('Token invalid');
+        if (res.status === 401 || res.status === 403) {
+          // Token is invalid/expired — clear auth state
+          setUserState(null);
+          localStorage.removeItem('user');
+          localStorage.removeItem('token');
+          return null;
+        }
+        if (!res.ok) return null; // Server error — keep current session
         return res.json();
       })
-      .then((freshUser: User) => {
-        // Update local user data in case name/admin status changed
-        setUserState(freshUser);
-        localStorage.setItem('user', JSON.stringify(freshUser));
+      .then((freshUser: User | null) => {
+        if (freshUser) {
+          setUserState(freshUser);
+          localStorage.setItem('user', JSON.stringify(freshUser));
+        }
       })
       .catch(() => {
-        // Token expired or server unreachable — clear auth state
-        setUserState(null);
-        localStorage.removeItem('user');
-        localStorage.removeItem('token');
+        // Network error — server unreachable, keep current session
       });
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []); // Run once on mount only

@@ -50,6 +50,6 @@ pytest-asyncio>=0.23.0
 # =============================================================================
 # OPTIONAL: Production performance
 # =============================================================================
-# gunicorn>=21.0.0  # Production WSGI server
+gunicorn>=21.0.0
 # httptools>=0.6.0  # Faster HTTP parsing
 # uvloop>=0.19.0    # Faster event loop (Linux/Mac only)

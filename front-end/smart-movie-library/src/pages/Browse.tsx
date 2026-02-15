@@ -218,7 +218,7 @@ function MovieBadge({ badge, language }: { badge: MovieWithGrade["_badge"]; lang
       classes: "bg-blue-600 text-white"
     },
     trending: {
-      label: language === "bg" ? "Trending" : "Trending",
+      label: language === "bg" ? "Популярни" : "Trending",
       icon: <TrendingUp className="w-3 h-3" />,
       classes: "bg-orange-500 text-white"
     },

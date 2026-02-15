@@ -563,6 +563,7 @@ export default function Home() {
   const [recentMovies, setRecentMovies] = useState<Movie[]>([]);
   const [allMoviesData, setAllMoviesData] = useState<Movie[]>([]); // Store all movies for title lookup
   const [forYouRecs, setForYouRecs] = useState<Recommendation[]>([]);
+  const [aiError, setAiError] = useState(false);
   const [loading, setLoading] = useState(true);
 
   // User state for adaptive For You section
@@ -719,6 +720,7 @@ export default function Home() {
         });
       } catch {
         setForYouRecs([]);
+        setAiError(true);
         setUserState({ isLoggedIn: true, hasActivity: false, personalizedCount: 0 });
       }
     };
@@ -764,11 +766,20 @@ export default function Home() {
         )}
 
         {/* Onboarding Card - Shows when logged in but no recommendations yet */}
-        {showOnboarding && (
+        {showOnboarding && !aiError && (
           <OnboardingCard language={language} theme={theme} onNavigate={() => navigate("/browse")} />
         )}
 
-        <MovieCarousel movies={trendingMovies} title={language === "bg" ? "Trending" : "Trending"} icon={TrendingUp} language={language} />
+        {/* AI Error notice */}
+        {isAuthenticated && aiError && (
+          <div className={`rounded-lg p-4 text-sm ${theme === "dark" ? "bg-yellow-500/10 text-yellow-400 border border-yellow-500/20" : "bg-yellow-50 text-yellow-700 border border-yellow-200"}`}>
+            {language === "bg"
+              ? "AI препоръките са временно недостъпни. Разгледайте популярните филми по-долу."
+              : "AI recommendations are temporarily unavailable. Browse trending movies below."}
+          </div>
+        )}
+
+        <MovieCarousel movies={trendingMovies} title={language === "bg" ? "Популярни" : "Trending"} icon={TrendingUp} language={language} />
         <MovieCarousel movies={topRatedMovies} title={language === "bg" ? "Топ рейтинг" : "Top Rated"} icon={Star} language={language} />
         <MovieCarousel movies={recentMovies} title={language === "bg" ? "Нови филми" : "Recently Released"} icon={Calendar} language={language} />
 
