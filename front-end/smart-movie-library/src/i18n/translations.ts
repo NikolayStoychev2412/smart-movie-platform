@@ -1,5 +1,4 @@
 // src/i18n/translations.ts
-// Replace your existing translations.ts with this file
 
 export const translations = {
   bg: {
@@ -12,19 +11,19 @@ export const translations = {
     register: 'Регистрация',
     logout: 'Изход',
     profile: 'Профил',
-    
-    // Hero - TMDB style
-    heroTitle: 'Добре дошли.',
-    heroHighlight: 'Милиони филми за откриване.',
+
+    // Hero
+    heroTitle: 'Открий следващия си филм.',
+    heroHighlight: 'AI препоръки на български и английски.',
     heroSubtitle: 'Интелигентно AI търсене на български и английски.',
-    
+
     // Search
     searchPlaceholder: 'Търсене на филм...',
     search: 'Търси',
     searchByTitle: 'По заглавие',
     aiSearch: 'AI Търсене',
-    searchHint: 'Опитай: "страшни филми" или "романтична комедия с щастлив край"',
-    
+    searchHint: 'Опитай: \'филми като Inception\' или \'весела комедия за вечерта\'',
+
     // Moods
     all: 'Всички',
     funny: 'Смешни',
@@ -35,24 +34,24 @@ export const translations = {
     thoughtful: 'За размисъл',
     dark: 'Мрачни',
     uplifting: 'Вдъхновяващи',
-    
+
     // Movies
     popularMovies: 'Популярни филми',
     movies: 'филма',
     reviews: 'ревюта',
     noMoviesFound: 'Няма намерени филми',
     resultsFor: 'Резултати за',
-    
+
     // Errors
     loadError: 'Грешка при зареждане. Опитайте отново.',
     searchError: 'Грешка при търсене. Опитайте отново.',
     tryAgain: 'Опитай отново',
-    
-    // Footer
-    footerTitle: 'Система за препоръки на филми • Дипломен проект 2025',
-    footerPowered: 'Powered by AI семантично търсене',
+
+    // Footer (kept for backwards compatibility, not used in Footer component)
+    footerTitle: '',
+    footerPowered: '',
   },
-  
+
   en: {
     // Navbar
     brand: 'MovieBase',
@@ -63,19 +62,19 @@ export const translations = {
     register: 'Sign Up',
     logout: 'Logout',
     profile: 'Profile',
-    
-    // Hero - TMDB style
-    heroTitle: 'Welcome.',
-    heroHighlight: 'Millions of movies to discover.',
+
+    // Hero
+    heroTitle: 'Discover your next film.',
+    heroHighlight: 'AI-powered picks in Bulgarian and English.',
     heroSubtitle: 'AI-powered search in Bulgarian and English.',
-    
+
     // Search
     searchPlaceholder: 'Search for a movie...',
     search: 'Search',
     searchByTitle: 'By Title',
     aiSearch: 'AI Search',
-    searchHint: 'Try: "scary movies" or "romantic comedy with happy ending"',
-    
+    searchHint: 'Try: \'movies like Inception\' or \'feel-good comedy for tonight\'',
+
     // Moods
     all: 'All',
     funny: 'Funny',
@@ -86,22 +85,22 @@ export const translations = {
     thoughtful: 'Thoughtful',
     dark: 'Dark',
     uplifting: 'Uplifting',
-    
+
     // Movies
     popularMovies: 'Popular Movies',
     movies: 'movies',
     reviews: 'reviews',
     noMoviesFound: 'No movies found',
     resultsFor: 'Results for',
-    
+
     // Errors
     loadError: 'Failed to load. Please try again.',
     searchError: 'Search failed. Please try again.',
     tryAgain: 'Try again',
-    
-    // Footer
-    footerTitle: 'Movie Recommendation System • Diploma Project 2025',
-    footerPowered: 'Powered by AI Semantic Search',
+
+    // Footer (kept for backwards compatibility, not used in Footer component)
+    footerTitle: '',
+    footerPowered: '',
   },
 };
 

@@ -208,7 +208,7 @@ export default function Register() {
         {currentStep === "account" && (
           <div className="space-y-5">
             <div className="text-center mb-6">
-              <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-gradient-to-br from-[#A78BFA] to-[#2DD4BF] flex items-center justify-center">
+              <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-primary flex items-center justify-center">
                 <UserPlus className="w-8 h-8 text-white" />
               </div>
               <h1 className={`text-2xl font-bold ${theme === "dark" ? "text-white" : "text-[#1A1B2E]"}`}>
@@ -315,7 +315,7 @@ export default function Register() {
         {currentStep === "genres" && (
           <div className="space-y-5">
             <div className="text-center mb-6">
-              <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-gradient-to-br from-primary to-secondary flex items-center justify-center">
+              <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-primary flex items-center justify-center">
                 <Film className="w-8 h-8 text-white" />
               </div>
               <h1 className={`text-2xl font-bold ${theme === "dark" ? "text-white" : "text-[#1A1B2E]"}`}>
@@ -383,7 +383,7 @@ export default function Register() {
         {currentStep === "mood" && (
           <div className="space-y-5">
             <div className="text-center mb-6">
-              <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-gradient-to-br from-orange-500 to-red-500 flex items-center justify-center">
+              <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-primary flex items-center justify-center">
                 <Sparkles className="w-8 h-8 text-white" />
               </div>
               <h1 className={`text-2xl font-bold ${theme === "dark" ? "text-white" : "text-[#1A1B2E]"}`}>

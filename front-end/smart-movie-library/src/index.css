@@ -11,19 +11,15 @@
   --primary: #7C3AED;
   --primary-hover: #6D28D9;
   --primary-pressed: #5B21B6;
-  
+
   /* Secondary - Teal */
   --secondary: #14B8A6;
   --secondary-hover: #0D9488;
-  
+
   /* Status */
   --success: #22C55E;
   --warning: #F59E0B;
   --error: #EF4444;
-  
-  /* Avatar gradient */
-  --gradient-start: #A78BFA;
-  --gradient-end: #2DD4BF;
 }
 
 /* ==================== LIGHT THEME (Default) ==================== */
@@ -71,8 +67,7 @@ body {
 }
 
 /* ==================== SCROLLBAR HIDING ==================== */
-.scrollbar-hide::-webkit-scrollbar,
-*::-webkit-scrollbar {
+.scrollbar-hide::-webkit-scrollbar {
   display: none;
 }
 
@@ -104,15 +99,12 @@ body {
   overflow: hidden;
 }
 
-/* ==================== TRANSITIONS ==================== */
-* {
-  transition-property: background-color, border-color, color, opacity, transform, box-shadow;
+/* ==================== THEME TRANSITIONS ==================== */
+/* Only apply color transitions to elements that opt in */
+.transition-theme {
+  transition-property: background-color, border-color, color;
   transition-duration: 150ms;
   transition-timing-function: ease-in-out;
-}
-
-.no-transition * {
-  transition: none !important;
 }
 
 img {
@@ -210,7 +202,6 @@ html, body, #root {
   box-shadow: 0 1px 3px rgba(100, 100, 150, 0.06), 0 1px 2px rgba(100, 100, 150, 0.04);
 }
 
-/* Better contrast for light mode nav */
 .light nav {
   background-color: rgba(255, 255, 255, 0.95);
   border-bottom: 1px solid #E2E4F0;
@@ -237,14 +228,6 @@ button {
   letter-spacing: 0.01em;
 }
 
-button:hover:not(:disabled) {
-  transform: translateY(-1px);
-}
-
-button:active:not(:disabled) {
-  transform: translateY(0);
-}
-
 button:disabled {
   cursor: not-allowed;
   opacity: 0.6;
@@ -264,4 +247,3 @@ button:disabled {
 .fixed.inset-0.bg-black\/90 {
   backdrop-filter: blur(4px);
 }
-

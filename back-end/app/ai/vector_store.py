@@ -102,7 +102,7 @@ class VectorStore:
         """
         if self.index.ntotal == 0:
             return []
-        
+
         # Normalize query vector
         query_np = np.array([query_vector], dtype=np.float32)
         norm = np.linalg.norm(query_np)

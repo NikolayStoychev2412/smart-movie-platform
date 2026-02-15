@@ -4,9 +4,10 @@ import { useApp } from "../context/AppContext";
 import { moviesApi } from "../api/movies";
 import api from "../api/client";
 import type { Movie } from "../types";
-import { 
+import {
   ChevronLeft, ChevronRight, Play, TrendingUp, Star, Calendar, Sparkles, Heart, ListPlus
 } from "lucide-react";
+import RatingBadge from "../components/RatingBadge";
 
 // ============================================================================
 // SCORING HELPERS
@@ -43,11 +44,11 @@ const getTimeDecay = (releaseDate: string | null): number => {
   const now = new Date();
   const release = new Date(releaseDate);
   const yearsOld = (now.getTime() - release.getTime()) / (365.25 * 24 * 60 * 60 * 1000);
-  
+
   // Decay curve: recent movies get full weight, old movies get penalized
   if (yearsOld < 1) return 1.0;      // < 1 year: full weight
   if (yearsOld < 2) return 0.9;      // 1-2 years: slight decay
-  if (yearsOld < 3) return 0.75;     // 2-3 years: moderate decay  
+  if (yearsOld < 3) return 0.75;     // 2-3 years: moderate decay
   if (yearsOld < 5) return 0.5;      // 3-5 years: significant decay
   if (yearsOld < 10) return 0.25;    // 5-10 years: heavy decay
   return 0.1;                         // 10+ years: almost filtered out
@@ -82,42 +83,6 @@ interface UserState {
 // ============================================================================
 // COMPONENTS
 // ============================================================================
-
-function CircularRating({ rating, size = 44, label }: { rating: number; size?: number; label?: string }) {
-  const percentage = Math.round((rating || 0) * 10);
-  const radius = (size - 6) / 2;
-  const circumference = 2 * Math.PI * radius;
-  const strokeDashoffset = circumference - (percentage / 100) * circumference;
-  const colors = percentage >= 70 ? { stroke: "#21d07a", bg: "#204529" } : percentage >= 50 ? { stroke: "#d2d531", bg: "#423d0f" } : { stroke: "#db2360", bg: "#571435" };
-
-  return (
-    <div className="flex flex-col items-center">
-      <div className="relative flex items-center justify-center rounded-full" style={{ width: size, height: size, backgroundColor: "#081c22" }}>
-        <svg className="transform -rotate-90" width={size} height={size} viewBox={`0 0 ${size} ${size}`}>
-          <circle cx={size/2} cy={size/2} r={radius} fill="#081c22" stroke={colors.bg} strokeWidth="3" />
-          <circle cx={size/2} cy={size/2} r={radius} fill="none" stroke={colors.stroke} strokeWidth="3" strokeLinecap="round" strokeDasharray={circumference} strokeDashoffset={strokeDashoffset} />
-        </svg>
-        <span className="absolute text-white font-bold" style={{ fontSize: size * 0.28 }}>{percentage}<sup style={{ fontSize: size * 0.14 }}>%</sup></span>
-      </div>
-      {label && <span className="text-[9px] text-[#A7A7C7] mt-0.5 font-medium">{label}</span>}
-    </div>
-  );
-}
-
-function CommunityBadge({ rating, count, size = "sm" }: { rating: number; count: number; size?: "sm" | "md" }) {
-  if (count === 0) return null;
-  
-  const displayRating = rating <= 5 ? rating : rating / 2;
-  const sizeClasses = size === "sm" ? "text-[10px] px-1.5 py-0.5" : "text-xs px-2 py-1";
-  
-  return (
-    <div className={`flex items-center gap-1 bg-black/70 backdrop-blur-sm rounded ${sizeClasses} text-white`}>
-      <Star className="w-3 h-3 fill-yellow-400 text-yellow-400" />
-      <span className="font-semibold">{displayRating.toFixed(1)}</span>
-      <span className="text-[#A7A7C7]">({count})</span>
-    </div>
-  );
-}
 
 function HeroCarousel({ movies, language }: { movies: Movie[]; language: string }) {
   const navigate = useNavigate();
@@ -155,21 +120,24 @@ function HeroCarousel({ movies, language }: { movies: Movie[]; language: string 
   const title = language === "bg" ? movie.title_bg || movie.title : movie.title;
   const summary = language === "bg" ? movie.summary_bg || movie.summary : movie.summary;
   const backdropPath = movie.backdrop_path;
-  const backdropUrl = backdropPath 
-    ? `https://image.tmdb.org/t/p/original${backdropPath}` 
+  const backdropUrl = backdropPath
+    ? `https://image.tmdb.org/t/p/original${backdropPath}`
     : movie.backdrop_url;
 
+  const communityRating = (movie as any).average_rating || 0;
+  const reviewCount = (movie as any).review_count || 0;
+
   return (
-    <div 
+    <div
       className="relative h-[500px] md:h-[600px] overflow-hidden"
       onMouseEnter={() => setShowArrows(true)}
       onMouseLeave={() => setShowArrows(false)}
     >
       <div className="absolute inset-0">
         {backdropUrl ? (
-          <img 
-            src={backdropUrl} 
-            alt={title} 
+          <img
+            src={backdropUrl}
+            alt={title}
             className="w-full h-full object-cover"
             loading="eager"
             decoding="sync"
@@ -178,13 +146,12 @@ function HeroCarousel({ movies, language }: { movies: Movie[]; language: string 
         ) : (
           <div className="w-full h-full bg-gradient-to-br from-[#121226] to-[#0B0B12]" />
         )}
-        <div className="absolute inset-0 bg-gradient-to-r from-black/80 via-black/50 to-transparent" />
-        <div className="absolute inset-0 bg-gradient-to-t from-black via-transparent to-transparent" />
+        <div className="absolute inset-0 bg-gradient-to-t from-black/80 to-transparent" />
       </div>
-      
+
       {movies.length > 1 && (
         <div className="absolute left-4 top-1/2 z-20" style={{ transform: 'translateY(-50%)' }}>
-          <button 
+          <button
             onClick={goToPrevious}
             className={`p-3 rounded-full bg-black/40 text-white hover:bg-black/60 transition-opacity duration-200 ${showArrows ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}
           >
@@ -192,10 +159,10 @@ function HeroCarousel({ movies, language }: { movies: Movie[]; language: string 
           </button>
         </div>
       )}
-      
+
       {movies.length > 1 && (
         <div className="absolute right-4 top-1/2 z-20" style={{ transform: 'translateY(-50%)' }}>
-          <button 
+          <button
             onClick={goToNext}
             className={`p-3 rounded-full bg-black/40 text-white hover:bg-black/60 transition-opacity duration-200 ${showArrows ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}
           >
@@ -203,7 +170,7 @@ function HeroCarousel({ movies, language }: { movies: Movie[]; language: string 
           </button>
         </div>
       )}
-      
+
       <div className="absolute inset-0 z-10 flex items-center">
         <div className="max-w-7xl mx-auto px-4 md:px-8 w-full">
           <div className="max-w-2xl">
@@ -212,24 +179,15 @@ function HeroCarousel({ movies, language }: { movies: Movie[]; language: string 
               {summary && <p className="text-gray-200 text-lg line-clamp-3">{summary}</p>}
             </div>
             <div className="flex items-center gap-6">
-              <CircularRating rating={(movie as any).tmdb_rating ?? 0} size={56} />
-              
-              {((movie as any).review_count || 0) > 0 && (
-                <div className="flex flex-col items-center">
-                  <div className="flex items-center gap-1.5 bg-black/50 backdrop-blur-sm rounded-lg px-3 py-2">
-                    <Star className="w-5 h-5 fill-yellow-400 text-yellow-400" />
-                    <span className="text-white font-bold text-lg">
-                      {((movie as any).average_rating || 0).toFixed(1)}
-                    </span>
-                    <span className="text-[#A7A7C7] text-sm">({(movie as any).review_count})</span>
-                  </div>
-                  <span className="text-[10px] text-[#A7A7C7] mt-1">Community</span>
-                </div>
+              <RatingBadge value={(movie as any).tmdb_rating ?? 0} size="md" />
+
+              {reviewCount > 0 && (
+                <RatingBadge value={communityRating} scale={5} size="md" />
               )}
-              
-              <button 
-                onClick={() => navigate(`/movie/${movie.id}`)} 
-                className="inline-flex items-center gap-2 px-6 py-3 bg-white text-[#1A1B2E] font-semibold rounded-lg hover:bg-[#ECEEF8]"
+
+              <button
+                onClick={() => navigate(`/movie/${movie.id}`)}
+                className="inline-flex items-center gap-2 px-6 py-3 bg-primary text-white font-semibold rounded-lg hover:bg-primary-hover"
               >
                 <Play className="w-5 h-5" fill="currentColor" />
                 {language === "bg" ? "Повече" : "More Info"}
@@ -238,12 +196,12 @@ function HeroCarousel({ movies, language }: { movies: Movie[]; language: string 
           </div>
         </div>
       </div>
-      
+
       <div className="absolute bottom-8 left-1/2 z-20 flex gap-2" style={{ transform: 'translateX(-50%)' }}>
         {movies.map((_, i) => (
-          <button 
-            key={i} 
-            onClick={() => goToSlide(i)} 
+          <button
+            key={i}
+            onClick={() => goToSlide(i)}
             className={`h-2 rounded-full transition-all duration-200 ${i === currentIndex ? "w-8 bg-white" : "w-2 bg-white/50 hover:bg-white/70"}`}
           />
         ))}
@@ -259,11 +217,11 @@ function HeroCarousel({ movies, language }: { movies: Movie[]; language: string 
 function OnboardingCard({ language, theme, onNavigate }: { language: string; theme: string; onNavigate: () => void }) {
   return (
     <section className="relative">
-      <div className={`rounded-2xl p-6 md:p-8 ${theme === "dark" 
-        ? "bg-gradient-to-r from-[#1A1A33]/50 via-primary/10 to-[#1A1A33]/50 border border-primary/20" 
-        : "bg-gradient-to-r from-primary/5 via-secondary/5 to-primary/5 border border-primary/20"}`}>
+      <div className={`rounded-2xl p-6 md:p-8 ${theme === "dark"
+        ? "bg-[#1A1A33] border border-[#2A2A4A]"
+        : "bg-white border border-[#E2E4F0]"}`}>
         <div className="flex flex-col md:flex-row items-center gap-6">
-          <div className="p-4 rounded-full bg-gradient-to-br from-[#A78BFA] to-[#2DD4BF]">
+          <div className="p-4 rounded-full bg-primary">
             <ListPlus className="w-10 h-10 text-white" />
           </div>
           <div className="flex-1 text-center md:text-left">
@@ -271,14 +229,14 @@ function OnboardingCard({ language, theme, onNavigate }: { language: string; the
               {language === "bg" ? "Започни своите препоръки" : "Start Your Recommendations"}
             </h3>
             <p className={`${theme === "dark" ? "text-[#A7A7C7]" : "text-[#5B5D78]"}`}>
-              {language === "bg" 
-                ? "Добави филми в списъка си или ги оцени, за да отключиш персонализирани препоръки." 
+              {language === "bg"
+                ? "Добави филми в списъка си или ги оцени, за да отключиш персонализирани препоръки."
                 : "Add movies to your watchlist or rate them to unlock personalized recommendations."}
             </p>
           </div>
-          <button 
-            onClick={onNavigate} 
-            className="px-6 py-3 bg-gradient-to-r from-primary to-secondary text-white font-semibold rounded-lg hover:opacity-90 transition-all flex items-center gap-2 shadow-lg"
+          <button
+            onClick={onNavigate}
+            className="px-6 py-3 bg-primary text-white font-semibold rounded-lg hover:bg-primary-hover transition-all flex items-center gap-2"
           >
             <TrendingUp className="w-5 h-5" />
             {language === "bg" ? "Разгледай Trending" : "Browse Trending"}
@@ -341,7 +299,7 @@ function ForYouCarousel({ recommendations, language, userState, allMovies }: { r
   // Helper to find Bulgarian title for a movie name
   const findBulgarianTitle = (englishTitle: string): string => {
     // Search in allMovies for a matching movie by English title
-    const found = allMovies.find(m => 
+    const found = allMovies.find(m =>
       m.title?.toLowerCase() === englishTitle.toLowerCase()
     );
     if (found && found.title_bg) {
@@ -353,9 +311,9 @@ function ForYouCarousel({ recommendations, language, userState, allMovies }: { r
   const getReason = (rec: Recommendation): string | null => {
     if (!rec.explanation) return null;
     const { reasons, reasons_bg, score_breakdown, based_on, based_on_bg, similar_to, similar_to_bg, genre, mood } = rec.explanation;
-    
-    let reason = language === "bg" && reasons_bg?.[0] ? reasons_bg[0] : reasons?.[0];
-    
+
+    let reason: string | null = language === "bg" && reasons_bg?.[0] ? reasons_bg[0] : reasons?.[0] ?? null;
+
     if (reason && (
       reason.toLowerCase().includes("your watched movies") ||
       reason.toLowerCase().includes("вашите гледани филми") ||
@@ -364,31 +322,31 @@ function ForYouCarousel({ recommendations, language, userState, allMovies }: { r
     )) {
       reason = null;
     }
-    
+
     if (!reason && similar_to) {
       // Use Bulgarian title from API if available, otherwise try to find it, fallback to English
-      const title = language === "bg" 
-        ? (similar_to_bg || findBulgarianTitle(similar_to)) 
+      const title = language === "bg"
+        ? (similar_to_bg || findBulgarianTitle(similar_to))
         : similar_to;
       reason = language === "bg" ? `Подобен на ${title}` : `Similar to ${similar_to}`;
     }
-    
+
     if (!reason && based_on && based_on.length > 0) {
       // Use Bulgarian title from API if available, otherwise try to find it, fallback to English
-      const title = language === "bg" 
-        ? (based_on_bg?.[0] || findBulgarianTitle(based_on[0])) 
+      const title = language === "bg"
+        ? (based_on_bg?.[0] || findBulgarianTitle(based_on[0]))
         : based_on[0];
       reason = language === "bg" ? `Защото харесахте ${title}` : `Because you liked ${based_on[0]}`;
     }
-    
+
     if (!reason && genre) {
       reason = language === "bg" ? `Жанр: ${genre}` : `Genre: ${genre}`;
     }
-    
+
     if (!reason && mood) {
       reason = language === "bg" ? `Настроение: ${mood}` : `Mood: ${mood}`;
     }
-    
+
     if (!reason && score_breakdown) {
       const topEntry = Object.entries(score_breakdown).filter(([, v]) => v > 0.1).sort((a, b) => b[1] - a[1])[0];
       if (topEntry) {
@@ -401,7 +359,7 @@ function ForYouCarousel({ recommendations, language, userState, allMovies }: { r
         reason = labels[topEntry[0]] || null;
       }
     }
-    
+
     // For new users, generate preference-based reasons
     if (!reason && !userState.hasActivity) {
       const movieGenre = rec.movie.genre?.split(',')[0]?.trim();
@@ -409,11 +367,11 @@ function ForYouCarousel({ recommendations, language, userState, allMovies }: { r
         reason = language === "bg" ? `Популярен ${movieGenre.toLowerCase()}` : `Popular ${movieGenre.toLowerCase()}`;
       }
     }
-    
+
     if (!reason && rec.score >= 0.8) {
       reason = language === "bg" ? "Силно препоръчан" : "Highly recommended";
     }
-    
+
     return reason;
   };
 
@@ -423,7 +381,7 @@ function ForYouCarousel({ recommendations, language, userState, allMovies }: { r
     <section className="relative">
       <div className="flex items-center justify-between mb-4">
         <div className="flex items-center gap-3">
-          <div className="p-2 rounded-lg bg-gradient-to-br from-primary/20 to-secondary/20">
+          <div className="p-2 rounded-lg bg-primary/20">
             <Heart className="w-5 h-5 text-primary" />
           </div>
           <div>
@@ -452,7 +410,7 @@ function ForYouCarousel({ recommendations, language, userState, allMovies }: { r
             const posterUrl = movie.poster_path ? `https://image.tmdb.org/t/p/w342${movie.poster_path}` : movie.poster_url;
             const reason = getReason(rec);
             const clampedScore = Math.max(0, Math.min(1, Number(rec.score) || 0));
-            
+
             // Honest match % for new users (35-65% range instead of inflated)
             let matchPercent = Math.round(clampedScore * 100);
             if (!userState.hasActivity && matchPercent > 70) {
@@ -469,7 +427,7 @@ function ForYouCarousel({ recommendations, language, userState, allMovies }: { r
                       <Sparkles className="w-10 h-10 text-[#A7A7C7]" />
                     </div>
                   )}
-                  <div className="absolute top-2 right-2 px-2 py-1 rounded-md bg-gradient-to-r from-primary to-secondary text-white text-xs font-bold shadow-lg z-10">
+                  <div className="absolute top-2 right-2 px-2 py-1 rounded-md bg-primary text-white text-xs font-bold shadow-lg z-10">
                     {matchPercent}% match
                   </div>
                   {/* Reason hover overlay */}
@@ -570,11 +528,11 @@ function MovieCarousel({ movies, title, icon: Icon, language }: { movies: Movie[
                     </div>
                   )}
                   <div className="absolute bottom-2 left-2">
-                    <CircularRating rating={tmdbRating} size={36} />
+                    <RatingBadge value={tmdbRating} size="sm" />
                   </div>
                   {reviewCount > 0 && (
                     <div className="absolute bottom-2 right-2">
-                      <CommunityBadge rating={communityRating} count={reviewCount} />
+                      <RatingBadge value={communityRating} scale={5} size="sm" />
                     </div>
                   )}
                 </div>
@@ -598,7 +556,7 @@ function MovieCarousel({ movies, title, icon: Icon, language }: { movies: Movie[
 export default function Home() {
   const { theme, language, isAuthenticated } = useApp();
   const navigate = useNavigate();
-  
+
   const [featuredMovies, setFeaturedMovies] = useState<Movie[]>([]);
   const [trendingMovies, setTrendingMovies] = useState<Movie[]>([]);
   const [topRatedMovies, setTopRatedMovies] = useState<Movie[]>([]);
@@ -606,7 +564,7 @@ export default function Home() {
   const [allMoviesData, setAllMoviesData] = useState<Movie[]>([]); // Store all movies for title lookup
   const [forYouRecs, setForYouRecs] = useState<Recommendation[]>([]);
   const [loading, setLoading] = useState(true);
-  
+
   // User state for adaptive For You section
   const [userState, setUserState] = useState<UserState>({
     isLoggedIn: false,
@@ -618,18 +576,18 @@ export default function Home() {
   const isPersonalized = (rec: Recommendation): boolean => {
     if (!rec.explanation) return false;
     const { based_on, similar_to, reasons, reasons_bg, reason } = rec.explanation as any;
-    
+
     if (reason) {
       const genericReasons = ["popular movie", "trending", "error"];
       if (genericReasons.some(g => reason.toLowerCase().includes(g))) return false;
     }
-    
+
     if (based_on && based_on.length > 0) return true;
     if (similar_to) return true;
-    
+
     const allReasons = [...(reasons || []), ...(reasons_bg || [])];
     const genericPhrases = ["trending", "popular", "top rated", "highly rated", "популярен", "топ"];
-    
+
     if (allReasons.length === 0 && !reason) return false;
     return allReasons.some(r => r && !genericPhrases.some(p => r.toLowerCase().includes(p)));
   };
@@ -643,14 +601,14 @@ export default function Home() {
         setAllMoviesData(allMovies); // Store for title lookup
         const usedIds = new Set<number>(); // Cascade exclusion tracker
 
-        // Helper: get popularity proxy (TMDB popularity → vote_count → review_count)
+        // Helper: get popularity proxy (TMDB popularity -> vote_count -> review_count)
         const getPopProxy = (m: any): number => {
           return Number(m.popularity) || Number(m.tmdb_vote_count) || Number(m.review_count) || 0;
         };
         const maxPop = Math.max(...allMovies.map((m: any) => getPopProxy(m)), 1);
 
         // ==============================================================
-        // 1. FEATURED (5) — Best quality with backdrop
+        // 1. FEATURED (5) -- Best quality with backdrop
         //    Highest quality, must have backdrop image
         // ==============================================================
         const featured = [...allMovies]
@@ -667,7 +625,7 @@ export default function Home() {
         setFeaturedMovies(featured);
 
         // ==============================================================
-        // 2. TRENDING (20) — "Hot right now" 
+        // 2. TRENDING (20) -- "Hot right now"
         //    Recency + popularity + activity. Even a 7.0 movie can trend.
         //    Excludes: Featured
         // ==============================================================
@@ -690,7 +648,7 @@ export default function Home() {
         setTrendingMovies(trending);
 
         // ==============================================================
-        // 3. TOP RATED (20) — "Best of all time"
+        // 3. TOP RATED (20) -- "Best of all time"
         //    Quality + enough votes. Stable, slow to change.
         //    Excludes: Featured + Trending
         // ==============================================================
@@ -718,7 +676,7 @@ export default function Home() {
         setTopRatedMovies(topRated);
 
         // ==============================================================
-        // 4. RECENTLY RELEASED (20) — Newest by release date
+        // 4. RECENTLY RELEASED (20) -- Newest by release date
         //    Excludes: Featured + Trending + Top Rated
         // ==============================================================
         const recent = [...allMovies]
@@ -746,12 +704,12 @@ export default function Home() {
         setUserState({ isLoggedIn: false, hasActivity: false, personalizedCount: 0 });
         return;
       }
-      
+
       try {
         const response = await api.get('/ai/recommend/for-me', { params: { top_k: 15 } });
         const recs = response.data || [];
         setForYouRecs(recs);
-        
+
         // Determine user state based on personalization level
         const personalizedCount = recs.filter(isPersonalized).length;
         setUserState({
@@ -764,7 +722,7 @@ export default function Home() {
         setUserState({ isLoggedIn: true, hasActivity: false, personalizedCount: 0 });
       }
     };
-    
+
     fetchForYou();
   }, [isAuthenticated]);
 
@@ -816,23 +774,13 @@ export default function Home() {
 
         {/* AI Search Promo */}
         <section className={`relative rounded-2xl p-8 overflow-hidden ${theme === "dark"
-          ? "bg-gradient-to-r from-[#1a1040] via-[#1A1A33] to-[#0f2a2a] border border-[#A78BFA]/30"
-          : "bg-gradient-to-r from-[#f0ebff] via-white to-[#e6faf5] border border-[#A78BFA]/20"}`}>
-          {/* Subtle sparkle pattern */}
-          <div className="absolute inset-0 opacity-[0.04]" style={{
-            backgroundImage: "radial-gradient(circle at 20% 30%, #A78BFA 1px, transparent 1px), radial-gradient(circle at 80% 70%, #2DD4BF 1px, transparent 1px)",
-            backgroundSize: "60px 60px"
-          }} />
+          ? "bg-[#1A1A33] border border-[#2A2A4A]"
+          : "bg-white border border-[#E2E4F0]"}`}>
           <div className="relative flex flex-col md:flex-row items-center gap-6">
-            <div className="p-4 rounded-2xl bg-gradient-to-br from-[#A78BFA] to-[#2DD4BF] shadow-lg shadow-primary/20">
+            <div className="p-4 rounded-2xl bg-primary">
               <Sparkles className="w-10 h-10 text-white" />
             </div>
             <div className="flex-1 text-center md:text-left">
-              <div className="flex items-center gap-2 justify-center md:justify-start mb-1">
-                <span className="px-2 py-0.5 rounded-full bg-gradient-to-r from-[#A78BFA] to-[#2DD4BF] text-white text-[10px] font-bold uppercase tracking-wider">
-                  {language === "bg" ? "Бонус" : "Bonus"}
-                </span>
-              </div>
               <h3 className={`text-2xl font-bold mb-2 ${theme === "dark" ? "text-[#EDEDF7]" : "text-[#1A1B2E]"}`}>
                 {language === "bg" ? "AI Интелигентно търсене" : "AI Smart Search"}
               </h3>
@@ -842,7 +790,7 @@ export default function Home() {
                   : "Don't know the exact title? Describe what you want to watch and our AI will find the perfect movie for you."}
               </p>
             </div>
-            <button onClick={() => navigate("/browse")} className="px-6 py-3 bg-gradient-to-r from-[#A78BFA] to-[#2DD4BF] text-white font-semibold rounded-xl hover:opacity-90 transition-all flex items-center gap-2 shadow-lg shadow-primary/25 whitespace-nowrap">
+            <button onClick={() => navigate("/browse")} className="px-6 py-3 bg-primary text-white font-semibold rounded-xl hover:bg-primary-hover transition-all flex items-center gap-2 whitespace-nowrap">
               <Sparkles className="w-5 h-5" />{language === "bg" ? "Опитай AI" : "Try AI Search"}
             </button>
           </div>

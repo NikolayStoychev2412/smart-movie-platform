@@ -1,15 +1,17 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useApp } from "../context/AppContext";
 import { moviesApi } from "../api/movies";
 import api from "../api/client";
 import type { Movie, Review, WatchStatus } from "../types";
 import {
-  Star, Calendar, Clock, Bookmark, ChevronLeft, ChevronRight,
-  User, Building2, Film, Play, ExternalLink, Check, Plus, X,
+  Star, Calendar, Clock, Bookmark, User, Building2, Film, Play, ExternalLink, Check, Plus, X,
   Send, Loader2, ThumbsUp, ThumbsDown, Minus, MessageSquare, Heart,
   Pencil, Trash2
 } from "lucide-react";
+import RatingBadge from "../components/RatingBadge";
+import ScrollRow from "../components/ScrollRow";
+import MoviePoster from "../components/MoviePoster";
 
 interface CastMember { id: number; name: string; character?: string; profile_path?: string; order?: number; }
 interface CrewMember { id: number; name: string; job: string; department: string; profile_path?: string; }
@@ -35,24 +37,6 @@ interface SentimentAnalysis {
 
 interface ReviewWithSentiment extends Review {
   sentiment?: SentimentAnalysis;
-}
-
-function CircularRating({ rating, size = 60 }: { rating: number; size?: number }) {
-  const percentage = Math.round((rating > 10 ? rating / 10 : rating || 0) * 10);
-  const radius = (size - 8) / 2;
-  const circumference = 2 * Math.PI * radius;
-  const strokeDashoffset = circumference - (percentage / 100) * circumference;
-  const colors = percentage >= 70 ? { stroke: "#21d07a", bg: "#204529" } : percentage >= 50 ? { stroke: "#d2d531", bg: "#423d0f" } : { stroke: "#db2360", bg: "#571435" };
-  
-  return (
-    <div className="relative flex items-center justify-center rounded-full flex-shrink-0" style={{ width: size, height: size, backgroundColor: "#081c22" }}>
-      <svg className="transform -rotate-90" width={size} height={size} viewBox={`0 0 ${size} ${size}`}>
-        <circle cx={size/2} cy={size/2} r={radius} fill="#081c22" stroke={colors.bg} strokeWidth="4" />
-        <circle cx={size/2} cy={size/2} r={radius} fill="none" stroke={colors.stroke} strokeWidth="4" strokeLinecap="round" strokeDasharray={circumference} strokeDashoffset={strokeDashoffset} />
-      </svg>
-      <span className="absolute text-white font-bold" style={{ fontSize: size * 0.3 }}>{percentage}<sup style={{ fontSize: size * 0.15 }}>%</sup></span>
-    </div>
-  );
 }
 
 function StarRating({ rating, onRate, size = 24 }: { rating: number; onRate?: (r: number) => void; size?: number }) {
@@ -452,30 +436,28 @@ function ReviewCard({
     onDelete?.(review.id);
   };
 
+  const borderColor = recommendation === 'positive' ? 'border-l-green-500' : recommendation === 'negative' ? 'border-l-red-500' : 'border-l-gray-500';
+
   return (
-    <div className={`rounded-lg overflow-hidden ${theme === "dark" ? "bg-[#1A1A33]" : "bg-white border"} ${isOwnReview ? 'ring-2 ring-primary/30' : ''}`}>
-      {/* Steam-style Recommendation Header */}
-      <div className={`px-5 py-3 flex items-center gap-3 ${
-        recommendation === 'positive'
-          ? 'bg-gradient-to-r from-green-500/20 to-green-500/5 border-b border-green-500/20'
-          : recommendation === 'negative'
-          ? 'bg-gradient-to-r from-red-500/20 to-red-500/5 border-b border-red-500/20'
-          : 'bg-gradient-to-r from-gray-500/20 to-gray-500/5 border-b border-gray-500/20'
+    <div className={`rounded-lg overflow-hidden border-l-[3px] ${borderColor} ${theme === "dark" ? "bg-[#1A1A33]" : "bg-white border border-l-[3px]"} ${isOwnReview ? 'ring-2 ring-primary/30' : ''}`}>
+      {/* Recommendation Header */}
+      <div className={`px-5 py-3 flex items-center gap-3 border-b ${
+        theme === 'dark' ? 'border-[#2A2A4A]' : 'border-[#E2E4F0]'
       }`}>
-        {/* Large Thumb Icon */}
-        <div className={`w-12 h-12 rounded-lg flex items-center justify-center ${
+        {/* Thumb Icon */}
+        <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${
           recommendation === 'positive'
-            ? 'bg-green-500/30'
+            ? 'bg-green-500/15'
             : recommendation === 'negative'
-            ? 'bg-red-500/30'
-            : 'bg-gray-500/30'
+            ? 'bg-red-500/15'
+            : 'bg-gray-500/15'
         }`}>
           {recommendation === 'positive' ? (
-            <ThumbsUp className="w-6 h-6 text-green-400" />
+            <ThumbsUp className="w-5 h-5 text-green-500" />
           ) : recommendation === 'negative' ? (
-            <ThumbsDown className="w-6 h-6 text-red-400" />
+            <ThumbsDown className="w-5 h-5 text-red-500" />
           ) : (
-            <Minus className="w-6 h-6 text-gray-400" />
+            <Minus className="w-5 h-5 text-gray-500" />
           )}
         </div>
 
@@ -586,35 +568,17 @@ function ReviewCard({
 }
 
 function CastCarousel({ cast, theme, language }: { cast: CastMember[]; theme: string; language: string }) {
-  const scrollRef = useRef<HTMLDivElement>(null);
-  const [canScrollLeft, setCanScrollLeft] = useState(false);
-  const [canScrollRight, setCanScrollRight] = useState(false);
-
-  const checkScroll = () => {
-    if (scrollRef.current) {
-      const { scrollLeft, scrollWidth, clientWidth } = scrollRef.current;
-      setCanScrollLeft(scrollLeft > 5);
-      setCanScrollRight(scrollLeft < scrollWidth - clientWidth - 5);
-    }
-  };
-  const scroll = (d: "left" | "right") => { scrollRef.current?.scrollBy({ left: d === "left" ? -320 : 320, behavior: "smooth" }); setTimeout(checkScroll, 350); };
-  useEffect(() => { checkScroll(); const ref = scrollRef.current; ref?.addEventListener("scroll", checkScroll); return () => ref?.removeEventListener("scroll", checkScroll); }, [cast]);
-
   if (!cast?.length) return <div className={`text-center py-12 rounded-lg ${theme === "dark" ? "bg-[#1A1A33] text-[#A7A7C7]" : "bg-[#F3F4FF] text-[#A7A7C7]"}`}><User className="w-16 h-16 mx-auto mb-3 opacity-50" /><p>{language === "bg" ? "Няма информация" : "No cast info"}</p></div>;
 
   return (
-    <div className="relative">
-      {canScrollLeft && <button onClick={() => scroll("left")} className={`absolute left-0 top-1/2 -translate-y-1/2 z-20 p-2 rounded-full shadow-xl ${theme === "dark" ? "bg-[#2A2A4A] text-white" : "bg-white text-gray-800 border"}`} style={{marginTop:"-20px"}}><ChevronLeft className="w-6 h-6" /></button>}
-      {canScrollRight && <button onClick={() => scroll("right")} className={`absolute right-0 top-1/2 -translate-y-1/2 z-20 p-2 rounded-full shadow-xl ${theme === "dark" ? "bg-[#2A2A4A] text-white" : "bg-white text-gray-800 border"}`} style={{marginTop:"-20px"}}><ChevronRight className="w-6 h-6" /></button>}
-      <div ref={scrollRef} className="flex gap-4 pb-4" style={{ overflowX: "auto", scrollbarWidth: "none", scrollSnapType: "x mandatory" }}>
-        {[...cast].sort((a,b) => (a.order??999)-(b.order??999)).slice(0,15).map((actor, i) => (
-          <div key={actor.id||i} className={`flex-shrink-0 w-[150px] rounded-lg overflow-hidden shadow-lg hover:scale-105 transition-transform ${theme === "dark" ? "bg-[#1A1A33]" : "bg-white border"}`} style={{scrollSnapAlign:"start"}}>
-            <div className="aspect-[2/3]">{actor.profile_path ? <img src={`https://image.tmdb.org/t/p/w185${actor.profile_path}`} alt={actor.name} className="w-full h-full object-cover" /> : <div className={`w-full h-full flex items-center justify-center ${theme === "dark" ? "bg-[#2A2A4A]" : "bg-gray-200"}`}><User className="w-16 h-16 text-[#A7A7C7]" /></div>}</div>
-            <div className="p-3"><p className={`font-semibold text-sm truncate ${theme === "dark" ? "text-white" : "text-[#1A1B2E]"}`}>{actor.name}</p>{actor.character && <p className="text-xs mt-1 truncate text-[#A7A7C7]">{actor.character}</p>}</div>
-          </div>
-        ))}
-      </div>
-    </div>
+    <ScrollRow>
+      {[...cast].sort((a,b) => (a.order??999)-(b.order??999)).slice(0,15).map((actor, i) => (
+        <div key={actor.id||i} className={`flex-shrink-0 w-[150px] rounded-lg overflow-hidden ${theme === "dark" ? "bg-[#1A1A33]" : "bg-white border"}`} style={{scrollSnapAlign:"start"}}>
+          <div className="aspect-[2/3]">{actor.profile_path ? <img src={`https://image.tmdb.org/t/p/w185${actor.profile_path}`} alt={actor.name} className="w-full h-full object-cover" /> : <div className={`w-full h-full flex items-center justify-center ${theme === "dark" ? "bg-[#2A2A4A]" : "bg-gray-200"}`}><User className="w-16 h-16 text-[#A7A7C7]" /></div>}</div>
+          <div className="p-3"><p className={`font-semibold text-sm truncate ${theme === "dark" ? "text-white" : "text-[#1A1B2E]"}`}>{actor.name}</p>{actor.character && <p className="text-xs mt-1 truncate text-[#A7A7C7]">{actor.character}</p>}</div>
+        </div>
+      ))}
+    </ScrollRow>
   );
 }
 
@@ -634,9 +598,9 @@ function FactsPanel({ movie, theme, language }: { movie: MovieDetail; theme: str
       <h3 className={`font-bold text-lg mb-4 ${theme === "dark" ? "text-white" : "text-[#1A1B2E]"}`}>{language === "bg" ? "Информация" : "Facts"}</h3>
       <div className="space-y-4">
         {director && <div><p className="text-sm font-medium text-[#A7A7C7]">{language==="bg"?"Режисьор":"Director"}</p><p className={`font-medium mt-0.5 ${theme==="dark"?"text-white":"text-[#1A1B2E]"}`}>{director}</p></div>}
-        {writers?.length > 0 && <div><p className="text-sm font-medium text-[#A7A7C7]">{language==="bg"?"Сценарист":"Writer"}</p><p className={`font-medium mt-0.5 ${theme==="dark"?"text-white":"text-[#1A1B2E]"}`}>{writers.map(w=>w.name).join(", ")}</p></div>}
+        {(writers?.length ?? 0) > 0 && <div><p className="text-sm font-medium text-[#A7A7C7]">{language==="bg"?"Сценарист":"Writer"}</p><p className={`font-medium mt-0.5 ${theme==="dark"?"text-white":"text-[#1A1B2E]"}`}>{writers!.map(w=>w.name).join(", ")}</p></div>}
         {facts.map((f,i) => f.value && <div key={i}><p className="text-sm font-medium text-[#A7A7C7]">{f.label}</p><p className={`font-medium mt-0.5 ${theme==="dark"?"text-white":"text-[#1A1B2E]"}`}>{f.value}</p></div>)}
-        {movie.production_companies?.length > 0 && <div><p className="text-sm font-medium mb-2 text-[#A7A7C7]">{language==="bg"?"Продукция":"Production"}</p><div className="space-y-2">{movie.production_companies.slice(0,3).map((c,i) => <div key={c.id||i} className="flex items-center gap-2">{c.logo_path ? <img src={`https://image.tmdb.org/t/p/w92${c.logo_path}`} alt={c.name} className={`h-6 w-auto object-contain ${theme==="dark"?"":"brightness-0"}`}/> : <Building2 className="w-5 h-5 text-[#A7A7C7]"/>}<span className={`text-sm ${theme==="dark"?"text-[#A7A7C7]":"text-[#5B5D78]"}`}>{c.name}</span></div>)}</div></div>}
+        {(movie.production_companies?.length ?? 0) > 0 && <div><p className="text-sm font-medium mb-2 text-[#A7A7C7]">{language==="bg"?"Продукция":"Production"}</p><div className="space-y-2">{movie.production_companies!.slice(0,3).map((c,i) => <div key={c.id||i} className="flex items-center gap-2">{c.logo_path ? <img src={`https://image.tmdb.org/t/p/w92${c.logo_path}`} alt={c.name} className={`h-6 w-auto object-contain ${theme==="dark"?"":"brightness-0"}`}/> : <Building2 className="w-5 h-5 text-[#A7A7C7]"/>}<span className={`text-sm ${theme==="dark"?"text-[#A7A7C7]":"text-[#5B5D78]"}`}>{c.name}</span></div>)}</div></div>}
         {movie.homepage && <a href={movie.homepage} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 text-primary hover:underline text-sm mt-4"><ExternalLink className="w-4 h-4"/>{language==="bg"?"Официален сайт":"Official Website"}</a>}
       </div>
     </div>
@@ -644,40 +608,29 @@ function FactsPanel({ movie, theme, language }: { movie: MovieDetail; theme: str
 }
 
 function VideosSection({ movie, theme, language }: { movie: MovieDetail; theme: string; language: string }) {
-  const scrollRef = useRef<HTMLDivElement>(null);
-  const [canScrollLeft, setCanScrollLeft] = useState(false);
-  const [canScrollRight, setCanScrollRight] = useState(false);
   const [playingVideo, setPlayingVideo] = useState<string|null>(null);
   
   const videos = [...(movie.videos||[]).filter(v => v.site === "YouTube")];
   if (movie.trailer_youtube_key && !videos.find(v => v.key === movie.trailer_youtube_key)) videos.unshift({ id: "main", key: movie.trailer_youtube_key, name: language==="bg"?"Официален трейлър":"Official Trailer", site: "YouTube", type: "Trailer" });
   
-  const checkScroll = () => { if (scrollRef.current) { const { scrollLeft, scrollWidth, clientWidth } = scrollRef.current; setCanScrollLeft(scrollLeft > 5); setCanScrollRight(scrollLeft < scrollWidth - clientWidth - 5); } };
-  const scroll = (d: "left"|"right") => { scrollRef.current?.scrollBy({ left: d==="left" ? -400 : 400, behavior: "smooth" }); setTimeout(checkScroll, 350); };
-  useEffect(() => { checkScroll(); const ref = scrollRef.current; ref?.addEventListener("scroll", checkScroll); return () => ref?.removeEventListener("scroll", checkScroll); }, [videos.length]);
-
   if (!videos.length) return null;
 
   return (
     <section>
       <h2 className={`text-2xl font-bold mb-5 ${theme==="dark"?"text-white":"text-[#1A1B2E]"}`}>{language==="bg"?"Видео":"Videos"} <span className="ml-2 text-base font-normal text-[#A7A7C7]">({videos.length})</span></h2>
       {playingVideo && <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/90 p-4" onClick={() => setPlayingVideo(null)}><button onClick={() => setPlayingVideo(null)} className="absolute top-4 right-4 p-2 text-white hover:text-[#A7A7C7]"><X className="w-8 h-8"/></button><div className="w-full max-w-5xl aspect-video" onClick={e => e.stopPropagation()}><iframe src={`https://www.youtube.com/embed/${playingVideo}?autoplay=1`} title="Video" className="w-full h-full rounded-lg" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowFullScreen/></div></div>}
-      <div className="relative">
-        {canScrollLeft && <button onClick={() => scroll("left")} className={`absolute left-0 top-1/2 -translate-y-1/2 z-20 p-2 rounded-full shadow-xl ${theme==="dark"?"bg-[#2A2A4A] text-white":"bg-white text-gray-800 border"}`}><ChevronLeft className="w-6 h-6"/></button>}
-        {canScrollRight && <button onClick={() => scroll("right")} className={`absolute right-0 top-1/2 -translate-y-1/2 z-20 p-2 rounded-full shadow-xl ${theme==="dark"?"bg-[#2A2A4A] text-white":"bg-white text-gray-800 border"}`}><ChevronRight className="w-6 h-6"/></button>}
-        <div ref={scrollRef} className="flex gap-4 pb-4" style={{ overflowX: "auto", scrollbarWidth: "none", scrollSnapType: "x mandatory" }}>
-          {videos.map(v => (
-            <div key={v.id||v.key} className="flex-shrink-0 w-[320px] md:w-[400px] cursor-pointer group" style={{scrollSnapAlign:"start"}} onClick={() => setPlayingVideo(v.key)}>
-              <div className="relative rounded-lg overflow-hidden shadow-lg">
-                <img src={`https://img.youtube.com/vi/${v.key}/mqdefault.jpg`} alt={v.name} className="w-full aspect-video object-cover group-hover:scale-105 transition-transform" onError={e => (e.target as HTMLImageElement).src = `https://img.youtube.com/vi/${v.key}/hqdefault.jpg`}/>
-                <div className="absolute inset-0 bg-black/30 group-hover:bg-black/50 flex items-center justify-center transition-colors"><div className="w-16 h-16 rounded-full bg-white/90 flex items-center justify-center group-hover:scale-110 transition-transform shadow-lg"><Play className="w-8 h-8 text-white ml-1" fill="currentColor"/></div></div>
-                <div className="absolute top-2 left-2 px-2 py-1 rounded bg-black/70 text-white text-xs font-medium">{v.type}</div>
-              </div>
-              <p className={`mt-2 text-sm font-medium line-clamp-1 ${theme==="dark"?"text-[#A7A7C7]":"text-[#5B5D78]"}`}>{v.name}</p>
+      <ScrollRow>
+        {videos.map(v => (
+          <div key={v.id||v.key} className="flex-shrink-0 w-[320px] md:w-[400px] cursor-pointer group" style={{scrollSnapAlign:"start"}} onClick={() => setPlayingVideo(v.key)}>
+            <div className="relative rounded-lg overflow-hidden">
+              <img src={`https://img.youtube.com/vi/${v.key}/mqdefault.jpg`} alt={v.name} className="w-full aspect-video object-cover" onError={e => (e.target as HTMLImageElement).src = `https://img.youtube.com/vi/${v.key}/hqdefault.jpg`}/>
+              <div className="absolute inset-0 bg-black/30 group-hover:bg-black/50 flex items-center justify-center transition-colors"><div className="w-16 h-16 rounded-full bg-white/90 flex items-center justify-center shadow-lg"><Play className="w-8 h-8 text-[#1A1B2E] ml-1" fill="currentColor"/></div></div>
+              <div className="absolute top-2 left-2 px-2 py-1 rounded bg-black/70 text-white text-xs font-medium">{v.type}</div>
             </div>
-          ))}
-        </div>
-      </div>
+            <p className={`mt-2 text-sm font-medium line-clamp-1 ${theme==="dark"?"text-[#A7A7C7]":"text-[#5B5D78]"}`}>{v.name}</p>
+          </div>
+        ))}
+      </ScrollRow>
     </section>
   );
 }
@@ -696,7 +649,6 @@ function SimilarMoviesSidebar({ movies, theme, language }: { movies: Movie[]; th
       <div className="space-y-3">
         {movies.slice(0, 6).map((m, i) => {
           const t = language === "bg" ? m.title_bg || m.title : m.title;
-          const p = m.poster_path ? `https://image.tmdb.org/t/p/w92${m.poster_path}` : m.poster_url;
           const rating = (m as any).tmdb_rating || m.average_rating || 0;
           const year = m.release_date ? new Date(m.release_date).getFullYear() : null;
 
@@ -708,18 +660,9 @@ function SimilarMoviesSidebar({ movies, theme, language }: { movies: Movie[]; th
                 theme === "dark" ? "hover:bg-[#2A2A4A]" : "hover:bg-[#F3F4FF]"
               }`}
             >
-              {/* Poster */}
-              <div className="w-12 h-18 flex-shrink-0 rounded overflow-hidden">
-                {p ? (
-                  <img src={p} alt={t} className="w-full h-full object-cover" />
-                ) : (
-                  <div className={`w-full h-full flex items-center justify-center ${theme === "dark" ? "bg-[#2A2A4A]" : "bg-gray-200"}`}>
-                    <Film className="w-6 h-6 text-[#A7A7C7]" />
-                  </div>
-                )}
+              <div className="w-12 flex-shrink-0">
+                <MoviePoster posterPath={m.poster_path} posterUrl={m.poster_url} alt={t} size="sm" />
               </div>
-
-              {/* Info */}
               <div className="flex-1 min-w-0">
                 <p className={`font-medium text-sm line-clamp-2 ${theme === "dark" ? "text-white" : "text-[#1A1B2E]"}`}>
                   {t}
@@ -731,10 +674,7 @@ function SimilarMoviesSidebar({ movies, theme, language }: { movies: Movie[]; th
                     </span>
                   )}
                   {rating > 0 && (
-                    <span className="flex items-center gap-0.5 text-xs text-yellow-500">
-                      <Star className="w-3 h-3 fill-current" />
-                      {rating > 10 ? (rating / 10).toFixed(1) : rating.toFixed(1)}
-                    </span>
+                    <RatingBadge value={rating > 10 ? rating / 10 : rating} scale={10} size="sm" />
                   )}
                 </div>
               </div>
@@ -766,7 +706,7 @@ export default function MovieDetails() {
   const [watchlistLoading, setWatchlistLoading] = useState(false);
   const [showWatchlistMenu, setShowWatchlistMenu] = useState(false);
   const [userHasReviewed, setUserHasReviewed] = useState(false);
-  const [userReviewId, setUserReviewId] = useState<number | null>(null);
+  const [_userReviewId, setUserReviewId] = useState<number | null>(null);
   const [isFavorite, setIsFavorite] = useState(false);
   const [favoriteLoading, setFavoriteLoading] = useState(false);
   const [userRating, setUserRating] = useState(0);
@@ -929,7 +869,7 @@ export default function MovieDetails() {
 
   const getBtn = () => {
     if (!watchlistStatus) return { icon: <Plus className="w-5 h-5"/>, text: language==="bg"?"Добави":"Add to List", cls: "bg-[#121226]/80 text-[#A7A7C7] hover:text-[#EDEDF7]" };
-    const map: Record<string, {icon: JSX.Element; text: string; cls: string}> = {
+    const map: Record<string, {icon: React.ReactNode; text: string; cls: string}> = {
       completed: { icon: <Check className="w-5 h-5"/>, text: language==="bg"?"Изгледан":"Completed", cls: "bg-green-600 text-white" },
       watching: { icon: <Play className="w-5 h-5"/>, text: language==="bg"?"Гледам":"Watching", cls: "bg-yellow-600 text-white" },
       planned: { icon: <Bookmark className="w-5 h-5"/>, text: language==="bg"?"Планиран":"Planned", cls: "bg-blue-600 text-white" },
@@ -982,33 +922,21 @@ export default function MovieDetails() {
               </div>
               
               {/* Ratings Block */}
-              <div className="flex flex-wrap items-start gap-6 mt-6">
+              <div className="flex flex-wrap items-center gap-6 mt-6">
                 {/* TMDB Rating */}
                 <div className="flex items-center gap-3">
-                  <CircularRating rating={movie.tmdb_rating || 0} size={60}/>
+                  <RatingBadge value={movie.tmdb_rating || 0} scale={10} size="lg" />
                   <div>
                     <p className="font-semibold text-sm text-[#A7A7C7]">TMDB</p>
                     <p className="text-lg font-bold text-white">{movie.tmdb_rating ? movie.tmdb_rating.toFixed(1) : '—'}<span className="text-sm text-[#A7A7C7]">/10</span></p>
                   </div>
                 </div>
-                
+
                 {/* Community Rating */}
                 <div className="flex items-center gap-3">
-                  <div className="relative flex items-center justify-center rounded-full" style={{ width: 60, height: 60, backgroundColor: "#1a1a2e" }}>
-                    {(movie.review_count || 0) > 0 ? (
-                      <>
-                        <svg className="transform -rotate-90" width={60} height={60} viewBox="0 0 60 60">
-                          <circle cx={30} cy={30} r={26} fill="none" stroke="#2d2d44" strokeWidth="4" />
-                          <circle cx={30} cy={30} r={26} fill="none" stroke="#8b5cf6" strokeWidth="4" strokeLinecap="round" 
-                            strokeDasharray={2 * Math.PI * 26} 
-                            strokeDashoffset={2 * Math.PI * 26 * (1 - ((movie.average_rating || 0) / 5))} />
-                        </svg>
-                        <span className="absolute text-white font-bold text-lg">{(movie.average_rating || 0).toFixed(1)}</span>
-                      </>
-                    ) : (
-                      <span className="text-[#A7A7C7] text-xs text-center">{language === "bg" ? "Няма" : "No\nratings"}</span>
-                    )}
-                  </div>
+                  {(movie.review_count || 0) > 0 ? (
+                    <RatingBadge value={movie.average_rating || 0} scale={5} size="lg" />
+                  ) : null}
                   <div>
                     <p className="font-semibold text-sm text-primary">{language === "bg" ? "Общност" : "Community"}</p>
                     {(movie.review_count || 0) > 0 ? (
@@ -1020,7 +948,7 @@ export default function MovieDetails() {
                     )}
                   </div>
                 </div>
-                
+
                 {/* Your Rating - Display Only */}
                 {isAuthenticated && userRating > 0 && (
                   <div className="flex items-center gap-3">

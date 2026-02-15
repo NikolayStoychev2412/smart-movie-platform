@@ -4,7 +4,10 @@ import type { Movie } from "../types";
 import { moviesApi } from "../api/movies";
 import api from "../api/client";
 import { useApp } from "../context/AppContext";
-import { Search, Sparkles, Filter, X, Grid, List, ChevronLeft, ChevronRight, Film, TrendingUp, Heart, Star } from "lucide-react";
+import { Search, Sparkles, Filter, X, Grid, List, ChevronLeft, ChevronRight, Film, TrendingUp, Heart } from "lucide-react";
+import RatingBadge from "../components/RatingBadge";
+import SkeletonCard from "../components/SkeletonCard";
+import EmptyState from "../components/EmptyState";
 
 // Cache for movies
 const movieCache = {
@@ -200,44 +203,24 @@ function calculateGrade(
 // COMPONENTS
 // ============================================================================
 
-function CircularRating({ rating, size = 36, isTmdb = false }: { rating: number; size?: number; isTmdb?: boolean }) {
-  // Handle both 0-10 and 0-5 scales
-  const normalizedRating = rating > 5 ? rating : rating * 2; // Convert 5-scale to 10-scale
-  const percentage = Math.round((normalizedRating || 0) * 10);
-  const radius = (size - 6) / 2;
-  const circumference = 2 * Math.PI * radius;
-  const strokeDashoffset = circumference - (percentage / 100) * circumference;
-  const colors = percentage >= 70 ? { stroke: "#21d07a", bg: "#204529" } : percentage >= 50 ? { stroke: "#d2d531", bg: "#423d0f" } : { stroke: "#db2360", bg: "#571435" };
-
-  return (
-    <div className="relative flex items-center justify-center rounded-full" style={{ width: size, height: size, backgroundColor: "#081c22" }}>
-      <svg className="transform -rotate-90" width={size} height={size} viewBox={`0 0 ${size} ${size}`}>
-        <circle cx={size/2} cy={size/2} r={radius} fill="#081c22" stroke={colors.bg} strokeWidth="3" />
-        <circle cx={size/2} cy={size/2} r={radius} fill="none" stroke={colors.stroke} strokeWidth="3" strokeLinecap="round" strokeDasharray={circumference} strokeDashoffset={strokeDashoffset} />
-      </svg>
-      <span className="absolute text-white font-bold" style={{ fontSize: size * 0.28 }}>{percentage}<sup style={{ fontSize: size * 0.14 }}>%</sup></span>
-    </div>
-  );
-}
-
 function MovieBadge({ badge, language }: { badge: MovieWithGrade["_badge"]; language: string }) {
   if (!badge) return null;
 
   const config = {
-    best_for_you: { 
+    best_for_you: {
       label: language === "bg" ? "За теб" : "Best for you",
       icon: <Heart className="w-3 h-3" />,
-      classes: "bg-gradient-to-r from-primary to-secondary text-white"
+      classes: "bg-primary text-white"
     },
-    matches_search: { 
+    matches_search: {
       label: language === "bg" ? "Точно съвпадение" : "Great match",
       icon: <Sparkles className="w-3 h-3" />,
-      classes: "bg-gradient-to-r from-blue-600 to-cyan-600 text-white"
+      classes: "bg-blue-600 text-white"
     },
-    trending: { 
+    trending: {
       label: language === "bg" ? "Trending" : "Trending",
       icon: <TrendingUp className="w-3 h-3" />,
-      classes: "bg-gradient-to-r from-orange-500 to-amber-500 text-white"
+      classes: "bg-orange-500 text-white"
     },
   };
 
@@ -271,16 +254,12 @@ function MovieCardGrid({ movie, onClick, language, theme, snippet }: { movie: Mo
           </div>
         )}
         {/* Ratings — hidden on snippet hover */}
-        <div className={`absolute bottom-2 left-2 transition-opacity duration-300 ${snippet ? "group-hover:opacity-0" : ""}`}>
-          <CircularRating rating={tmdbRating} size={36} isTmdb={true} />
+        <div className={`absolute bottom-2 left-2 flex items-center gap-1.5 transition-opacity duration-300 ${snippet ? "group-hover:opacity-0" : ""}`}>
+          <RatingBadge value={tmdbRating} scale={10} size="sm" />
+          {reviewCount > 0 && appRating > 0 && (
+            <RatingBadge value={displayAppRating} scale={5} size="sm" />
+          )}
         </div>
-        {reviewCount > 0 && appRating > 0 && (
-          <div className={`absolute bottom-2 right-2 flex items-center gap-1 bg-black/70 backdrop-blur-sm rounded px-1.5 py-0.5 transition-opacity duration-300 ${snippet ? "group-hover:opacity-0" : ""}`}>
-            <Star className="w-3 h-3 fill-yellow-400 text-yellow-400" />
-            <span className="text-white text-[10px] font-semibold">{displayAppRating.toFixed(1)}</span>
-            <span className="text-[#A7A7C7] text-[9px]">({reviewCount})</span>
-          </div>
-        )}
         <MovieBadge badge={movie._badge} language={language} />
         {/* AI snippet hover overlay */}
         {snippet && (
@@ -332,14 +311,12 @@ function MovieCardList({ movie, onClick, language, theme, snippet }: { movie: Mo
       </div>
       <div className="flex-1 p-4 flex flex-col justify-center min-w-0">
         <div className="flex items-start gap-3">
-          <CircularRating rating={tmdbRating} size={40} isTmdb={true} />
-          {reviewCount > 0 && appRating > 0 && (
-            <div className="flex items-center gap-1 bg-black/70 backdrop-blur-sm rounded-lg px-2 py-1.5 self-center">
-              <Star className="w-3.5 h-3.5 fill-yellow-400 text-yellow-400" />
-              <span className="text-white text-xs font-semibold">{displayAppRating.toFixed(1)}</span>
-              <span className="text-[#A7A7C7] text-[10px]">({reviewCount})</span>
-            </div>
-          )}
+          <div className="flex items-center gap-1.5 self-center">
+            <RatingBadge value={tmdbRating} scale={10} size="md" />
+            {reviewCount > 0 && appRating > 0 && (
+              <RatingBadge value={displayAppRating} scale={5} size="md" />
+            )}
+          </div>
           <div className="flex-1 min-w-0">
             <h3 className={`font-bold line-clamp-1 ${theme === "dark" ? "text-white" : "text-[#1A1B2E]"}`}>{title}</h3>
             <div className="flex items-center gap-2 flex-wrap">
@@ -348,7 +325,7 @@ function MovieCardList({ movie, onClick, language, theme, snippet }: { movie: Mo
           </div>
         </div>
         {snippet ? (
-          <div className="flex items-start gap-2 mt-2 px-3 py-2 rounded-lg bg-gradient-to-r from-primary/10 to-secondary/10 border border-primary/20">
+          <div className="flex items-start gap-2 mt-2 px-3 py-2 rounded-lg bg-primary/10 border border-primary/20">
             <Sparkles className="w-3.5 h-3.5 text-primary flex-shrink-0 mt-0.5" />
             <p className="text-xs text-primary line-clamp-2 leading-relaxed">{snippet}</p>
           </div>
@@ -361,7 +338,7 @@ function MovieCardList({ movie, onClick, language, theme, snippet }: { movie: Mo
 }
 
 // Pagination Component
-function Pagination({ currentPage, totalPages, onPageChange, theme, language }: { currentPage: number; totalPages: number; onPageChange: (page: number) => void; theme: string; language: string }) {
+function Pagination({ currentPage, totalPages, onPageChange, theme }: { currentPage: number; totalPages: number; onPageChange: (page: number) => void; theme: string }) {
   if (totalPages <= 1) return null;
 
   const getPageNumbers = () => {
@@ -471,9 +448,6 @@ export default function Browse() {
 
   // Search refs
   const activeQueryRef = useRef<string>("");
-
-  // Is AI search active with results?
-  const isAISearchActive = searchQuery.trim() !== "" && searchResults.length > 0;
 
   // Fetch personal scores (for-me recommendations) — used to boost "Best for you" in AI search
   // Re-fetches on mount AND when user returns to the tab (picks up watchlist/favorite changes)
@@ -765,9 +739,9 @@ export default function Browse() {
 
           {/* AI Search */}
           <form onSubmit={handleSearch} className="mt-4">
-            <div className={`relative rounded-xl border-2 transition-all ${
+            <div className={`relative rounded-lg border transition-all ${
               searchQuery
-                ? "border-primary/50 shadow-lg shadow-primary/10"
+                ? "border-primary/50 ring-1 ring-primary/20"
                 : theme === "dark" ? "border-[#2A2A4A] hover:border-[#3A3A5A]" : "border-[#E2E4F0] hover:border-[#D0D2E4]"
             }`}>
               <Sparkles className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 pointer-events-none text-primary" />
@@ -776,7 +750,7 @@ export default function Browse() {
                 value={searchQuery}
                 onChange={(e) => handleInputChange(e.target.value)}
                 placeholder={language === "bg" ? "Опиши какъв филм търсиш... напр. \"забавна комедия за семейството\"" : "Describe what you're looking for... e.g. \"fun family comedy\""}
-                className={`w-full pl-12 pr-12 py-3.5 rounded-xl bg-transparent focus:outline-none ${
+                className={`w-full pl-12 pr-12 py-3.5 rounded-lg bg-transparent focus:outline-none ${
                   theme === "dark" ? "text-white placeholder-gray-500" : "text-[#1A1B2E] placeholder-gray-400"
                 }`}
               />
@@ -934,22 +908,18 @@ export default function Browse() {
             {(loading || searching) && (
               <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
                 {[...Array(20)].map((_, i) => (
-                  <div key={i} className="animate-pulse">
-                    <div className={`aspect-[2/3] rounded-lg ${theme === "dark" ? "bg-[#2A2A4A]" : "bg-gray-200"}`} />
-                    <div className={`h-4 w-3/4 rounded mt-3 ${theme === "dark" ? "bg-[#2A2A4A]" : "bg-gray-200"}`} />
-                    <div className={`h-3 w-1/2 rounded mt-2 ${theme === "dark" ? "bg-[#2A2A4A]" : "bg-gray-200"}`} />
-                  </div>
+                  <SkeletonCard key={i} variant="poster" />
                 ))}
               </div>
             )}
 
             {/* Empty */}
             {!loading && !searching && displayMovies.length === 0 && (
-              <div className={`text-center py-16 ${theme === "dark" ? "text-[#A7A7C7]" : "text-[#5B5D78]"}`}>
-                <Search className="w-16 h-16 mx-auto mb-4 opacity-50" />
-                <p className="text-xl font-medium">{language === "bg" ? "Няма намерени филми" : "No movies found"}</p>
-                <p className="mt-2">{language === "bg" ? "Опитайте с различно търсене" : "Try different search"}</p>
-              </div>
+              <EmptyState
+                icon={Search}
+                title={language === "bg" ? "Няма намерени филми" : "No movies found"}
+                description={language === "bg" ? "Опитайте с различно търсене" : "Try a different search"}
+              />
             )}
 
             {/* Movies Grid/List */}
@@ -989,7 +959,6 @@ export default function Browse() {
                   totalPages={totalPages}
                   onPageChange={handlePageChange}
                   theme={theme}
-                  language={language}
                 />
               </>
             )}

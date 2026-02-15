@@ -35,7 +35,7 @@ export default function Login() {
       // 2. Gets access_token
       // 3. Calls /auth/me to get user
       // 4. Returns { token, user }
-      const { token, user } = await authApi.login(email, password);
+      const { user } = await authApi.login(email, password);
       
       // Token is already saved by authApi.login
       // Save user to localStorage and context
@@ -66,7 +66,7 @@ export default function Login() {
       } rounded-2xl p-8`}>
         {/* Header */}
         <div className="text-center mb-8">
-          <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-gradient-to-br from-[#A78BFA] to-[#2DD4BF] flex items-center justify-center">
+          <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-primary flex items-center justify-center">
             <LogIn className="w-8 h-8 text-white" />
           </div>
           <h1 className={`text-2xl font-bold ${theme === "dark" ? "text-white" : "text-[#121225]"}`}>

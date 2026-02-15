@@ -17,7 +17,7 @@ function App() {
     <AppProvider>
       <BrowserRouter>
         <ScrollToTop />
-        <div className="min-h-screen bg-tmdb-dark flex flex-col">
+        <div className="min-h-screen bg-dark-bg flex flex-col">
           <Navbar />
           <main className="flex-1">
             <Routes>

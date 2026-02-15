@@ -269,14 +269,14 @@ export default function Navbar() {
   return (
     <nav className={`sticky top-0 z-50 transition-colors ${
       theme === "dark"
-        ? "bg-[#121226]/95 backdrop-blur-sm border-b border-[#2A2A4A]"
-        : "bg-white/95 backdrop-blur-sm border-b border-[#E2E4F0] shadow-sm"
+        ? "bg-[#121226]/98 border-b border-[#2A2A4A]"
+        : "bg-white/98 border-b border-[#E2E4F0] shadow-sm"
     }`}>
       <div className="max-w-7xl mx-auto px-4 md:px-8">
         <div className="flex items-center justify-between h-16">
           {/* Logo */}
           <Link to="/" className="flex items-center gap-2 group">
-            <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-[#A78BFA] to-[#2DD4BF] flex items-center justify-center">
+            <div className="w-8 h-8 rounded-lg bg-primary flex items-center justify-center">
               <Film className="w-5 h-5 text-white" />
             </div>
             <span className={`font-bold text-lg hidden sm:block ${
@@ -318,7 +318,7 @@ export default function Navbar() {
                   onFocus={() => { if (searchQuery.trim().length >= 2) setShowDropdown(true); }}
                   onKeyDown={handleKeyDown}
                   placeholder={language === "bg" ? "Търси филми..." : "Search movies..."}
-                  className={`w-full pl-10 pr-4 py-2 rounded-full border focus:outline-none focus:ring-2 focus:ring-primary transition-colors ${
+                  className={`w-full pl-10 pr-4 py-2 rounded-lg border focus:outline-none focus:ring-2 focus:ring-primary transition-colors ${
                     theme === "dark"
                       ? "bg-[#1A1A33] border-[#2A2A4A] text-[#EDEDF7] placeholder:text-[#A7A7C7]"
                       : "bg-[#F3F4FF] border-[#E2E4F0] text-[#121225] placeholder:text-[#4B4B6A] focus:bg-white"
@@ -373,7 +373,7 @@ export default function Navbar() {
                       : "text-[#4B4B6A] hover:text-[#121225] hover:bg-[#ECEEF8]"
                   }`}
                 >
-                  <div className="w-8 h-8 rounded-full bg-gradient-to-br from-[#A78BFA] to-[#2DD4BF] flex items-center justify-center">
+                  <div className="w-8 h-8 rounded-full bg-primary flex items-center justify-center">
                     <span className="text-white font-bold text-sm">
                       {user.name?.charAt(0).toUpperCase() || "U"}
                     </span>

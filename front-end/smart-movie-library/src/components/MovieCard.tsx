@@ -123,9 +123,9 @@ const MovieCard = memo(function MovieCard({ movie, onClick, priority = false }: 
         <div
           className={`absolute top-2 right-2 w-10 h-10 rounded-full border-2 flex items-center justify-center text-sm font-bold ${
             theme === 'dark' ? 'bg-gray-900/80' : 'bg-white/90'
-          } ${getRatingColor(movie.average_rating)}`}
+          } ${getRatingColor(movie.average_rating ?? 0)}`}
         >
-          {movie.average_rating.toFixed(1)}
+          {(movie.average_rating ?? 0).toFixed(1)}
         </div>
 
         {/* Hover info */}

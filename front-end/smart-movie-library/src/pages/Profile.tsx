@@ -110,7 +110,7 @@ function ProfileStatsSection({ theme, language }: { theme: string; language: str
       icon: Film,
       value: stats.total_completed,
       label: language === "bg" ? "Изгледани филми" : "Movies Watched",
-      gradient: "from-blue-500 to-cyan-400",
+      borderColor: "border-l-blue-500",
       iconBg: theme === "dark" ? "bg-blue-500/10" : "bg-blue-50",
       iconColor: "text-blue-500",
     },
@@ -119,7 +119,7 @@ function ProfileStatsSection({ theme, language }: { theme: string; language: str
       value: hoursWatched,
       label: language === "bg" ? "Часове гледане" : "Hours Watched",
       suffix: language === "bg" ? "ч" : "h",
-      gradient: "from-purple-500 to-pink-400",
+      borderColor: "border-l-purple-500",
       iconBg: theme === "dark" ? "bg-purple-500/10" : "bg-purple-50",
       iconColor: "text-purple-500",
     },
@@ -128,7 +128,7 @@ function ProfileStatsSection({ theme, language }: { theme: string; language: str
       value: stats.average_rating_given > 0 ? stats.average_rating_given : 0,
       label: language === "bg" ? "Средна оценка" : "Avg Rating",
       isDecimal: true,
-      gradient: "from-yellow-500 to-orange-400",
+      borderColor: "border-l-yellow-500",
       iconBg: theme === "dark" ? "bg-yellow-500/10" : "bg-yellow-50",
       iconColor: "text-yellow-500",
     },
@@ -136,21 +136,21 @@ function ProfileStatsSection({ theme, language }: { theme: string; language: str
       icon: Edit3,
       value: stats.total_reviews,
       label: language === "bg" ? "Ревюта" : "Reviews",
-      gradient: "from-green-500 to-emerald-400",
+      borderColor: "border-l-green-500",
       iconBg: theme === "dark" ? "bg-green-500/10" : "bg-green-50",
       iconColor: "text-green-500",
     },
   ];
 
   const genreColors = [
-    "from-blue-500 to-blue-400",
-    "from-purple-500 to-purple-400",
-    "from-pink-500 to-pink-400",
-    "from-orange-500 to-orange-400",
-    "from-cyan-500 to-cyan-400",
-    "from-green-500 to-green-400",
-    "from-red-500 to-red-400",
-    "from-yellow-500 to-yellow-400",
+    "bg-blue-500",
+    "bg-purple-500",
+    "bg-pink-500",
+    "bg-orange-500",
+    "bg-cyan-500",
+    "bg-green-500",
+    "bg-red-500",
+    "bg-yellow-500",
   ];
 
   return (
@@ -162,10 +162,8 @@ function ProfileStatsSection({ theme, language }: { theme: string; language: str
           return (
             <div
               key={card.label}
-              className={`${cardClass} p-5 relative overflow-hidden group hover:scale-[1.02] transition-transform duration-200`}
+              className={`${cardClass} p-5 border-l-[3px] ${card.borderColor}`}
             >
-              {/* Subtle gradient accent at top */}
-              <div className={`absolute top-0 left-0 right-0 h-1 bg-gradient-to-r ${card.gradient}`} />
               <div className={`w-10 h-10 rounded-lg ${card.iconBg} flex items-center justify-center mb-3`}>
                 <Icon className={`w-5 h-5 ${card.iconColor}`} />
               </div>
@@ -219,7 +217,7 @@ function ProfileStatsSection({ theme, language }: { theme: string; language: str
                     </div>
                     <div className={`flex-1 h-4 rounded-full overflow-hidden ${theme === "dark" ? "bg-[#2A2A4A]" : "bg-gray-100"}`}>
                       <div
-                        className="h-full rounded-full bg-gradient-to-r from-yellow-400 to-yellow-500 transition-all duration-700 ease-out"
+                        className="h-full rounded-full bg-yellow-500 transition-all duration-700 ease-out"
                         style={{ width: `${percentage}%` }}
                       />
                     </div>
@@ -283,7 +281,7 @@ function ProfileStatsSection({ theme, language }: { theme: string; language: str
                     </div>
                     <div className={`h-3 rounded-full overflow-hidden ${theme === "dark" ? "bg-[#2A2A4A]" : "bg-gray-100"}`}>
                       <div
-                        className={`h-full rounded-full bg-gradient-to-r ${colorClass} transition-all duration-700 ease-out`}
+                        className={`h-full rounded-full ${colorClass} transition-all duration-700 ease-out`}
                         style={{ width: `${pct}%` }}
                       />
                     </div>
@@ -517,7 +515,7 @@ function MovieCarousel({
                 )}
                 {/* Hover overlay (desktop) */}
                 <div className="absolute inset-0 bg-black/0 group-hover/card:bg-black/40 transition-all duration-200 hidden md:flex items-center justify-center opacity-0 group-hover/card:opacity-100">
-                  <span className="text-white text-xs font-medium px-3 py-1.5 rounded-full bg-white/20 backdrop-blur-sm">
+                  <span className="text-white text-xs font-medium px-3 py-1.5 rounded-lg bg-white/20">
                     {language === "bg" ? "Детайли" : "Details"}
                   </span>
                 </div>
@@ -780,13 +778,11 @@ function PasswordStrength({ password, language }: { password: string; language: 
 function ProfileSettings({
   theme,
   language,
-  user,
   setTheme,
   setLanguage,
 }: {
   theme: string;
   language: string;
-  user: { name: string; email: string };
   setTheme: (t: "dark" | "light") => void;
   setLanguage: (l: "en" | "bg") => void;
 }) {
@@ -1582,26 +1578,13 @@ export default function Profile() {
   return (
     <div className={`min-h-screen ${theme === "dark" ? "bg-[#0B0B12]" : "bg-[#F8F9FC]"}`}>
       {/* =============== HEADER / BANNER =============== */}
-      <div className="relative overflow-hidden">
-        {/* Gradient background */}
-        <div className="absolute inset-0 bg-gradient-to-br from-[#121226] via-[#0B0B12] to-[#0B0B12]" />
-        <div className="absolute inset-0 bg-gradient-to-r from-primary/10 via-secondary/5 to-transparent" />
-        {/* Subtle pattern */}
-        <div className="absolute inset-0 opacity-[0.03]" style={{
-          backgroundImage: "radial-gradient(circle at 25% 50%, white 1px, transparent 1px)",
-          backgroundSize: "40px 40px"
-        }} />
-
-        <div className="relative max-w-7xl mx-auto px-4 md:px-8 py-8 md:py-10">
+      <div className={`${theme === "dark" ? "bg-[#121226]" : "bg-[#1A1B2E]"}`}>
+        <div className="max-w-7xl mx-auto px-4 md:px-8 py-8 md:py-10">
           <div className="flex flex-col md:flex-row md:items-center gap-6 md:gap-8">
             {/* Left: Avatar */}
             <div className="flex items-center gap-5">
-              <div className="relative">
-                {/* Glow ring */}
-                <div className="absolute -inset-1 bg-gradient-to-br from-[#A78BFA] to-[#2DD4BF] rounded-full opacity-60 blur-sm" />
-                <div className="relative w-20 h-20 md:w-24 md:h-24 rounded-full bg-gradient-to-br from-[#A78BFA] to-[#2DD4BF] flex items-center justify-center ring-2 ring-white/10">
-                  <span className="text-3xl md:text-4xl font-bold text-white">{initial}</span>
-                </div>
+              <div className="w-20 h-20 md:w-24 md:h-24 rounded-full bg-primary flex items-center justify-center">
+                <span className="text-3xl md:text-4xl font-bold text-white">{initial}</span>
               </div>
               <div>
                 <h1 className="text-2xl md:text-3xl font-bold text-white">{user.name}</h1>
@@ -1760,7 +1743,6 @@ export default function Profile() {
           <ProfileSettings
             theme={theme}
             language={language}
-            user={user}
             setTheme={setTheme}
             setLanguage={setLanguage}
           />
