@@ -92,7 +92,7 @@ export const authApi = {
           if (typeof errorData.detail === "string") {
             errorMessage = errorData.detail;
           } else if (Array.isArray(errorData.detail)) {
-            errorMessage = errorData.detail.map((d: any) => d.msg).join(", ");
+            errorMessage = (errorData.detail as { msg: string }[]).map(d => d.msg).join(", ");
           }
         } catch {
           errorMessage = responseText;

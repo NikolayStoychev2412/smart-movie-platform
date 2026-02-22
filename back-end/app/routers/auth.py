@@ -6,6 +6,7 @@ from pydantic import BaseModel, EmailStr
 from app.database import get_db
 from app.models.user import User
 from app.utils.security import verify_password, create_access_token, hash_password, get_current_user
+from app.utils.rate_limit import login_rate_limit
 
 router = APIRouter(prefix="/auth", tags=["Auth"])
 
@@ -60,7 +61,8 @@ def register(user_data: UserCreate, db: Session = Depends(get_db)):
 @router.post("/login", response_model=TokenResponse)
 def login(
     form_data: OAuth2PasswordRequestForm = Depends(),
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    _rate_limit: None = Depends(login_rate_limit)
 ):
     """Login and get access token"""
     user = db.query(User).filter(User.email == form_data.username).first()

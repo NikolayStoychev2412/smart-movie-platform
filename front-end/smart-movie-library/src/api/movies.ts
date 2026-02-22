@@ -1,4 +1,4 @@
-import type { Movie, Review } from "../types";
+import type { Movie, Review, SearchResult } from "../types";
 
 // Use VITE_API_URL directly - FastAPI routes are at root level (/movies, not /api/movies)
 const API_BASE = import.meta.env.VITE_API_URL || "http://localhost:8000";
@@ -24,7 +24,7 @@ async function fetchJson<T>(url: string, options?: RequestInit): Promise<T> {
 
 export const moviesApi = {
   getAll: async (): Promise<Movie[]> => {
-    return fetchJson<Movie[]>(`${API_BASE}/movies`);
+    return fetchJson<Movie[]>(`${API_BASE}/movies?limit=500`);
   },
 
   getById: async (id: number): Promise<Movie> => {
@@ -46,7 +46,7 @@ export const moviesApi = {
   getSimilar: async (id: number): Promise<Movie[]> => {
     try {
       // Use AI similar movies endpoint - returns RecommendationOut[]
-      const response = await fetchJson<any[]>(`${API_BASE}/ai/recommend/similar/${id}?top_k=10`);
+      const response = await fetchJson<SearchResult[]>(`${API_BASE}/ai/recommend/similar/${id}?top_k=10`);
       // Extract movies from RecommendationOut format
       if (response.length > 0 && response[0].movie) {
         return response.map(r => r.movie);

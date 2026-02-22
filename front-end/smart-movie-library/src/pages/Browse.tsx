@@ -1,12 +1,14 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
-import type { Movie } from "../types";
+import type { Movie, Recommendation, SearchResult } from "../types";
 import { moviesApi } from "../api/movies";
 import api from "../api/client";
 import { useApp } from "../context/AppContext";
-import { Search, Sparkles, Filter, X, Grid, List, ChevronLeft, ChevronRight, Film, TrendingUp, Heart, Star } from "lucide-react";
+import { Search, Sparkles, Filter, X, Grid, List, ChevronLeft, ChevronRight, Film, TrendingUp, Heart } from "lucide-react";
+import RatingBadge from "../components/RatingBadge";
+import SkeletonCard from "../components/SkeletonCard";
+import EmptyState from "../components/EmptyState";
 
-// Cache for movies
 const movieCache = {
   all: null as Movie[] | null,
   timestamp: 0,
@@ -51,10 +53,6 @@ const moodLabels: Record<MoodOption, { en: string; bg: string }> = {
   uplifting: { en: "Uplifting", bg: "Вдъхновяващо" },
 };
 
-// ============================================================================
-// GRADE CALCULATION SYSTEM
-// ============================================================================
-
 interface MovieWithGrade extends Movie {
   _grade?: number;
   _combinedRating?: number;
@@ -81,9 +79,9 @@ const normRating01 = (rating: number | null | undefined): number => {
 };
 
 function calculateCombinedRating(movie: Movie): number {
-  const tmdbRating = (movie as any).tmdb_rating;
-  const appRating = (movie as any).average_rating;
-  const reviewCount = (movie as any).review_count || 0;
+  const tmdbRating = movie.tmdb_rating;
+  const appRating = movie.average_rating;
+  const reviewCount = movie.review_count || 0;
 
   const tmdbNorm = normRating01(tmdbRating);
   const appNorm = normRating01(appRating);
@@ -110,13 +108,9 @@ function calculateCombinedRating(movie: Movie): number {
  *   4. 0
  */
 function getPopProxy(movie: Movie): number {
-  const m = movie as any;
-  // Prefer TMDb popularity (typically 1-1000+), already a normalized popularity index
-  if (m.popularity && m.popularity > 0) return m.popularity;
-  // Scale tmdb_vote_count down to match popularity range (vote counts can be 100k+)
-  if (m.tmdb_vote_count && m.tmdb_vote_count > 0) return Math.sqrt(m.tmdb_vote_count);
-  // Scale review_count up to match (our reviews are typically 0-50)
-  if (m.review_count && m.review_count > 0) return m.review_count * 5;
+  if (movie.popularity && movie.popularity > 0) return movie.popularity;
+  if (movie.tmdb_vote_count && movie.tmdb_vote_count > 0) return Math.sqrt(movie.tmdb_vote_count);
+  if (movie.review_count && movie.review_count > 0) return movie.review_count * 5;
   return 0;
 }
 
@@ -139,6 +133,15 @@ function calculateEngagementNorm(movie: MovieWithGrade, maxFavorites: number, ma
   return clamp01(0.6 * favNorm + 0.4 * compNorm);
 }
 
+interface GradeFields {
+  _grade: number;
+  _combinedRating: number;
+  _relevance: number;
+  _personalScore: number;
+  _popularityNorm: number;
+  _badge: MovieWithGrade["_badge"];
+}
+
 function calculateGrade(
   movie: MovieWithGrade,
   maxPopularity: number,
@@ -147,19 +150,15 @@ function calculateGrade(
   relevanceScores: Record<number, number>,
   personalScores: Record<number, number>,
   isAISearch: boolean
-): number {
+): GradeFields {
   const combinedRating = calculateCombinedRating(movie);
   const popNorm = calculatePopularityNorm(movie, maxPopularity);
   const engagementNorm = calculateEngagementNorm(movie, maxFavorites, maxCompleted);
   const searchNorm = relevanceScores[movie.id] || 0;
   const personalNorm = personalScores[movie.id] || 0;
 
-  movie._combinedRating = combinedRating;
-  movie._relevance = searchNorm;
-  movie._personalScore = personalNorm;
-  movie._popularityNorm = popNorm;
-
   let grade: number;
+  let badge: MovieWithGrade["_badge"] = null;
 
   if (isAISearch && searchNorm > 0) {
     // AI SEARCH: Semantic dominates, personal score boosts "best for you" movies
@@ -170,6 +169,16 @@ function calculateGrade(
       0.15 * popNorm +
       0.05 * combinedRating
     );
+    // Assign badge (only during AI search)
+    if (personalNorm >= 0.7) {
+      badge = "best_for_you";
+    } else if (searchNorm >= 0.8) {
+      badge = "matches_search";
+    } else if (popNorm >= 0.75 && searchNorm >= 0.4) {
+      // Trending requires BOTH high popularity AND decent query match
+      // Prevents badging popular movies that barely match the search
+      badge = "trending";
+    }
   } else {
     // BROWSE (no search): quality + engagement + popularity
     grade = clamp01(
@@ -179,65 +188,34 @@ function calculateGrade(
     );
   }
 
-  // Assign badge (only during AI search)
-  movie._badge = null;
-  if (isAISearch && searchNorm > 0) {
-    if (personalNorm >= 0.7) {
-      movie._badge = "best_for_you";
-    } else if (searchNorm >= 0.8) {
-      movie._badge = "matches_search";
-    } else if (popNorm >= 0.75 && searchNorm >= 0.4) {
-      // Trending requires BOTH high popularity AND decent query match
-      // Prevents badging popular movies that barely match the search
-      movie._badge = "trending";
-    }
-  }
-
-  return grade;
-}
-
-// ============================================================================
-// COMPONENTS
-// ============================================================================
-
-function CircularRating({ rating, size = 36, isTmdb = false }: { rating: number; size?: number; isTmdb?: boolean }) {
-  // Handle both 0-10 and 0-5 scales
-  const normalizedRating = rating > 5 ? rating : rating * 2; // Convert 5-scale to 10-scale
-  const percentage = Math.round((normalizedRating || 0) * 10);
-  const radius = (size - 6) / 2;
-  const circumference = 2 * Math.PI * radius;
-  const strokeDashoffset = circumference - (percentage / 100) * circumference;
-  const colors = percentage >= 70 ? { stroke: "#21d07a", bg: "#204529" } : percentage >= 50 ? { stroke: "#d2d531", bg: "#423d0f" } : { stroke: "#db2360", bg: "#571435" };
-
-  return (
-    <div className="relative flex items-center justify-center rounded-full" style={{ width: size, height: size, backgroundColor: "#081c22" }}>
-      <svg className="transform -rotate-90" width={size} height={size} viewBox={`0 0 ${size} ${size}`}>
-        <circle cx={size/2} cy={size/2} r={radius} fill="#081c22" stroke={colors.bg} strokeWidth="3" />
-        <circle cx={size/2} cy={size/2} r={radius} fill="none" stroke={colors.stroke} strokeWidth="3" strokeLinecap="round" strokeDasharray={circumference} strokeDashoffset={strokeDashoffset} />
-      </svg>
-      <span className="absolute text-white font-bold" style={{ fontSize: size * 0.28 }}>{percentage}<sup style={{ fontSize: size * 0.14 }}>%</sup></span>
-    </div>
-  );
+  return {
+    _grade: grade,
+    _combinedRating: combinedRating,
+    _relevance: searchNorm,
+    _personalScore: personalNorm,
+    _popularityNorm: popNorm,
+    _badge: badge,
+  };
 }
 
 function MovieBadge({ badge, language }: { badge: MovieWithGrade["_badge"]; language: string }) {
   if (!badge) return null;
 
   const config = {
-    best_for_you: { 
+    best_for_you: {
       label: language === "bg" ? "За теб" : "Best for you",
       icon: <Heart className="w-3 h-3" />,
-      classes: "bg-gradient-to-r from-primary to-secondary text-white"
+      classes: "bg-primary text-white"
     },
-    matches_search: { 
+    matches_search: {
       label: language === "bg" ? "Точно съвпадение" : "Great match",
       icon: <Sparkles className="w-3 h-3" />,
-      classes: "bg-gradient-to-r from-blue-600 to-cyan-600 text-white"
+      classes: "bg-blue-600 text-white"
     },
-    trending: { 
-      label: language === "bg" ? "Trending" : "Trending",
+    trending: {
+      label: language === "bg" ? "Популярни" : "Trending",
       icon: <TrendingUp className="w-3 h-3" />,
-      classes: "bg-gradient-to-r from-orange-500 to-amber-500 text-white"
+      classes: "bg-orange-500 text-white"
     },
   };
 
@@ -255,9 +233,9 @@ function MovieCardGrid({ movie, onClick, language, theme, snippet }: { movie: Mo
   const posterUrl = movie.poster_path ? `https://image.tmdb.org/t/p/w342${movie.poster_path}` : movie.poster_url;
   const releaseDate = movie.release_date ? new Date(movie.release_date).toLocaleDateString(language === "bg" ? "bg-BG" : "en-US", { year: "numeric", month: "short", day: "numeric" }) : null;
 
-  const tmdbRating = (movie as any).tmdb_rating || 0;
-  const appRating = (movie as any).average_rating || 0;
-  const reviewCount = (movie as any).review_count || 0;
+  const tmdbRating = movie.tmdb_rating || 0;
+  const appRating = movie.average_rating || 0;
+  const reviewCount = movie.review_count || 0;
   const displayAppRating = appRating <= 5 ? appRating : appRating / 2;
 
   return (
@@ -266,21 +244,17 @@ function MovieCardGrid({ movie, onClick, language, theme, snippet }: { movie: Mo
         {posterUrl ? (
           <img src={posterUrl} alt={title} className="w-full aspect-[2/3] object-cover group-hover:scale-105 transition-transform duration-300" loading="lazy" />
         ) : (
-          <div className={`w-full aspect-[2/3] flex items-center justify-center ${theme === "dark" ? "bg-[#2A2A4A]" : "bg-gray-200"}`}>
-            <Film className="w-10 h-10 text-[#A7A7C7]" />
+          <div className={`w-full aspect-[2/3] flex items-center justify-center ${theme === "dark" ? "bg-border" : "bg-gray-200"}`}>
+            <Film className="w-10 h-10 text-muted" />
           </div>
         )}
         {/* Ratings — hidden on snippet hover */}
-        <div className={`absolute bottom-2 left-2 transition-opacity duration-300 ${snippet ? "group-hover:opacity-0" : ""}`}>
-          <CircularRating rating={tmdbRating} size={36} isTmdb={true} />
+        <div className={`absolute bottom-2 left-2 flex items-center gap-1.5 transition-opacity duration-300 ${snippet ? "group-hover:opacity-0" : ""}`}>
+          <RatingBadge value={tmdbRating} scale={10} size="sm" />
+          {reviewCount > 0 && appRating > 0 && (
+            <RatingBadge value={displayAppRating} scale={5} size="sm" />
+          )}
         </div>
-        {reviewCount > 0 && appRating > 0 && (
-          <div className={`absolute bottom-2 right-2 flex items-center gap-1 bg-black/70 backdrop-blur-sm rounded px-1.5 py-0.5 transition-opacity duration-300 ${snippet ? "group-hover:opacity-0" : ""}`}>
-            <Star className="w-3 h-3 fill-yellow-400 text-yellow-400" />
-            <span className="text-white text-[10px] font-semibold">{displayAppRating.toFixed(1)}</span>
-            <span className="text-[#A7A7C7] text-[9px]">({reviewCount})</span>
-          </div>
-        )}
         <MovieBadge badge={movie._badge} language={language} />
         {/* AI snippet hover overlay */}
         {snippet && (
@@ -296,8 +270,8 @@ function MovieCardGrid({ movie, onClick, language, theme, snippet }: { movie: Mo
         )}
       </div>
       <div className="pt-3 px-1">
-        <h3 className={`font-bold text-sm line-clamp-2 group-hover:text-primary transition-colors ${theme === "dark" ? "text-white" : "text-[#1A1B2E]"}`}>{title}</h3>
-        {releaseDate && <p className={`text-sm mt-0.5 ${theme === "dark" ? "text-[#A7A7C7]" : "text-[#5B5D78]"}`}>{releaseDate}</p>}
+        <h3 className={`font-bold text-sm line-clamp-2 group-hover:text-primary transition-colors text-text`}>{title}</h3>
+        {releaseDate && <p className={`text-sm mt-0.5 text-muted`}>{releaseDate}</p>}
       </div>
     </div>
   );
@@ -309,19 +283,19 @@ function MovieCardList({ movie, onClick, language, theme, snippet }: { movie: Mo
   const posterUrl = movie.poster_path ? `https://image.tmdb.org/t/p/w185${movie.poster_path}` : movie.poster_url;
   const releaseDate = movie.release_date ? new Date(movie.release_date).toLocaleDateString(language === "bg" ? "bg-BG" : "en-US", { year: "numeric", month: "short", day: "numeric" }) : null;
 
-  const tmdbRating = (movie as any).tmdb_rating || 0;
-  const appRating = (movie as any).average_rating || 0;
-  const reviewCount = (movie as any).review_count || 0;
+  const tmdbRating = movie.tmdb_rating || 0;
+  const appRating = movie.average_rating || 0;
+  const reviewCount = movie.review_count || 0;
   const displayAppRating = appRating <= 5 ? appRating : appRating / 2;
 
   return (
-    <div className={`flex rounded-lg cursor-pointer transition-all overflow-hidden border ${theme === "dark" ? "bg-[#1A1A33] hover:bg-[#2A2A4A] border-[#2A2A4A]" : "bg-white hover:bg-[#F8F9FC] border-[#E2E4F0] shadow-sm"}`} onClick={onClick}>
+    <div className={`flex rounded-lg cursor-pointer transition-all overflow-hidden border ${theme === "dark" ? "bg-surface-2 hover:bg-border border-border" : "bg-white hover:bg-bg border-border shadow-sm"}`} onClick={onClick}>
       <div className="relative flex-shrink-0 w-[94px]">
         {posterUrl ? (
           <img src={posterUrl} alt={title} className="w-full h-full object-cover min-h-[141px]" loading="lazy" />
         ) : (
-          <div className={`w-full h-full min-h-[141px] flex items-center justify-center ${theme === "dark" ? "bg-[#2A2A4A]" : "bg-gray-200"}`}>
-            <Film className="w-8 h-8 text-[#A7A7C7]" />
+          <div className={`w-full h-full min-h-[141px] flex items-center justify-center ${theme === "dark" ? "bg-border" : "bg-gray-200"}`}>
+            <Film className="w-8 h-8 text-muted" />
           </div>
         )}
         {movie._badge && (
@@ -332,28 +306,26 @@ function MovieCardList({ movie, onClick, language, theme, snippet }: { movie: Mo
       </div>
       <div className="flex-1 p-4 flex flex-col justify-center min-w-0">
         <div className="flex items-start gap-3">
-          <CircularRating rating={tmdbRating} size={40} isTmdb={true} />
-          {reviewCount > 0 && appRating > 0 && (
-            <div className="flex items-center gap-1 bg-black/70 backdrop-blur-sm rounded-lg px-2 py-1.5 self-center">
-              <Star className="w-3.5 h-3.5 fill-yellow-400 text-yellow-400" />
-              <span className="text-white text-xs font-semibold">{displayAppRating.toFixed(1)}</span>
-              <span className="text-[#A7A7C7] text-[10px]">({reviewCount})</span>
-            </div>
-          )}
+          <div className="flex items-center gap-1.5 self-center">
+            <RatingBadge value={tmdbRating} scale={10} size="md" />
+            {reviewCount > 0 && appRating > 0 && (
+              <RatingBadge value={displayAppRating} scale={5} size="md" />
+            )}
+          </div>
           <div className="flex-1 min-w-0">
-            <h3 className={`font-bold line-clamp-1 ${theme === "dark" ? "text-white" : "text-[#1A1B2E]"}`}>{title}</h3>
+            <h3 className={`font-bold line-clamp-1 text-text`}>{title}</h3>
             <div className="flex items-center gap-2 flex-wrap">
-              {releaseDate && <p className={`text-sm ${theme === "dark" ? "text-[#A7A7C7]" : "text-[#5B5D78]"}`}>{releaseDate}</p>}
+              {releaseDate && <p className={`text-sm text-muted`}>{releaseDate}</p>}
             </div>
           </div>
         </div>
         {snippet ? (
-          <div className="flex items-start gap-2 mt-2 px-3 py-2 rounded-lg bg-gradient-to-r from-primary/10 to-secondary/10 border border-primary/20">
+          <div className="flex items-start gap-2 mt-2 px-3 py-2 rounded-lg bg-primary/10 border border-primary/20">
             <Sparkles className="w-3.5 h-3.5 text-primary flex-shrink-0 mt-0.5" />
             <p className="text-xs text-primary line-clamp-2 leading-relaxed">{snippet}</p>
           </div>
         ) : summary ? (
-          <p className={`text-sm mt-2 line-clamp-2 ${theme === "dark" ? "text-[#A7A7C7]" : "text-[#5B5D78]"}`}>{summary}</p>
+          <p className={`text-sm mt-2 line-clamp-2 text-muted`}>{summary}</p>
         ) : null}
       </div>
     </div>
@@ -361,7 +333,7 @@ function MovieCardList({ movie, onClick, language, theme, snippet }: { movie: Mo
 }
 
 // Pagination Component
-function Pagination({ currentPage, totalPages, onPageChange, theme, language }: { currentPage: number; totalPages: number; onPageChange: (page: number) => void; theme: string; language: string }) {
+function Pagination({ currentPage, totalPages, onPageChange, theme }: { currentPage: number; totalPages: number; onPageChange: (page: number) => void; theme: string }) {
   if (totalPages <= 1) return null;
 
   const getPageNumbers = () => {
@@ -398,8 +370,8 @@ function Pagination({ currentPage, totalPages, onPageChange, theme, language }: 
           currentPage === 1
             ? "opacity-50 cursor-not-allowed"
             : theme === "dark"
-            ? "bg-[#2A2A4A] text-white hover:bg-[#2A2A4A]"
-            : "bg-white text-[#1A1B2E] hover:bg-[#ECEEF8] border"
+            ? "bg-border text-white hover:bg-border"
+            : "bg-white text-text hover:bg-surface-hover border"
         }`}
       >
         <ChevronLeft className="w-5 h-5" />
@@ -408,7 +380,7 @@ function Pagination({ currentPage, totalPages, onPageChange, theme, language }: 
       {/* Page Numbers */}
       {getPageNumbers().map((page, idx) => (
         page === "..." ? (
-          <span key={`ellipsis-${idx}`} className={`px-2 ${theme === "dark" ? "text-[#A7A7C7]" : "text-[#5B5D78]"}`}>...</span>
+          <span key={`ellipsis-${idx}`} className={`px-2 text-muted`}>...</span>
         ) : (
           <button
             key={page}
@@ -417,8 +389,8 @@ function Pagination({ currentPage, totalPages, onPageChange, theme, language }: 
               currentPage === page
                 ? "bg-primary text-white"
                 : theme === "dark"
-                ? "bg-[#2A2A4A] text-[#A7A7C7] hover:bg-[#2A2A4A]"
-                : "bg-white text-[#5B5D78] hover:bg-[#ECEEF8] border"
+                ? "bg-border text-muted hover:bg-border"
+                : "bg-white text-muted hover:bg-surface-hover border"
             }`}
           >
             {page}
@@ -434,8 +406,8 @@ function Pagination({ currentPage, totalPages, onPageChange, theme, language }: 
           currentPage === totalPages
             ? "opacity-50 cursor-not-allowed"
             : theme === "dark"
-            ? "bg-[#2A2A4A] text-white hover:bg-[#2A2A4A]"
-            : "bg-white text-[#1A1B2E] hover:bg-[#ECEEF8] border"
+            ? "bg-border text-white hover:bg-border"
+            : "bg-white text-text hover:bg-surface-hover border"
         }`}
       >
         <ChevronRight className="w-5 h-5" />
@@ -472,8 +444,26 @@ export default function Browse() {
   // Search refs
   const activeQueryRef = useRef<string>("");
 
-  // Is AI search active with results?
-  const isAISearchActive = searchQuery.trim() !== "" && searchResults.length > 0;
+  // URL → state: keep filters in sync when URL changes (shared links, back/forward)
+  useEffect(() => {
+    setSelectedGenre(params.get("genre") || "all");
+    setSelectedMood((params.get("mood") as MoodOption) || "all");
+    setSortBy((params.get("sort") as SortOption) || "best");
+    setCurrentPage(parseInt(params.get("page") || "1", 10));
+  }, [params]);
+
+  // State → URL: reflect filter state in URL (shareable links, reload persistence)
+  useEffect(() => {
+    const newParams = new URLSearchParams(params);
+    if (selectedGenre !== "all") newParams.set("genre", selectedGenre); else newParams.delete("genre");
+    if (selectedMood !== "all") newParams.set("mood", selectedMood); else newParams.delete("mood");
+    if (sortBy !== "best") newParams.set("sort", sortBy); else newParams.delete("sort");
+    if (currentPage > 1) newParams.set("page", String(currentPage)); else newParams.delete("page");
+    if (newParams.toString() !== params.toString()) {
+      setParams(newParams, { replace: true });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedGenre, selectedMood, sortBy, currentPage]);
 
   // Fetch personal scores (for-me recommendations) — used to boost "Best for you" in AI search
   // Re-fetches on mount AND when user returns to the tab (picks up watchlist/favorite changes)
@@ -488,7 +478,7 @@ export default function Browse() {
         const response = await api.get("/ai/recommend/for-me", { params: { top_k: 50 } });
         const recs = response.data || [];
         const scoreMap: Record<number, number> = {};
-        recs.forEach((rec: any, idx: number) => {
+        recs.forEach((rec: Recommendation, idx: number) => {
           const movieId = rec.movie?.id;
           if (movieId) {
             scoreMap[movieId] = clamp01(1 - idx / Math.max(recs.length, 1));
@@ -532,7 +522,6 @@ export default function Browse() {
         movieCache.set(data);
         setAllMovies(data);
       } catch {
-        // Failed to fetch movies
       } finally {
         setLoading(false);
       }
@@ -552,46 +541,54 @@ export default function Browse() {
       return;
     }
 
+    const abortController = new AbortController();
+
     const performSearch = async () => {
       setSearching(true);
 
       try {
-        const response = await api.get('/ai/search', { params: { q, top_k: 50, language } });
+        const response = await api.get('/ai/search', {
+          params: { q, top_k: 50, language },
+          signal: abortController.signal,
+        });
         const results = response.data || [];
-        setSearchResults(results.map((r: any) => r.movie));
+        setSearchResults(results.map((r: SearchResult) => r.movie));
 
         const snippetMap: Record<number, string> = {};
-        results.forEach((r: any) => {
+        results.forEach((r: SearchResult) => {
           if (r.snippet) snippetMap[r.movie.id] = r.snippet;
         });
         setSnippets(snippetMap);
 
-        const raw = results.map((r: any) => Number(r.relevance) || 0);
+        const raw = results.map((r: SearchResult) => Number(r.relevance) || 0);
         const minRel = raw.length > 1 ? Math.min(...raw) : 0;
         const maxRel = raw.length > 0 ? Math.max(...raw) : 1;
         const denom = maxRel - minRel || 1;
 
         const relevanceMap: Record<number, number> = {};
-        results.forEach((r: any) => {
+        results.forEach((r: SearchResult) => {
           const rel = Number(r.relevance) || 0;
           relevanceMap[r.movie.id] = clamp01((rel - minRel) / denom);
         });
         setRelevanceScores(relevanceMap);
+        setSearching(false);
+        setCurrentPage(1);
+        activeQueryRef.current = q;
       } catch {
+        if (abortController.signal.aborted) return;
         setSearchResults([]);
         setSnippets({});
         setRelevanceScores({});
+        setSearching(false);
       }
-
-      setSearching(false);
-      setCurrentPage(1);
-      activeQueryRef.current = q;
     };
 
     if (allMovies.length > 0) {
       performSearch();
     }
-  }, [params, allMovies]);
+
+    return () => abortController.abort();
+  }, [params, allMovies, language]);
 
   // Get filtered and sorted movies
   const displayMovies = useMemo(() => {
@@ -625,28 +622,28 @@ export default function Browse() {
     const maxCompleted = Math.max(...movies.map(m => (m as MovieWithGrade).completed_count || 0), 1);
     const isAISearch = searchQuery.trim() !== "";
 
-    // Calculate grades for all movies (includes personal score + badges)
-    movies.forEach(m => {
-      m._grade = calculateGrade(m, maxPopularity, maxFavorites, maxCompleted, relevanceScores, personalScores, isAISearch);
-    });
+    // Calculate grades — spread into new objects to avoid mutating shared movie refs
+    const graded: MovieWithGrade[] = movies.map(m => ({
+      ...m,
+      ...calculateGrade(m, maxPopularity, maxFavorites, maxCompleted, relevanceScores, personalScores, isAISearch),
+    }));
 
     // Sort based on selected option
     switch (sortBy) {
       case "best":
         // Blended: quality + engagement + popularity (the "smart" default)
-        movies.sort((a, b) => (b._grade || 0) - (a._grade || 0));
+        graded.sort((a, b) => (b._grade || 0) - (a._grade || 0));
         break;
       case "rating":
         // PURE QUALITY: highest rated first, regardless of popularity
         // Uses TMDB rating directly (not the blended combinedRating which mixes in app ratings)
         // Tiebreak by vote count (more votes = more trustworthy rating)
-        movies.sort((a, b) => {
-          const rA = (a as any).tmdb_rating || (a as any).average_rating || 0;
-          const rB = (b as any).tmdb_rating || (b as any).average_rating || 0;
+        graded.sort((a, b) => {
+          const rA = a.tmdb_rating || a.average_rating || 0;
+          const rB = b.tmdb_rating || b.average_rating || 0;
           if (rB !== rA) return rB - rA;
-          // Tiebreak: more votes = more credible
-          const vA = (a as any).tmdb_vote_count || (a as any).review_count || 0;
-          const vB = (b as any).tmdb_vote_count || (b as any).review_count || 0;
+          const vA = a.tmdb_vote_count || a.review_count || 0;
+          const vB = b.tmdb_vote_count || b.review_count || 0;
           return vB - vA;
         });
         break;
@@ -654,32 +651,32 @@ export default function Browse() {
         // PURE TRENDING: most popular/viral first, regardless of quality
         // Uses fallback chain: popularity → tmdb_vote_count → review_count
         // Tiebreak by rating (if equally popular, show the better one)
-        movies.sort((a, b) => {
+        graded.sort((a, b) => {
           const pA = getPopProxy(a);
           const pB = getPopProxy(b);
           if (pB !== pA) return pB - pA;
-          const rA = (a as any).tmdb_rating || 0;
-          const rB = (b as any).tmdb_rating || 0;
+          const rA = a.tmdb_rating || 0;
+          const rB = b.tmdb_rating || 0;
           return rB - rA;
         });
         break;
       case "title":
-        movies.sort((a, b) => {
+        graded.sort((a, b) => {
           const titleA = language === "bg" ? a.title_bg || a.title : a.title;
           const titleB = language === "bg" ? b.title_bg || b.title : b.title;
           return titleA.localeCompare(titleB);
         });
         break;
       case "release_date":
-        movies.sort((a, b) => {
-          const dateA = (a as any).release_date ? new Date((a as any).release_date).getTime() : 0;
-          const dateB = (b as any).release_date ? new Date((b as any).release_date).getTime() : 0;
+        graded.sort((a, b) => {
+          const dateA = a.release_date ? new Date(a.release_date).getTime() : 0;
+          const dateB = b.release_date ? new Date(b.release_date).getTime() : 0;
           return dateB - dateA;
         });
         break;
     }
 
-    return movies;
+    return graded;
   }, [allMovies, searchResults, searchQuery, selectedGenre, selectedMood, sortBy, language, relevanceScores, personalScores]);
 
   // Pagination
@@ -755,20 +752,20 @@ export default function Browse() {
   const availableSortOptions: SortOption[] = ["best", "rating", "popularity", "release_date", "title"];
 
   return (
-    <div className={`min-h-screen transition-colors ${theme === "dark" ? "bg-[#0B0B12]" : "bg-[#F8F9FC]"}`}>
+    <div className={`min-h-screen transition-colors bg-bg`}>
       {/* Page Header */}
-      <div className={`border-b ${theme === "dark" ? "bg-[#121226] border-[#2A2A4A]" : "bg-white border-[#E2E4F0]"}`}>
+      <div className={`border-b ${theme === "dark" ? "bg-surface border-border" : "bg-white border-border"}`}>
         <div className="max-w-7xl mx-auto px-4 md:px-8 py-6">
-          <h1 className={`text-2xl font-bold ${theme === "dark" ? "text-white" : "text-[#1A1B2E]"}`}>
+          <h1 className={`text-2xl font-bold text-text`}>
             {language === "bg" ? "Разгледай филми" : "Browse Movies"}
           </h1>
 
           {/* AI Search */}
           <form onSubmit={handleSearch} className="mt-4">
-            <div className={`relative rounded-xl border-2 transition-all ${
+            <div className={`relative rounded-lg border transition-all ${
               searchQuery
-                ? "border-primary/50 shadow-lg shadow-primary/10"
-                : theme === "dark" ? "border-[#2A2A4A] hover:border-[#3A3A5A]" : "border-[#E2E4F0] hover:border-[#D0D2E4]"
+                ? "border-primary/50 ring-1 ring-primary/20"
+                : theme === "dark" ? "border-border hover:border-muted" : "border-border hover:border-[#D0D2E4]"
             }`}>
               <Sparkles className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 pointer-events-none text-primary" />
               <input
@@ -776,8 +773,8 @@ export default function Browse() {
                 value={searchQuery}
                 onChange={(e) => handleInputChange(e.target.value)}
                 placeholder={language === "bg" ? "Опиши какъв филм търсиш... напр. \"забавна комедия за семейството\"" : "Describe what you're looking for... e.g. \"fun family comedy\""}
-                className={`w-full pl-12 pr-12 py-3.5 rounded-xl bg-transparent focus:outline-none ${
-                  theme === "dark" ? "text-white placeholder-gray-500" : "text-[#1A1B2E] placeholder-gray-400"
+                className={`w-full pl-12 pr-12 py-3.5 rounded-lg bg-transparent focus:outline-none ${
+                  theme === "dark" ? "text-white placeholder-gray-500" : "text-text placeholder-gray-400"
                 }`}
               />
               <button
@@ -785,7 +782,7 @@ export default function Browse() {
                 onClick={clearSearch}
                 className={`absolute right-3 top-1/2 -translate-y-1/2 flex items-center justify-center transition-colors ${
                   searchQuery
-                    ? theme === "dark" ? "text-[#A7A7C7] hover:text-[#EDEDF7]" : "text-[#A7A7C7] hover:text-[#5B5D78]"
+                    ? theme === "dark" ? "text-muted hover:text-text" : "text-muted hover:text-muted"
                     : "pointer-events-none opacity-0"
                 }`}
                 tabIndex={searchQuery ? 0 : -1}
@@ -794,7 +791,7 @@ export default function Browse() {
               </button>
             </div>
             <div className="flex items-center justify-between mt-2">
-              <p className={`text-xs flex items-center gap-1.5 ${theme === "dark" ? "text-[#A7A7C7]" : "text-[#5B5D78]"}`}>
+              <p className={`text-xs flex items-center gap-1.5 text-muted`}>
                 <Sparkles className="w-3 h-3 text-primary" />
                 {language === "bg" ? "AI семантично търсене — опиши жанр, настроение или сюжет" : "AI semantic search — describe genre, mood, or plot"}
               </p>
@@ -813,21 +810,21 @@ export default function Browse() {
         <div className="flex flex-col lg:flex-row gap-6">
           {/* Sidebar */}
           <aside className={`lg:w-64 flex-shrink-0 ${showFilters ? "block" : "hidden lg:block"}`}>
-            <div className={`rounded-xl border overflow-hidden sticky top-24 ${theme === "dark" ? "bg-[#1A1A33] border-[#2A2A4A]" : "bg-white border-[#E2E4F0] shadow-sm"}`}>
-              <div className={`px-4 py-3 border-b font-semibold flex items-center gap-2 ${theme === "dark" ? "border-[#2A2A4A] text-white" : "border-[#E2E4F0] text-[#1A1B2E]"}`}>
+            <div className={`rounded-xl border overflow-hidden sticky top-24 ${theme === "dark" ? "bg-surface-2 border-border" : "bg-white border-border shadow-sm"}`}>
+              <div className={`px-4 py-3 border-b font-semibold flex items-center gap-2 ${theme === "dark" ? "border-border text-white" : "border-border text-text"}`}>
                 <Filter className="w-4 h-4" />
                 {language === "bg" ? "Филтри" : "Filters"}
               </div>
 
               {/* Sort */}
-              <div className={`px-4 py-3 border-b ${theme === "dark" ? "border-[#2A2A4A]" : "border-[#E2E4F0]"}`}>
-                <label className={`block text-sm font-medium mb-2 ${theme === "dark" ? "text-[#A7A7C7]" : "text-[#5B5D78]"}`}>
+              <div className={`px-4 py-3 border-b border-border`}>
+                <label className={`block text-sm font-medium mb-2 text-muted`}>
                   {language === "bg" ? "Сортирай" : "Sort by"}
                 </label>
                 <select
                   value={sortBy}
                   onChange={(e) => { setSortBy(e.target.value as SortOption); setCurrentPage(1); }}
-                  className={`w-full px-3 py-2 rounded-lg border ${theme === "dark" ? "bg-[#2A2A4A] border-[#2A2A4A] text-white" : "bg-[#F8F9FC] border-[#E2E4F0] text-[#1A1B2E]"}`}
+                  className={`w-full px-3 py-2 rounded-lg border ${theme === "dark" ? "bg-border border-border text-white" : "bg-bg border-border text-text"}`}
                 >
                   {availableSortOptions.map((s) => (
                     <option key={s} value={s}>
@@ -838,14 +835,14 @@ export default function Browse() {
               </div>
 
               {/* Genre */}
-              <div className={`px-4 py-3 border-b ${theme === "dark" ? "border-[#2A2A4A]" : "border-[#E2E4F0]"}`}>
-                <label className={`block text-sm font-medium mb-2 ${theme === "dark" ? "text-[#A7A7C7]" : "text-[#5B5D78]"}`}>
+              <div className={`px-4 py-3 border-b border-border`}>
+                <label className={`block text-sm font-medium mb-2 text-muted`}>
                   {language === "bg" ? "Жанр" : "Genre"}
                 </label>
                 <select
                   value={selectedGenre}
                   onChange={(e) => { setSelectedGenre(e.target.value); setCurrentPage(1); }}
-                  className={`w-full px-3 py-2 rounded-lg border ${theme === "dark" ? "bg-[#2A2A4A] border-[#2A2A4A] text-white" : "bg-[#F8F9FC] border-[#E2E4F0] text-[#1A1B2E]"}`}
+                  className={`w-full px-3 py-2 rounded-lg border ${theme === "dark" ? "bg-border border-border text-white" : "bg-bg border-border text-text"}`}
                 >
                   <option value="all">{language === "bg" ? "Всички" : "All"}</option>
                   {genres.map((g) => <option key={g} value={g}>{g}</option>)}
@@ -854,7 +851,7 @@ export default function Browse() {
 
               {/* Mood */}
               <div className="px-4 py-3">
-                <label className={`block text-sm font-medium mb-2 ${theme === "dark" ? "text-[#A7A7C7]" : "text-[#5B5D78]"}`}>
+                <label className={`block text-sm font-medium mb-2 text-muted`}>
                   {language === "bg" ? "Настроение" : "Mood"}
                 </label>
                 <div className="flex flex-col gap-1.5">
@@ -865,7 +862,7 @@ export default function Browse() {
                       className={`px-3 py-2 text-sm rounded-lg border transition-colors text-left flex items-center gap-2 ${
                         selectedMood === mood
                           ? "bg-primary text-white border-primary font-medium"
-                          : theme === "dark" ? "bg-[#2A2A4A] border-[#2A2A4A] text-[#A7A7C7] hover:bg-[#3A3A5A]" : "bg-[#F8F9FC] border-[#E2E4F0] text-[#5B5D78] hover:bg-[#ECEEF8]"
+                          : theme === "dark" ? "bg-border border-border text-muted hover:bg-[#3A3A5A]" : "bg-bg border-border text-muted hover:bg-surface-hover"
                       }`}
                     >
                       <span className="truncate">{language === "bg" ? moodLabels[mood].bg : moodLabels[mood].en}</span>
@@ -876,8 +873,8 @@ export default function Browse() {
 
               {/* Active Filters */}
               {(selectedGenre !== "all" || selectedMood !== "all" || searchQuery) && (
-                <div className={`px-4 py-3 border-t ${theme === "dark" ? "border-[#2A2A4A]" : "border-[#E2E4F0]"}`}>
-                  <p className={`text-xs font-medium mb-2 ${theme === "dark" ? "text-[#A7A7C7]" : "text-[#5B5D78]"}`}>
+                <div className={`px-4 py-3 border-t border-border`}>
+                  <p className={`text-xs font-medium mb-2 text-muted`}>
                     {language === "bg" ? "Активни:" : "Active:"}
                   </p>
                   <div className="flex flex-wrap gap-2">
@@ -911,20 +908,20 @@ export default function Browse() {
             {/* Results Header */}
             <div className="flex items-center justify-between mb-4">
               <div className="flex items-center gap-3">
-                <button onClick={() => setShowFilters(!showFilters)} className={`lg:hidden p-2 rounded-lg ${theme === "dark" ? "bg-[#2A2A4A] text-white" : "bg-white text-[#5B5D78] border"}`}>
+                <button onClick={() => setShowFilters(!showFilters)} className={`lg:hidden p-2 rounded-lg ${theme === "dark" ? "bg-border text-white" : "bg-white text-muted border"}`}>
                   <Filter className="w-5 h-5" />
                 </button>
-                <p className={`text-sm ${theme === "dark" ? "text-[#A7A7C7]" : "text-[#5B5D78]"}`}>
+                <p className={`text-sm text-muted`}>
                   {displayMovies.length} {language === "bg" ? "филма" : "movies"}
                   {totalPages > 1 && ` • ${language === "bg" ? "Страница" : "Page"} ${currentPage}/${totalPages}`}
                 </p>
               </div>
 
               <div className="flex items-center gap-1">
-                <button onClick={() => setViewMode("grid")} className={`p-2 rounded ${viewMode === "grid" ? "bg-primary text-white" : theme === "dark" ? "text-[#A7A7C7] hover:bg-[#2A2A4A]" : "text-[#A7A7C7] hover:bg-[#ECEEF8]"}`}>
+                <button onClick={() => setViewMode("grid")} className={`p-2 rounded ${viewMode === "grid" ? "bg-primary text-white" : theme === "dark" ? "text-muted hover:bg-border" : "text-muted hover:bg-surface-hover"}`}>
                   <Grid className="w-5 h-5" />
                 </button>
-                <button onClick={() => setViewMode("list")} className={`p-2 rounded ${viewMode === "list" ? "bg-primary text-white" : theme === "dark" ? "text-[#A7A7C7] hover:bg-[#2A2A4A]" : "text-[#A7A7C7] hover:bg-[#ECEEF8]"}`}>
+                <button onClick={() => setViewMode("list")} className={`p-2 rounded ${viewMode === "list" ? "bg-primary text-white" : theme === "dark" ? "text-muted hover:bg-border" : "text-muted hover:bg-surface-hover"}`}>
                   <List className="w-5 h-5" />
                 </button>
               </div>
@@ -934,22 +931,18 @@ export default function Browse() {
             {(loading || searching) && (
               <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
                 {[...Array(20)].map((_, i) => (
-                  <div key={i} className="animate-pulse">
-                    <div className={`aspect-[2/3] rounded-lg ${theme === "dark" ? "bg-[#2A2A4A]" : "bg-gray-200"}`} />
-                    <div className={`h-4 w-3/4 rounded mt-3 ${theme === "dark" ? "bg-[#2A2A4A]" : "bg-gray-200"}`} />
-                    <div className={`h-3 w-1/2 rounded mt-2 ${theme === "dark" ? "bg-[#2A2A4A]" : "bg-gray-200"}`} />
-                  </div>
+                  <SkeletonCard key={i} variant="poster" />
                 ))}
               </div>
             )}
 
             {/* Empty */}
             {!loading && !searching && displayMovies.length === 0 && (
-              <div className={`text-center py-16 ${theme === "dark" ? "text-[#A7A7C7]" : "text-[#5B5D78]"}`}>
-                <Search className="w-16 h-16 mx-auto mb-4 opacity-50" />
-                <p className="text-xl font-medium">{language === "bg" ? "Няма намерени филми" : "No movies found"}</p>
-                <p className="mt-2">{language === "bg" ? "Опитайте с различно търсене" : "Try different search"}</p>
-              </div>
+              <EmptyState
+                icon={Search}
+                title={language === "bg" ? "Няма намерени филми" : "No movies found"}
+                description={language === "bg" ? "Опитайте с различно търсене" : "Try a different search"}
+              />
             )}
 
             {/* Movies Grid/List */}
@@ -989,7 +982,6 @@ export default function Browse() {
                   totalPages={totalPages}
                   onPageChange={handlePageChange}
                   theme={theme}
-                  language={language}
                 />
               </>
             )}

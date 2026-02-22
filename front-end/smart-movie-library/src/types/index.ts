@@ -38,6 +38,21 @@ export interface Movie {
   trailer_youtube_key?: string;
   main_actors?: string[];
   homepage?: string;
+  // API extra fields
+  tmdb_vote_count?: number;
+  popularity?: number;
+  favorite_count?: number;
+  completed_count?: number;
+}
+
+// API error shape for axios catch blocks
+export type ApiError = { response?: { data?: { detail?: string }; status?: number } };
+
+// Search result returned by /ai/search
+export interface SearchResult {
+  movie: Movie;
+  relevance: number;
+  snippet?: string;
 }
 
 export interface ProductionCompany {
@@ -130,14 +145,24 @@ export interface WatchlistEntry {
 }
 
 // Recommendation types - matching backend RecommendationOut
+export interface RecommendationExplanation {
+  reasons?: string[];
+  reasons_bg?: string[];
+  score_breakdown?: Record<string, number>;
+  total_score?: number;
+  activity_level?: string;
+  based_on?: string[];
+  based_on_bg?: string[];
+  similar_to?: string;
+  similar_to_bg?: string;
+  genre?: string;
+  mood?: string;
+  reason?: string;
+  weights_used?: Record<string, number>;
+}
+
 export interface Recommendation {
   movie: Movie;
   score: number;
-  explanation: {
-    reasons?: string[];
-    reasons_bg?: string[];
-    score_breakdown?: Record<string, number>;
-    total_score?: number;
-    activity_level?: string;
-  };
+  explanation: RecommendationExplanation;
 }

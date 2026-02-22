@@ -14,14 +14,14 @@ class Settings(BaseSettings):
 
     # Application
     APP_NAME: str = "Movie Review API"
-    DEBUG: bool = True
+    DEBUG: bool = False
     DEFAULT_LANGUAGE: str = "bg"
 
     # CORS
-    CORS_ORIGINS: str = "http://localhost:3000"
+    CORS_ORIGINS: str = "http://localhost:5173,http://localhost:3000,http://127.0.0.1:5173,http://127.0.0.1:3000"
 
     # AI / Embeddings
-    ST_MODEL_NAME: str = "all-MiniLM-L6-v2"
+    ST_MODEL_NAME: str = "paraphrase-multilingual-MiniLM-L12-v2"
     EMBEDDING_DIMENSION: int = 384
     FAISS_INDEX_PATH: str = "data/faiss_index"
 

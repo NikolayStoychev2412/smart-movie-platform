@@ -1,6 +1,7 @@
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { AppProvider } from "./context/AppContext";
 import ScrollToTop from "./components/ScrollToTop";
+import ErrorBoundary from "./components/ErrorBoundary";
 import Navbar from "./components/Navbar";
 import Footer from "./components/Footer";
 import Home from "./pages/Home";
@@ -17,9 +18,10 @@ function App() {
     <AppProvider>
       <BrowserRouter>
         <ScrollToTop />
-        <div className="min-h-screen bg-tmdb-dark flex flex-col">
+        <div className="min-h-screen bg-dark-bg flex flex-col">
           <Navbar />
           <main className="flex-1">
+            <ErrorBoundary>
             <Routes>
               <Route path="/" element={<Home />} />
               <Route path="/browse" element={<Browse />} />
@@ -31,6 +33,7 @@ function App() {
               <Route path="/admin" element={<Admin />} />
               <Route path="*" element={<div className="p-8 text-center text-white">404 - Page Not Found</div>} />
             </Routes>
+            </ErrorBoundary>
           </main>
           <Footer />
         </div>

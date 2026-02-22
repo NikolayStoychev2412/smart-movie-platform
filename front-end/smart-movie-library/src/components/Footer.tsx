@@ -4,7 +4,7 @@ export default function Footer() {
   const { theme, language } = useApp();
 
   return (
-    <footer className={`border-t ${theme === "dark" ? "bg-[#121226] border-[#2A2A4A]" : "bg-white border-[#E6E7F5]"}`}>
+    <footer className={`border-t ${theme === "dark" ? "bg-dark-surface border-dark-border" : "bg-light-surface border-light-border"}`}>
       <div className="max-w-7xl mx-auto px-4 md:px-8 py-8">
         <div className="flex flex-col items-center gap-4">
           {/* TMDB Logo */}
@@ -21,14 +21,14 @@ export default function Footer() {
           </a>
 
           {/* Required Disclaimer */}
-          <p className={`text-xs text-center max-w-lg ${theme === "dark" ? "text-[#A7A7C7]" : "text-[#4B4B6A]"}`}>
+          <p className={`text-xs text-center max-w-lg ${theme === "dark" ? "text-dark-muted" : "text-light-muted"}`}>
             {language === "bg"
               ? "Този продукт използва TMDB API, но не е одобрен или сертифициран от TMDB. Всички данни за филми са предоставени от The Movie Database (TMDB)."
               : "This product uses the TMDB API but is not endorsed or certified by TMDB. All movie data is provided by The Movie Database (TMDB)."}
           </p>
 
           {/* Copyright */}
-          <p className={`text-xs ${theme === "dark" ? "text-[#4B4B6A]" : "text-[#A7A7C7]"}`}>
+          <p className={`text-xs text-muted`}>
             © {new Date().getFullYear()} CineVault
           </p>
         </div>

@@ -11,6 +11,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from app.database import get_async_db
+from app.utils.security import require_admin
+from app.models.user import User
 from app.models.movie import Movie
 from app.models.review import Review
 from app.models.favorite import Favorite
@@ -547,7 +549,9 @@ async def get_top_rated_movies(
 
 
 @router.post("/cache/invalidate")
-async def invalidate_cache():
-    """Invalidate movie cache."""
+async def invalidate_cache(
+    current_user: User = Depends(require_admin),
+):
+    """Invalidate movie cache. Admin only."""
     movie_cache.invalidate()
     return {"status": "cache invalidated"}

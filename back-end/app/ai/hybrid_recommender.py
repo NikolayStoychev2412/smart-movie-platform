@@ -8,6 +8,7 @@ Hybrid recommendation system with:
 5. Favorites signal (strong positive indicator)
 6. Dynamic weight adjustment based on user activity
 7. Quality boost (TMDB rating + community rating + favorite count)
+8. Diversity constraint (max 3 per genre in top results)
 """
 import logging
 import math
@@ -242,7 +243,7 @@ class HybridRecommender:
                 recommendations[movie.id]['reasons'].append({
                     'type': 'genre',
                     'text': f"Because you like {genre_text}",
-                    'text_bg': f"Защото харесваш {genre_text}"
+                    'matched_genres': matched_genres[:2],  # frontend translates via preferences.ts
                 })
         
         # 2. CONTENT-BASED RECOMMENDATIONS (Watch History + Favorites)
@@ -272,13 +273,14 @@ class HybridRecommender:
                         'based_on_bg': title_bg
                     })
                 else:
-                    # Fallback to genre similarity
+                    # Fallback to genre similarity — use genre_bg from DB, no translation needed
                     movie_genre = (movie.genre or '').split(',')[0].strip()
+                    movie_genre_bg = (movie.genre_bg or movie.genre or '').split(',')[0].strip()
                     if movie_genre:
                         recommendations[movie.id]['reasons'].append({
                             'type': 'content',
                             'text': f"Similar {movie_genre} movie",
-                            'text_bg': f"Подобен {movie_genre} филм"
+                            'text_bg': f"Подобен {movie_genre_bg.lower()} филм",
                         })
         
         # 3. COLLABORATIVE FILTERING (Similar Users)
@@ -351,7 +353,7 @@ class HybridRecommender:
                     data['reasons'].append({
                         'type': 'mood',
                         'text': f"Matches your {preferred_mood} mood",
-                        'text_bg': f"Съвпада с вашето настроение",
+                        'text_bg': "Съвпада с вашето настроение",
                     })
 
             # Final score: 65% recommendation relevance + 25% quality + mood boost
@@ -375,7 +377,12 @@ class HybridRecommender:
                 'total_score': round(total_score, 3),
                 'weights_used': weights,
                 'activity_level': 'cold_start' if activity_count < MIN_ACTIVITY_FOR_BEHAVIOR else 'active',
-                # Add additional fields for frontend (both languages)
+                # Structured genre list — frontend translates via preferences.ts GENRES constant
+                'matched_genres': next(
+                    (r.get('matched_genres') for r in sorted_reasons if r.get('matched_genres')),
+                    None
+                ),
+                # Additional fields for frontend (both languages)
                 'based_on': [r.get('based_on') for r in sorted_reasons if r.get('based_on')][:1],
                 'based_on_bg': [r.get('based_on_bg') for r in sorted_reasons if r.get('based_on_bg')][:1],
                 'similar_to': next((r.get('based_on') for r in sorted_reasons if r.get('based_on')), None),
@@ -386,12 +393,40 @@ class HybridRecommender:
         
         # Sort by score
         results.sort(key=lambda x: x[1], reverse=True)
-        
+
         # If no results, fallback to popular
         if not results:
             return self._get_popular_movies(db, top_k)
-        
-        return results[:top_k]
+
+        # Apply diversity constraint: max MAX_PER_GENRE movies from the same genre
+        MAX_PER_GENRE = 3
+        diverse_results = []
+        genre_counts: Dict[str, int] = {}
+
+        for movie, score, explanation in results:
+            if len(diverse_results) >= top_k:
+                break
+
+            movie_genres = [g.strip().lower() for g in (movie.genre or '').split(',') if g.strip()]
+
+            # Check if any of this movie's genres have hit the cap
+            over_cap = any(genre_counts.get(g, 0) >= MAX_PER_GENRE for g in movie_genres)
+
+            if not over_cap:
+                diverse_results.append((movie, score, explanation))
+                for g in movie_genres:
+                    genre_counts[g] = genre_counts.get(g, 0) + 1
+
+        # If diversity filtering was too aggressive, fill remaining from skipped
+        if len(diverse_results) < top_k:
+            diverse_ids = {m.id for m, _, _ in diverse_results}
+            for movie, score, explanation in results:
+                if movie.id not in diverse_ids:
+                    diverse_results.append((movie, score, explanation))
+                    if len(diverse_results) >= top_k:
+                        break
+
+        return diverse_results[:top_k]
     
     def _calculate_quality_score(
         self, 
@@ -448,33 +483,41 @@ class HybridRecommender:
         preferred_genres: List[str],
         limit: int
     ) -> List[Tuple[Movie, float, List[str]]]:
-        """Get movies matching user's preferred genres."""
-        results = []
+        """Get movies matching user's preferred genres with fair representation.
+
+        Queries each genre with the full limit to build a large candidate pool,
+        then scores all candidates equally based on total genre overlap.
+        This prevents earlier genres in the list from dominating results.
+        """
         seen_ids = set()
-        
+        all_candidates = []
+
+        # Query each genre with full limit so later genres aren't starved
         for genre in preferred_genres:
             movies = db.query(Movie).filter(
                 Movie.genre.ilike(f"%{genre}%")
-            ).order_by(Movie.average_rating.desc()).limit(limit // len(preferred_genres) + 5).all()
-            
+            ).order_by(Movie.average_rating.desc()).limit(limit).all()
+
             for movie in movies:
-                if movie.id in seen_ids:
-                    continue
-                seen_ids.add(movie.id)
-                
-                # Calculate genre match score
-                movie_genres = [g.strip().lower() for g in (movie.genre or '').split(',')]
-                matched = [g for g in preferred_genres if g.lower() in movie_genres]
-                
-                genre_match_score = len(matched) / len(preferred_genres)
-                raw_rating = movie.average_rating or 0
-                rating_score = min(1.0, raw_rating / 5.0 if raw_rating <= 5 else raw_rating / 10.0)
-                
-                # Combined score
-                score = genre_match_score * 0.6 + rating_score * 0.4
-                
-                results.append((movie, score, matched))
-        
+                if movie.id not in seen_ids:
+                    seen_ids.add(movie.id)
+                    all_candidates.append(movie)
+
+        # Score all candidates fairly based on total genre overlap
+        results = []
+        for movie in all_candidates:
+            movie_genres = [g.strip().lower() for g in (movie.genre or '').split(',')]
+            matched = [g for g in preferred_genres if g.lower() in movie_genres]
+
+            genre_match_score = len(matched) / len(preferred_genres)
+            raw_rating = movie.average_rating or 0
+            rating_score = min(1.0, raw_rating / 5.0 if raw_rating <= 5 else raw_rating / 10.0)
+
+            # Combined score
+            score = genre_match_score * 0.6 + rating_score * 0.4
+
+            results.append((movie, score, matched))
+
         results.sort(key=lambda x: x[1], reverse=True)
         return results[:limit]
     
