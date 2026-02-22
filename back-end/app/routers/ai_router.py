@@ -96,7 +96,7 @@ class ReviewAnalysisRequest(BaseModel):
 @router.get("/search", response_model=List[SearchResultOut])
 def semantic_movie_search(
     request: Request,
-    q: str = Query(..., min_length=2, description="Search query"),
+    q: str = Query(..., min_length=2, max_length=200, description="Search query"),
     top_k: int = Query(20, ge=1, le=50),
     genre: Optional[str] = Query(None),
     min_rating: Optional[float] = Query(None, ge=0, le=5),

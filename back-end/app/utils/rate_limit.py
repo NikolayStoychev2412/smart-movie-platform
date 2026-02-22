@@ -46,3 +46,4 @@ def create_rate_limiter(max_requests: int = 30, window_seconds: int = 60):
 search_rate_limit = create_rate_limiter(max_requests=30, window_seconds=60)
 recommend_rate_limit = create_rate_limiter(max_requests=10, window_seconds=60)
 review_rate_limit = create_rate_limiter(max_requests=30, window_seconds=60)
+login_rate_limit = create_rate_limiter(max_requests=5, window_seconds=60)

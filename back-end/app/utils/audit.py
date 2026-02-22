@@ -38,6 +38,7 @@ class SecurityEventType(str, Enum):
     ADMIN_PROMOTED = "admin_promoted"
     PASSWORD_CHANGED = "password_changed"
     MOVIE_CREATED = "movie_created"
+    MOVIE_UPDATED = "movie_updated"
     MOVIE_DELETED = "movie_deleted"
     REVIEW_DELETED = "review_deleted"
     UNAUTHORIZED_ACCESS = "unauthorized_access"

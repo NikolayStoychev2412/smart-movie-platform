@@ -136,7 +136,7 @@ def update_review(
             detail="You can only update your own reviews"
         )
     
-    for key, value in updated_review.dict(exclude_unset=True).items():
+    for key, value in updated_review.model_dump(exclude_unset=True).items():
         setattr(review, key, value)
     
     db.commit()

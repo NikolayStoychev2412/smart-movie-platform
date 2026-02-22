@@ -15,10 +15,8 @@ export default function Register() {
   const navigate = useNavigate();
   const { theme, language, setUser } = useApp();
   
-  // Step management
   const [currentStep, setCurrentStep] = useState<Step>("account");
   
-  // Account info
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -26,15 +24,12 @@ export default function Register() {
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   
-  // Preferences
   const [selectedGenres, setSelectedGenres] = useState<string[]>([]);
   const [selectedMood, setSelectedMood] = useState<string | null>(null);
   
-  // UI state
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Password strength checks
   const passwordChecks = {
     length: password.length >= 8,
     uppercase: /[A-Z]/.test(password),
@@ -122,7 +117,6 @@ export default function Register() {
             headers: { Authorization: `Bearer ${token}` }
           });
         } catch {
-          // Preferences save failed silently — user can update later in settings
         }
       }
       
@@ -159,13 +153,12 @@ export default function Register() {
     }
   };
 
-  // Progress indicator
   const steps = ["account", "genres", "mood"] as const;
   const currentStepIndex = steps.indexOf(currentStep);
 
   return (
-    <div className={`min-h-screen flex items-center justify-center px-4 py-12 ${theme === "dark" ? "bg-[#0B0B12]" : "bg-[#F8F9FC]"}`}>
-      <div className={`w-full max-w-md ${theme === "dark" ? "bg-[#1A1A33]" : "bg-white shadow-md border border-[#E2E4F0]"} rounded-2xl p-8`}>
+    <div className={`min-h-screen flex items-center justify-center px-4 py-12 bg-bg`}>
+      <div className={`w-full max-w-md ${theme === "dark" ? "bg-surface-2" : "bg-white shadow-md border border-border"} rounded-2xl p-8`}>
         
         {/* Progress Bar */}
         <div className="mb-8">
@@ -175,7 +168,7 @@ export default function Register() {
                 <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-medium transition-colors ${
                   idx <= currentStepIndex 
                     ? "bg-primary text-white" 
-                    : theme === "dark" ? "bg-gray-700 text-[#A7A7C7]" : "bg-gray-200 text-[#A7A7C7]"
+                    : theme === "dark" ? "bg-gray-700 text-muted" : "bg-gray-200 text-muted"
                 }`}>
                   {idx < currentStepIndex ? <Check className="w-4 h-4" /> : idx + 1}
                 </div>
@@ -189,7 +182,7 @@ export default function Register() {
               </div>
             ))}
           </div>
-          <p className={`text-center text-sm ${theme === "dark" ? "text-[#A7A7C7]" : "text-[#5B5D78]"}`}>
+          <p className={`text-center text-sm text-muted`}>
             {currentStep === "account" && (language === "bg" ? "Създай акаунт" : "Create Account")}
             {currentStep === "genres" && (language === "bg" ? "Избери жанрове" : "Pick Genres")}
             {currentStep === "mood" && (language === "bg" ? "Какво настроение?" : "What's your mood?")}
@@ -211,52 +204,52 @@ export default function Register() {
               <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-primary flex items-center justify-center">
                 <UserPlus className="w-8 h-8 text-white" />
               </div>
-              <h1 className={`text-2xl font-bold ${theme === "dark" ? "text-white" : "text-[#1A1B2E]"}`}>
+              <h1 className={`text-2xl font-bold text-text`}>
                 {language === "bg" ? "Създайте акаунт" : "Create Account"}
               </h1>
             </div>
 
             <div>
-              <label className={`block text-sm font-medium mb-2 ${theme === "dark" ? "text-[#A7A7C7]" : "text-[#5B5D78]"}`}>
+              <label className={`block text-sm font-medium mb-2 text-muted`}>
                 {language === "bg" ? "Име" : "Name"}
               </label>
               <div className="relative">
-                <User className={`absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 ${theme === "dark" ? "text-[#A7A7C7]" : "text-[#5B5D78]"}`} />
+                <User className={`absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-muted`} />
                 <input type="text" value={name} onChange={(e) => setName(e.target.value)}
                   autoComplete="name"
                   className={`w-full pl-11 pr-4 py-3 rounded-lg border focus:outline-none focus:ring-2 focus:ring-primary ${
-                    theme === "dark" ? "bg-[#2A2A4A] border-[#2A2A4A] text-white" : "bg-[#F8F9FC] border-[#E2E4F0] text-[#1A1B2E]"
+                    theme === "dark" ? "bg-border border-border text-white" : "bg-bg border-border text-text"
                   }`} />
               </div>
             </div>
 
             <div>
-              <label className={`block text-sm font-medium mb-2 ${theme === "dark" ? "text-[#A7A7C7]" : "text-[#5B5D78]"}`}>
+              <label className={`block text-sm font-medium mb-2 text-muted`}>
                 {language === "bg" ? "Имейл" : "Email"}
               </label>
               <div className="relative">
-                <Mail className={`absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 ${theme === "dark" ? "text-[#A7A7C7]" : "text-[#5B5D78]"}`} />
+                <Mail className={`absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-muted`} />
                 <input type="email" value={email} onChange={(e) => setEmail(e.target.value)}
                   autoComplete="email"
                   className={`w-full pl-11 pr-4 py-3 rounded-lg border focus:outline-none focus:ring-2 focus:ring-primary ${
-                    theme === "dark" ? "bg-[#2A2A4A] border-[#2A2A4A] text-white" : "bg-[#F8F9FC] border-[#E2E4F0] text-[#1A1B2E]"
+                    theme === "dark" ? "bg-border border-border text-white" : "bg-bg border-border text-text"
                   }`} />
               </div>
             </div>
 
             <div>
-              <label className={`block text-sm font-medium mb-2 ${theme === "dark" ? "text-[#A7A7C7]" : "text-[#5B5D78]"}`}>
+              <label className={`block text-sm font-medium mb-2 text-muted`}>
                 {language === "bg" ? "Парола" : "Password"}
               </label>
               <div className="relative">
-                <Lock className={`absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 ${theme === "dark" ? "text-[#A7A7C7]" : "text-[#5B5D78]"}`} />
+                <Lock className={`absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-muted`} />
                 <input type={showPassword ? "text" : "password"} value={password} onChange={(e) => setPassword(e.target.value)}
                   autoComplete="new-password"
                   className={`w-full pl-11 pr-12 py-3 rounded-lg border focus:outline-none focus:ring-2 focus:ring-primary ${
-                    theme === "dark" ? "bg-[#2A2A4A] border-[#2A2A4A] text-white" : "bg-[#F8F9FC] border-[#E2E4F0] text-[#1A1B2E]"
+                    theme === "dark" ? "bg-border border-border text-white" : "bg-bg border-border text-text"
                   }`} />
                 <button type="button" onClick={() => setShowPassword(!showPassword)}
-                  className={`absolute right-3 top-0 bottom-0 flex items-center ${theme === "dark" ? "text-[#A7A7C7] hover:text-[#A7A7C7]" : "text-[#5B5D78] hover:text-[#5B5D78]"}`}>
+                  className={`absolute right-3 top-0 bottom-0 flex items-center text-muted hover:text-muted`}>
                   {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
                 </button>
               </div>
@@ -264,7 +257,7 @@ export default function Register() {
               {password && (
                 <div className="mt-3">
                   <div className="flex items-center justify-between mb-2">
-                    <span className={`text-xs ${theme === "dark" ? "text-[#A7A7C7]" : "text-[#5B5D78]"}`}>
+                    <span className={`text-xs text-muted`}>
                       {language === "bg" ? "Сила:" : "Strength:"}
                     </span>
                     <span className={`text-xs font-medium ${
@@ -279,18 +272,18 @@ export default function Register() {
             </div>
 
             <div>
-              <label className={`block text-sm font-medium mb-2 ${theme === "dark" ? "text-[#A7A7C7]" : "text-[#5B5D78]"}`}>
+              <label className={`block text-sm font-medium mb-2 text-muted`}>
                 {language === "bg" ? "Потвърдете паролата" : "Confirm Password"}
               </label>
               <div className="relative">
-                <Lock className={`absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 ${theme === "dark" ? "text-[#A7A7C7]" : "text-[#5B5D78]"}`} />
+                <Lock className={`absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-muted`} />
                 <input type={showConfirmPassword ? "text" : "password"} value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)}
                   autoComplete="new-password"
                   className={`w-full pl-11 pr-12 py-3 rounded-lg border focus:outline-none focus:ring-2 ${
                     confirmPassword && !passwordsMatch ? "border-red-500 focus:ring-red-500" : "focus:ring-primary"
-                  } ${theme === "dark" ? "bg-[#2A2A4A] border-[#2A2A4A] text-white" : "bg-[#F8F9FC] border-[#E2E4F0] text-[#1A1B2E]"}`} />
+                  } ${theme === "dark" ? "bg-border border-border text-white" : "bg-bg border-border text-text"}`} />
                 <button type="button" onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                  className={`absolute right-3 top-0 bottom-0 flex items-center ${theme === "dark" ? "text-[#A7A7C7] hover:text-[#A7A7C7]" : "text-[#5B5D78] hover:text-[#5B5D78]"}`}>
+                  className={`absolute right-3 top-0 bottom-0 flex items-center text-muted hover:text-muted`}>
                   {showConfirmPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
                 </button>
               </div>
@@ -302,7 +295,7 @@ export default function Register() {
               <ChevronRight className="w-5 h-5" />
             </button>
 
-            <p className={`text-center text-sm ${theme === "dark" ? "text-[#A7A7C7]" : "text-[#5B5D78]"}`}>
+            <p className={`text-center text-sm text-muted`}>
               {language === "bg" ? "Вече имате акаунт?" : "Already have an account?"}{" "}
               <Link to="/login" className="text-primary font-semibold hover:underline">
                 {language === "bg" ? "Вход" : "Sign In"}
@@ -318,10 +311,10 @@ export default function Register() {
               <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-primary flex items-center justify-center">
                 <Film className="w-8 h-8 text-white" />
               </div>
-              <h1 className={`text-2xl font-bold ${theme === "dark" ? "text-white" : "text-[#1A1B2E]"}`}>
+              <h1 className={`text-2xl font-bold text-text`}>
                 {language === "bg" ? "Какво обичаш да гледаш?" : "What do you like to watch?"}
               </h1>
-              <p className={`mt-2 text-sm ${theme === "dark" ? "text-[#A7A7C7]" : "text-[#5B5D78]"}`}>
+              <p className={`mt-2 text-sm text-muted`}>
                 {language === "bg" ? "Избери до 5 любими жанра" : "Pick up to 5 favorite genres"}
               </p>
             </div>
@@ -336,31 +329,31 @@ export default function Register() {
                     className={`p-3 rounded-xl border-2 transition-all text-left ${
                       isSelected
                         ? "border-primary bg-primary/10"
-                        : theme === "dark" 
-                          ? "border-[#2A2A4A] hover:border-gray-600 bg-[#2A2A4A]" 
-                          : "border-[#E2E4F0] hover:border-[#E2E4F0] bg-[#F8F9FC]"
+                        : theme === "dark"
+                          ? "border-border hover:border-gray-600 bg-border"
+                          : "border-border hover:border-border bg-bg"
                     }`}
                   >
                     <span className={`font-medium text-sm ${
                       isSelected
                         ? "text-primary"
-                        : theme === "dark" ? "text-white" : "text-[#1A1B2E]"
+                        : text-text
                     }`}>
-                      {language === "bg" ? genre.bg : genre.en}
+                      {genre.emoji} {language === "bg" ? genre.bg : genre.en}
                     </span>
                   </button>
                 );
               })}
             </div>
 
-            <div className={`text-center text-sm ${theme === "dark" ? "text-[#A7A7C7]" : "text-[#5B5D78]"}`}>
+            <div className={`text-center text-sm text-muted`}>
               {selectedGenres.length}/5 {language === "bg" ? "избрани" : "selected"}
             </div>
 
             <div className="flex gap-3">
               <button onClick={handlePrevStep}
                 className={`flex-1 py-3 px-4 rounded-lg font-medium transition-colors flex items-center justify-center gap-2 ${
-                  theme === "dark" ? "bg-[#2A2A4A] text-white hover:bg-[#2A2A4A]" : "bg-[#F3F4FF] text-[#5B5D78] hover:bg-gray-200"
+                  theme === "dark" ? "bg-border text-white hover:bg-border" : "bg-surface-2 text-muted hover:bg-gray-200"
                 }`}>
                 <ChevronLeft className="w-5 h-5" />
                 {language === "bg" ? "Назад" : "Back"}
@@ -373,7 +366,7 @@ export default function Register() {
             </div>
 
             <button onClick={handleSkipPreferences}
-              className={`w-full py-2 text-sm ${theme === "dark" ? "text-[#A7A7C7] hover:text-[#A7A7C7]" : "text-[#5B5D78] hover:text-[#A7A7C7]"}`}>
+              className={`w-full py-2 text-sm text-muted hover:text-muted`}>
               {language === "bg" ? "Пропусни за сега" : "Skip for now"}
             </button>
           </div>
@@ -386,10 +379,10 @@ export default function Register() {
               <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-primary flex items-center justify-center">
                 <Sparkles className="w-8 h-8 text-white" />
               </div>
-              <h1 className={`text-2xl font-bold ${theme === "dark" ? "text-white" : "text-[#1A1B2E]"}`}>
+              <h1 className={`text-2xl font-bold text-text`}>
                 {language === "bg" ? "Какво настроение предпочиташ?" : "What mood do you prefer?"}
               </h1>
-              <p className={`mt-2 text-sm ${theme === "dark" ? "text-[#A7A7C7]" : "text-[#5B5D78]"}`}>
+              <p className={`mt-2 text-sm text-muted`}>
                 {language === "bg" ? "Избери какво обикновено търсиш" : "Pick what you usually look for"}
               </p>
             </div>
@@ -405,15 +398,15 @@ export default function Register() {
                       isSelected
                         ? "border-primary bg-primary/10"
                         : theme === "dark" 
-                          ? "border-[#2A2A4A] hover:border-gray-600 bg-[#2A2A4A]" 
-                          : "border-[#E2E4F0] hover:border-[#E2E4F0] bg-[#F8F9FC]"
+                          ? "border-border hover:border-gray-600 bg-border" 
+                          : "border-border hover:border-border bg-bg"
                     }`}
                   >
                     <div className="flex items-center gap-3">
                       <span className={`font-medium ${
                         isSelected
                           ? "text-primary"
-                          : theme === "dark" ? "text-white" : "text-[#1A1B2E]"
+                          : text-text
                       }`}>
                         {language === "bg" ? mood.bg : mood.en}
                       </span>
@@ -427,7 +420,7 @@ export default function Register() {
             <div className="flex gap-3">
               <button onClick={handlePrevStep}
                 className={`flex-1 py-3 px-4 rounded-lg font-medium transition-colors flex items-center justify-center gap-2 ${
-                  theme === "dark" ? "bg-[#2A2A4A] text-white hover:bg-[#2A2A4A]" : "bg-[#F3F4FF] text-[#5B5D78] hover:bg-gray-200"
+                  theme === "dark" ? "bg-border text-white hover:bg-border" : "bg-surface-2 text-muted hover:bg-gray-200"
                 }`}>
                 <ChevronLeft className="w-5 h-5" />
                 {language === "bg" ? "Назад" : "Back"}
@@ -446,7 +439,7 @@ export default function Register() {
             </div>
 
             <button onClick={handleSkipPreferences}
-              className={`w-full py-2 text-sm ${theme === "dark" ? "text-[#A7A7C7] hover:text-[#A7A7C7]" : "text-[#5B5D78] hover:text-[#A7A7C7]"}`}>
+              className={`w-full py-2 text-sm text-muted hover:text-muted`}>
               {language === "bg" ? "Пропусни за сега" : "Skip for now"}
             </button>
           </div>

@@ -1,28 +1,27 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { useApp } from "../context/AppContext";
 import { moviesApi } from "../api/movies";
 import api from "../api/client";
 import type { Movie } from "../types";
+import { translateGenre } from "../constants/preferences";
+import type { Language } from "../i18n/translations";
 import {
-  ChevronLeft, ChevronRight, Play, TrendingUp, Star, Calendar, Sparkles, Heart, ListPlus
+  ChevronLeft, ChevronRight, Play, TrendingUp, Star, Calendar, Sparkles, Heart, ListPlus,
+  Award, Info
 } from "lucide-react";
 import RatingBadge from "../components/RatingBadge";
-
-// ============================================================================
-// SCORING HELPERS
-// ============================================================================
 
 const clamp01 = (x: number) => Math.max(0, Math.min(1, x));
 const logNorm = (x: number, max: number) => (max > 0 ? Math.log1p(x) / Math.log1p(max) : 0);
 
-const normRating01 = (rating: any) => {
+const normRating01 = (rating: number | undefined) => {
   const r = Number(rating) || 0;
   if (r <= 0) return 0;
   return clamp01(r <= 5 ? r / 5 : r / 10);
 };
 
-const combinedRating01 = (m: any, K = 30) => {
+const combinedRating01 = (m: Movie, K = 30) => {
   const tmdb = normRating01(m.tmdb_rating);
   const local = normRating01(m.average_rating);
   const reviews = Number(m.review_count) || 0;
@@ -38,14 +37,12 @@ const combinedRating01 = (m: any, K = 30) => {
   return clamp01(confidence * local + (1 - confidence) * tmdb);
 };
 
-// TIME DECAY for Trending - this is the KEY fix to prevent old classics
-const getTimeDecay = (releaseDate: string | null): number => {
-  if (!releaseDate) return 0.3; // Unknown = low priority
+const getTimeDecay = (releaseDate: string | null | undefined): number => {
+  if (!releaseDate) return 0.3;
   const now = new Date();
   const release = new Date(releaseDate);
   const yearsOld = (now.getTime() - release.getTime()) / (365.25 * 24 * 60 * 60 * 1000);
 
-  // Decay curve: recent movies get full weight, old movies get penalized
   if (yearsOld < 1) return 1.0;      // < 1 year: full weight
   if (yearsOld < 2) return 0.9;      // 1-2 years: slight decay
   if (yearsOld < 3) return 0.75;     // 2-3 years: moderate decay
@@ -53,10 +50,6 @@ const getTimeDecay = (releaseDate: string | null): number => {
   if (yearsOld < 10) return 0.25;    // 5-10 years: heavy decay
   return 0.1;                         // 10+ years: almost filtered out
 };
-
-// ============================================================================
-// TYPES
-// ============================================================================
 
 interface Recommendation {
   movie: Movie;
@@ -71,6 +64,8 @@ interface Recommendation {
     similar_to_bg?: string;  // Bulgarian title for similar_to movie
     genre?: string;
     mood?: string;
+    reason?: string;
+    matched_genres?: string[];  // structured genre IDs — translated by frontend
   };
 }
 
@@ -79,10 +74,6 @@ interface UserState {
   hasActivity: boolean;
   personalizedCount: number;
 }
-
-// ============================================================================
-// COMPONENTS
-// ============================================================================
 
 function HeroCarousel({ movies, language }: { movies: Movie[]; language: string }) {
   const navigate = useNavigate();
@@ -124,8 +115,8 @@ function HeroCarousel({ movies, language }: { movies: Movie[]; language: string 
     ? `https://image.tmdb.org/t/p/original${backdropPath}`
     : movie.backdrop_url;
 
-  const communityRating = (movie as any).average_rating || 0;
-  const reviewCount = (movie as any).review_count || 0;
+  const communityRating = movie.average_rating || 0;
+  const reviewCount = movie.review_count || 0;
 
   return (
     <div
@@ -144,7 +135,7 @@ function HeroCarousel({ movies, language }: { movies: Movie[]; language: string 
             style={{ imageRendering: 'auto', transform: 'translateZ(0)' }}
           />
         ) : (
-          <div className="w-full h-full bg-gradient-to-br from-[#121226] to-[#0B0B12]" />
+          <div className="w-full h-full bg-gradient-to-br from-surface to-bg" />
         )}
         <div className="absolute inset-0 bg-gradient-to-t from-black/80 to-transparent" />
       </div>
@@ -179,7 +170,7 @@ function HeroCarousel({ movies, language }: { movies: Movie[]; language: string 
               {summary && <p className="text-gray-200 text-lg line-clamp-3">{summary}</p>}
             </div>
             <div className="flex items-center gap-6">
-              <RatingBadge value={(movie as any).tmdb_rating ?? 0} size="md" />
+              <RatingBadge value={movie.tmdb_rating ?? 0} size="md" />
 
               {reviewCount > 0 && (
                 <RatingBadge value={communityRating} scale={5} size="md" />
@@ -210,25 +201,21 @@ function HeroCarousel({ movies, language }: { movies: Movie[]; language: string 
   );
 }
 
-// ============================================================================
-// ONBOARDING CARD - Shows for logged-in users without recommendations
-// ============================================================================
-
 function OnboardingCard({ language, theme, onNavigate }: { language: string; theme: string; onNavigate: () => void }) {
   return (
     <section className="relative">
       <div className={`rounded-2xl p-6 md:p-8 ${theme === "dark"
-        ? "bg-[#1A1A33] border border-[#2A2A4A]"
-        : "bg-white border border-[#E2E4F0]"}`}>
+        ? "bg-surface-2 border border-border"
+        : "bg-white border border-border"}`}>
         <div className="flex flex-col md:flex-row items-center gap-6">
           <div className="p-4 rounded-full bg-primary">
             <ListPlus className="w-10 h-10 text-white" />
           </div>
           <div className="flex-1 text-center md:text-left">
-            <h3 className={`text-xl md:text-2xl font-bold mb-2 ${theme === "dark" ? "text-[#EDEDF7]" : "text-[#1A1B2E]"}`}>
+            <h3 className={`text-xl md:text-2xl font-bold mb-2 text-text`}>
               {language === "bg" ? "Започни своите препоръки" : "Start Your Recommendations"}
             </h3>
-            <p className={`${theme === "dark" ? "text-[#A7A7C7]" : "text-[#5B5D78]"}`}>
+            <p className={`text-muted`}>
               {language === "bg"
                 ? "Добави филми в списъка си или ги оцени, за да отключиш персонализирани препоръки."
                 : "Add movies to your watchlist or rate them to unlock personalized recommendations."}
@@ -247,14 +234,9 @@ function OnboardingCard({ language, theme, onNavigate }: { language: string; the
   );
 }
 
-// ============================================================================
-// ADAPTIVE FOR YOU CAROUSEL
-// Shows different title/subtitle based on user state
-// ============================================================================
-
 function ForYouCarousel({ recommendations, language, userState, allMovies }: { recommendations: Recommendation[]; language: string; userState: UserState; allMovies: Movie[] }) {
   const navigate = useNavigate();
-  const { theme } = useApp();
+  const { theme, t } = useApp();
   const scrollRef = useRef<HTMLDivElement>(null);
   const [canScrollLeft, setCanScrollLeft] = useState(false);
   const [canScrollRight, setCanScrollRight] = useState(true);
@@ -278,25 +260,15 @@ function ForYouCarousel({ recommendations, language, userState, allMovies }: { r
     return () => ref?.removeEventListener("scroll", checkScroll);
   }, [recommendations]);
 
-  // ADAPTIVE TITLE based on user state
   const getSectionInfo = () => {
     if (!userState.hasActivity) {
-      // New user - using registration preferences
-      return {
-        title: language === "bg" ? "За теб" : "For You",
-        subtitle: language === "bg" ? "Базирано на твоите предпочитания" : "Based on your preferences"
-      };
+      return { title: t.forYou, subtitle: t.forYouSubNew };
     }
-    // Active user - full personalization
-    return {
-      title: language === "bg" ? "За теб" : "For You",
-      subtitle: language === "bg" ? "Персонализирани препоръки" : "Personalized picks"
-    };
+    return { title: t.forYou, subtitle: t.forYouSubActive };
   };
 
   const { title, subtitle } = getSectionInfo();
 
-  // Helper to find Bulgarian title for a movie name
   const findBulgarianTitle = (englishTitle: string): string => {
     // Search in allMovies for a matching movie by English title
     const found = allMovies.find(m =>
@@ -310,66 +282,69 @@ function ForYouCarousel({ recommendations, language, userState, allMovies }: { r
 
   const getReason = (rec: Recommendation): string | null => {
     if (!rec.explanation) return null;
-    const { reasons, reasons_bg, score_breakdown, based_on, based_on_bg, similar_to, similar_to_bg, genre, mood } = rec.explanation;
+    const { reasons, reasons_bg, score_breakdown, based_on, based_on_bg, similar_to, similar_to_bg, genre, mood, matched_genres } = rec.explanation;
+    const lang = language as Language;
 
-    let reason: string | null = language === "bg" && reasons_bg?.[0] ? reasons_bg[0] : reasons?.[0] ?? null;
+    // Pick the correct-language backend reason first
+    let reason: string | null = language === "bg" ? (reasons_bg?.[0] ?? null) : (reasons?.[0] ?? null);
 
-    if (reason && (
+    if (!reason || reason === "undefined" || reason.trim() === "" ||
       reason.toLowerCase().includes("your watched movies") ||
-      reason.toLowerCase().includes("вашите гледани филми") ||
-      reason === "undefined" ||
-      reason.trim() === ""
-    )) {
+      reason.toLowerCase().includes("вашите гледани филми")
+    ) {
       reason = null;
     }
 
+    // Genre reason — translate genre IDs via preferences.ts GENRES constant
+    if (!reason && matched_genres?.length) {
+      const genres = matched_genres.map(g => translateGenre(g, lang)).join(', ');
+      reason = `${t.becauseYouLike} ${genres}`;
+    }
+
     if (!reason && similar_to) {
-      // Use Bulgarian title from API if available, otherwise try to find it, fallback to English
-      const title = language === "bg"
-        ? (similar_to_bg || findBulgarianTitle(similar_to))
-        : similar_to;
-      reason = language === "bg" ? `Подобен на ${title}` : `Similar to ${similar_to}`;
+      const title = language === "bg" ? (similar_to_bg || findBulgarianTitle(similar_to)) : similar_to;
+      reason = `${t.similarTo} ${title}`;
     }
 
     if (!reason && based_on && based_on.length > 0) {
-      // Use Bulgarian title from API if available, otherwise try to find it, fallback to English
-      const title = language === "bg"
-        ? (based_on_bg?.[0] || findBulgarianTitle(based_on[0]))
-        : based_on[0];
-      reason = language === "bg" ? `Защото харесахте ${title}` : `Because you liked ${based_on[0]}`;
+      const title = language === "bg" ? (based_on_bg?.[0] || findBulgarianTitle(based_on[0])) : based_on[0];
+      reason = `${t.becauseYouLiked} ${title}`;
     }
 
     if (!reason && genre) {
-      reason = language === "bg" ? `Жанр: ${genre}` : `Genre: ${genre}`;
+      reason = `${t.genreLabel}: ${translateGenre(genre, lang)}`;
     }
 
     if (!reason && mood) {
-      reason = language === "bg" ? `Настроение: ${mood}` : `Mood: ${mood}`;
+      reason = `${t.moodLabel}: ${mood}`;
     }
 
     if (!reason && score_breakdown) {
       const topEntry = Object.entries(score_breakdown).filter(([, v]) => v > 0.1).sort((a, b) => b[1] - a[1])[0];
       if (topEntry) {
         const labels: Record<string, string> = {
-          genre_similarity: language === "bg" ? "Сходен жанр" : "Similar genre",
-          director_match: language === "bg" ? "Същият режисьор" : "Same director",
-          mood_match: language === "bg" ? "Подходящо настроение" : "Matching mood",
-          popularity: language === "bg" ? "Популярен избор" : "Popular choice",
+          genre_similarity: t.similarGenreReason,
+          director_match: t.sameDirectorReason,
+          mood_match: t.matchingMoodReason,
+          popularity: t.popularChoiceReason,
         };
         reason = labels[topEntry[0]] || null;
       }
     }
 
-    // For new users, generate preference-based reasons
     if (!reason && !userState.hasActivity) {
-      const movieGenre = rec.movie.genre?.split(',')[0]?.trim();
-      if (movieGenre) {
-        reason = language === "bg" ? `Популярен ${movieGenre.toLowerCase()}` : `Popular ${movieGenre.toLowerCase()}`;
+      const movieGenreEn = rec.movie.genre?.split(',')[0]?.trim();
+      if (movieGenreEn) {
+        // Use genre_bg from DB (already translated), fall back to translateGenre
+        const displayGenre = language === "bg"
+          ? (rec.movie.genre_bg?.split(',')[0]?.trim() || translateGenre(movieGenreEn, lang))
+          : movieGenreEn;
+        reason = `${t.popularPrefix} ${displayGenre.toLowerCase()}`;
       }
     }
 
     if (!reason && rec.score >= 0.8) {
-      reason = language === "bg" ? "Силно препоръчан" : "Highly recommended";
+      reason = t.highlyRecommended;
     }
 
     return reason;
@@ -385,20 +360,20 @@ function ForYouCarousel({ recommendations, language, userState, allMovies }: { r
             <Heart className="w-5 h-5 text-primary" />
           </div>
           <div>
-            <h2 className={`text-xl font-bold ${theme === "dark" ? "text-[#EDEDF7]" : "text-[#1A1B2E]"}`}>{title}</h2>
-            <p className={`text-sm ${theme === "dark" ? "text-[#A7A7C7]" : "text-[#5B5D78]"}`}>{subtitle}</p>
+            <h2 className={`text-xl font-bold text-text`}>{title}</h2>
+            <p className={`text-sm text-muted`}>{subtitle}</p>
           </div>
         </div>
       </div>
 
       <div className="relative group">
         {canScrollLeft && (
-          <button onClick={() => scroll("left")} className={`absolute -left-4 top-1/3 z-10 p-2 rounded-full shadow-lg opacity-0 group-hover:opacity-100 transition-all ${theme === "dark" ? "bg-[#2A2A4A]/90 text-white hover:bg-[#2A2A4A]" : "bg-white text-[#1A1B2E] hover:bg-[#F3F4FF] shadow-md border border-[#E2E4F0]"}`}>
+          <button onClick={() => scroll("left")} className={`absolute -left-4 top-1/3 z-10 p-2 rounded-full shadow-lg opacity-0 group-hover:opacity-100 transition-all ${theme === "dark" ? "bg-border/90 text-white hover:bg-border" : "bg-white text-text hover:bg-surface-2 shadow-md border border-border"}`}>
             <ChevronLeft className="w-6 h-6" />
           </button>
         )}
         {canScrollRight && (
-          <button onClick={() => scroll("right")} className={`absolute -right-4 top-1/3 z-10 p-2 rounded-full shadow-lg opacity-0 group-hover:opacity-100 transition-all ${theme === "dark" ? "bg-[#2A2A4A]/90 text-white hover:bg-[#2A2A4A]" : "bg-white text-[#1A1B2E] hover:bg-[#F3F4FF] shadow-md border border-[#E2E4F0]"}`}>
+          <button onClick={() => scroll("right")} className={`absolute -right-4 top-1/3 z-10 p-2 rounded-full shadow-lg opacity-0 group-hover:opacity-100 transition-all ${theme === "dark" ? "bg-border/90 text-white hover:bg-border" : "bg-white text-text hover:bg-surface-2 shadow-md border border-border"}`}>
             <ChevronRight className="w-6 h-6" />
           </button>
         )}
@@ -423,12 +398,12 @@ function ForYouCarousel({ recommendations, language, userState, allMovies }: { r
                   {posterUrl ? (
                     <img src={posterUrl} alt={movieTitle} className="w-full aspect-[2/3] object-cover group-hover/card:scale-105 transition-transform duration-300" loading="lazy" />
                   ) : (
-                    <div className={`w-full aspect-[2/3] flex items-center justify-center ${theme === "dark" ? "bg-[#2A2A4A]" : "bg-gray-200"}`}>
-                      <Sparkles className="w-10 h-10 text-[#A7A7C7]" />
+                    <div className={`w-full aspect-[2/3] flex items-center justify-center ${theme === "dark" ? "bg-border" : "bg-gray-200"}`}>
+                      <Sparkles className="w-10 h-10 text-muted" />
                     </div>
                   )}
                   <div className="absolute top-2 right-2 px-2 py-1 rounded-md bg-primary text-white text-xs font-bold shadow-lg z-10">
-                    {matchPercent}% match
+                    {matchPercent}% {t.match}
                   </div>
                   {/* Reason hover overlay */}
                   {reason && (
@@ -436,7 +411,7 @@ function ForYouCarousel({ recommendations, language, userState, allMovies }: { r
                       <div className="flex items-center gap-1.5 mb-1.5">
                         <Heart className="w-3 h-3 text-[#2DD4BF]" />
                         <span className="text-[10px] font-bold text-[#2DD4BF] uppercase tracking-wider">
-                          {language === "bg" ? "Защо" : "Why"}
+                          {t.why}
                         </span>
                       </div>
                       <p className="text-white/90 text-[11px] leading-relaxed line-clamp-3">{reason}</p>
@@ -444,8 +419,8 @@ function ForYouCarousel({ recommendations, language, userState, allMovies }: { r
                   )}
                 </div>
                 <div className="pt-3 px-1">
-                  <h3 className={`font-semibold text-sm line-clamp-1 group-hover/card:text-primary transition-colors ${theme === "dark" ? "text-white" : "text-[#1A1B2E]"}`}>{movieTitle}</h3>
-                  {movie.release_date && <p className={`text-xs mt-1 ${theme === "dark" ? "text-[#A7A7C7]" : "text-[#5B5D78]"}`}>{new Date(movie.release_date).getFullYear()}</p>}
+                  <h3 className={`font-semibold text-sm line-clamp-1 group-hover/card:text-primary transition-colors text-text`}>{movieTitle}</h3>
+                  {movie.release_date && <p className={`text-xs mt-1 text-muted`}>{new Date(movie.release_date).getFullYear()}</p>}
                 </div>
               </div>
             );
@@ -487,7 +462,7 @@ function MovieCarousel({ movies, title, icon: Icon, language }: { movies: Movie[
   return (
     <section className="relative">
       <div className="flex items-center justify-between mb-4">
-        <h2 className={`text-xl font-bold flex items-center gap-2 ${theme === "dark" ? "text-white" : "text-[#1A1B2E]"}`}>
+        <h2 className={`text-xl font-bold flex items-center gap-2 text-text`}>
           {Icon && <Icon className="w-5 h-5 text-primary" />}
           {title}
         </h2>
@@ -498,12 +473,12 @@ function MovieCarousel({ movies, title, icon: Icon, language }: { movies: Movie[
 
       <div className="relative group">
         {canScrollLeft && (
-          <button onClick={() => scroll("left")} className={`absolute -left-4 top-1/3 z-10 p-2 rounded-full shadow-lg opacity-0 group-hover:opacity-100 transition-all ${theme === "dark" ? "bg-[#2A2A4A]/90 text-white hover:bg-[#2A2A4A]" : "bg-white text-[#1A1B2E] hover:bg-[#F3F4FF] shadow-md border border-[#E2E4F0]"}`}>
+          <button onClick={() => scroll("left")} className={`absolute -left-4 top-1/3 z-10 p-2 rounded-full shadow-lg opacity-0 group-hover:opacity-100 transition-all ${theme === "dark" ? "bg-border/90 text-white hover:bg-border" : "bg-white text-text hover:bg-surface-2 shadow-md border border-border"}`}>
             <ChevronLeft className="w-6 h-6" />
           </button>
         )}
         {canScrollRight && (
-          <button onClick={() => scroll("right")} className={`absolute -right-4 top-1/3 z-10 p-2 rounded-full shadow-lg opacity-0 group-hover:opacity-100 transition-all ${theme === "dark" ? "bg-[#2A2A4A]/90 text-white hover:bg-[#2A2A4A]" : "bg-white text-[#1A1B2E] hover:bg-[#F3F4FF] shadow-md border border-[#E2E4F0]"}`}>
+          <button onClick={() => scroll("right")} className={`absolute -right-4 top-1/3 z-10 p-2 rounded-full shadow-lg opacity-0 group-hover:opacity-100 transition-all ${theme === "dark" ? "bg-border/90 text-white hover:bg-border" : "bg-white text-text hover:bg-surface-2 shadow-md border border-border"}`}>
             <ChevronRight className="w-6 h-6" />
           </button>
         )}
@@ -513,9 +488,9 @@ function MovieCarousel({ movies, title, icon: Icon, language }: { movies: Movie[
             const movieTitle = language === "bg" ? movie.title_bg || movie.title : movie.title;
             const posterUrl = movie.poster_path ? `https://image.tmdb.org/t/p/w342${movie.poster_path}` : movie.poster_url;
             const releaseDate = movie.release_date ? new Date(movie.release_date).toLocaleDateString(language === "bg" ? "bg-BG" : "en-US", { year: "numeric", month: "short", day: "numeric" }) : null;
-            const tmdbRating = (movie as any).tmdb_rating || 0;
-            const communityRating = (movie as any).average_rating || 0;
-            const reviewCount = (movie as any).review_count || 0;
+            const tmdbRating = movie.tmdb_rating || 0;
+            const communityRating = movie.average_rating || 0;
+            const reviewCount = movie.review_count || 0;
 
             return (
               <div key={movie.id} onClick={() => navigate(`/movie/${movie.id}`)} className="flex-shrink-0 w-[150px] cursor-pointer group/card" style={{ scrollSnapAlign: "start" }}>
@@ -523,8 +498,8 @@ function MovieCarousel({ movies, title, icon: Icon, language }: { movies: Movie[
                   {posterUrl ? (
                     <img src={posterUrl} alt={movieTitle} className="w-full aspect-[2/3] object-cover group-hover/card:scale-105 transition-transform duration-300" loading="lazy" />
                   ) : (
-                    <div className={`w-full aspect-[2/3] flex items-center justify-center ${theme === "dark" ? "bg-[#2A2A4A]" : "bg-gray-200"}`}>
-                      <Star className="w-10 h-10 text-[#A7A7C7]" />
+                    <div className={`w-full aspect-[2/3] flex items-center justify-center ${theme === "dark" ? "bg-border" : "bg-gray-200"}`}>
+                      <Star className="w-10 h-10 text-muted" />
                     </div>
                   )}
                   <div className="absolute bottom-2 left-2">
@@ -537,8 +512,8 @@ function MovieCarousel({ movies, title, icon: Icon, language }: { movies: Movie[
                   )}
                 </div>
                 <div className="pt-3 px-1">
-                  <h3 className={`font-semibold text-sm line-clamp-2 group-hover/card:text-primary transition-colors ${theme === "dark" ? "text-white" : "text-[#1A1B2E]"}`}>{movieTitle}</h3>
-                  {releaseDate && <p className={`text-xs mt-1 ${theme === "dark" ? "text-[#A7A7C7]" : "text-[#5B5D78]"}`}>{releaseDate}</p>}
+                  <h3 className={`font-semibold text-sm line-clamp-2 group-hover/card:text-primary transition-colors text-text`}>{movieTitle}</h3>
+                  {releaseDate && <p className={`text-xs mt-1 text-muted`}>{releaseDate}</p>}
                 </div>
               </div>
             );
@@ -549,9 +524,80 @@ function MovieCarousel({ movies, title, icon: Icon, language }: { movies: Movie[
   );
 }
 
-// ============================================================================
-// MAIN HOME COMPONENT
-// ============================================================================
+function SpotlightCard({ movie, language }: {
+  movie: Movie;
+  language: string;
+}) {
+  const navigate = useNavigate();
+  const title = language === "bg" ? movie.title_bg || movie.title : movie.title;
+  const summary = language === "bg" ? movie.summary_bg || movie.summary : movie.summary;
+  const genre = language === "bg" ? movie.genre_bg || movie.genre : movie.genre;
+  const backdropUrl = movie.backdrop_path
+    ? `https://image.tmdb.org/t/p/w1280${movie.backdrop_path}`
+    : movie.backdrop_url;
+
+  return (
+    <section
+      onClick={() => navigate(`/movie/${movie.id}`)}
+      className="relative rounded-2xl overflow-hidden cursor-pointer group"
+      style={{ height: "240px" }}
+    >
+      {backdropUrl && (
+        <img
+          src={backdropUrl}
+          alt={title}
+          className="absolute inset-0 w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+          loading="lazy"
+        />
+      )}
+      <div className="absolute inset-0 bg-gradient-to-r from-black/85 via-black/50 to-transparent" />
+
+      <div className="relative h-full flex items-center px-6 md:px-10">
+        <div className="max-w-lg">
+          <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-primary/90 text-white text-xs font-bold mb-3">
+            <Award className="w-3.5 h-3.5" />
+            {language === "bg" ? "Избор на редактора" : "Editor's Pick"}
+          </div>
+          <h3 className="text-2xl md:text-3xl font-bold text-white mb-1.5">{title}</h3>
+          {genre && (
+            <p className="text-sm text-gray-300 mb-2">{genre}</p>
+          )}
+          {summary && (
+            <p className="text-sm text-gray-300 line-clamp-2 mb-3 max-w-md">{summary}</p>
+          )}
+          <div className="flex items-center gap-3">
+            <RatingBadge value={movie.tmdb_rating ?? 0} size="sm" />
+            {(movie.review_count || 0) > 0 && (
+              <RatingBadge value={movie.average_rating || 0} scale={5} size="sm" />
+            )}
+            <button className="inline-flex items-center gap-1.5 px-4 py-1.5 bg-white/15 backdrop-blur-sm text-white text-sm font-medium rounded-lg hover:bg-white/25 transition-colors">
+              <Info className="w-4 h-4" />
+              {language === "bg" ? "Повече" : "More Info"}
+            </button>
+          </div>
+        </div>
+      </div>
+    </section>
+  );
+}
+
+const HERO_MOVIE_IDS = [
+  1870,  // Interstellar - Sci-Fi
+  1892,  // The Dark Knight - Action/Thriller
+  1999,  // Parasite - Thriller/Drama
+  1891,  // Inception - Sci-Fi/Action
+  1922,  // Avengers: Endgame - Adventure/Action
+];
+
+const EDITOR_PICK_IDS = [
+  1924,  // Dune: Part Two
+  2011,  // Whiplash
+  1918,  // Oppenheimer
+  2126,  // The Intouchables
+  1948,  // Spider-Man: Into the Spider-Verse
+  2121,  // The Wild Robot
+  1906,  // Spider-Man: Across the Spider-Verse
+];
 
 export default function Home() {
   const { theme, language, isAuthenticated } = useApp();
@@ -561,22 +607,36 @@ export default function Home() {
   const [trendingMovies, setTrendingMovies] = useState<Movie[]>([]);
   const [topRatedMovies, setTopRatedMovies] = useState<Movie[]>([]);
   const [recentMovies, setRecentMovies] = useState<Movie[]>([]);
-  const [allMoviesData, setAllMoviesData] = useState<Movie[]>([]); // Store all movies for title lookup
+  const [allMoviesData, setAllMoviesData] = useState<Movie[]>([]);
   const [forYouRecs, setForYouRecs] = useState<Recommendation[]>([]);
   const [aiError, setAiError] = useState(false);
   const [loading, setLoading] = useState(true);
 
-  // User state for adaptive For You section
   const [userState, setUserState] = useState<UserState>({
     isLoggedIn: false,
     hasActivity: false,
     personalizedCount: 0
   });
 
-  // Check if recommendation is personalized (not generic)
+  const spotlightMovie = useMemo(() => {
+    if (allMoviesData.length === 0) return null;
+    const movieById = new Map(allMoviesData.map(m => [m.id, m]));
+    const now = new Date();
+    const utcStart = Date.UTC(now.getUTCFullYear(), 0, 0);
+    const dayOfYear = Math.floor((Date.now() - utcStart) / 86400000);
+    const pickIndex = dayOfYear % EDITOR_PICK_IDS.length;
+
+    for (let i = 0; i < EDITOR_PICK_IDS.length; i++) {
+      const idx = (pickIndex + i) % EDITOR_PICK_IDS.length;
+      const movie = movieById.get(EDITOR_PICK_IDS[idx]);
+      if (movie && (movie.backdrop_path || movie.backdrop_url)) return movie;
+    }
+    return topRatedMovies.find(m => m.backdrop_path || m.backdrop_url) || null;
+  }, [allMoviesData, topRatedMovies]);
+
   const isPersonalized = (rec: Recommendation): boolean => {
     if (!rec.explanation) return false;
-    const { based_on, similar_to, reasons, reasons_bg, reason } = rec.explanation as any;
+    const { based_on, similar_to, reasons, reasons_bg, reason } = rec.explanation;
 
     if (reason) {
       const genericReasons = ["popular movie", "trending", "error"];
@@ -593,102 +653,85 @@ export default function Home() {
     return allReasons.some(r => r && !genericPhrases.some(p => r.toLowerCase().includes(p)));
   };
 
-  // Fetch movies
   useEffect(() => {
     const fetchMovies = async () => {
       setLoading(true);
       try {
         const allMovies = await moviesApi.getAll();
-        setAllMoviesData(allMovies); // Store for title lookup
-        const usedIds = new Set<number>(); // Cascade exclusion tracker
+        setAllMoviesData(allMovies);
+        const usedIds = new Set<number>();
 
-        // Helper: get popularity proxy (TMDB popularity -> vote_count -> review_count)
-        const getPopProxy = (m: any): number => {
+        const getPopProxy = (m: Movie): number => {
           return Number(m.popularity) || Number(m.tmdb_vote_count) || Number(m.review_count) || 0;
         };
-        const maxPop = Math.max(...allMovies.map((m: any) => getPopProxy(m)), 1);
+        let maxPop = 1;
+        for (const m of allMovies) maxPop = Math.max(maxPop, getPopProxy(m));
 
-        // ==============================================================
-        // 1. FEATURED (5) -- Best quality with backdrop
-        //    Highest quality, must have backdrop image
-        // ==============================================================
-        const featured = [...allMovies]
-          .filter((m: any) => m.backdrop_path || m.backdrop_url)
-          .sort((a: any, b: any) => {
-            const qa = combinedRating01(a, 30);
-            const qb = combinedRating01(b, 30);
-            const pa = logNorm(getPopProxy(a), maxPop);
-            const pb = logNorm(getPopProxy(b), maxPop);
-            return (0.7 * qb + 0.3 * pb) - (0.7 * qa + 0.3 * pa);
-          })
-          .slice(0, 5);
-        featured.forEach((m: any) => usedIds.add(m.id));
+        const movieById = new Map(allMovies.map(m => [m.id, m]));
+        const featured = HERO_MOVIE_IDS
+          .map(id => movieById.get(id))
+          .filter((m): m is Movie => !!m && !!(m.backdrop_path || m.backdrop_url));
+
+        if (featured.length < 3) {
+          const fallback = [...allMovies]
+            .filter(m => m.backdrop_path || m.backdrop_url)
+            .sort((a, b) => {
+              const qa = combinedRating01(a, 30);
+              const qb = combinedRating01(b, 30);
+              const pa = logNorm(getPopProxy(a), maxPop);
+              const pb = logNorm(getPopProxy(b), maxPop);
+              return (0.7 * qb + 0.3 * pb) - (0.7 * qa + 0.3 * pa);
+            })
+            .slice(0, 5);
+          featured.length = 0;
+          featured.push(...fallback);
+        }
+        featured.forEach(m => usedIds.add(m.id));
         setFeaturedMovies(featured);
 
-        // ==============================================================
-        // 2. TRENDING (20) -- "Hot right now"
-        //    Recency + popularity + activity. Even a 7.0 movie can trend.
-        //    Excludes: Featured
-        // ==============================================================
         const trending = [...allMovies]
-          .filter((m: any) => !usedIds.has(m.id))
-          .map((m: any) => {
+          .filter(m => !usedIds.has(m.id))
+          .map(m => {
             const decay = getTimeDecay(m.release_date);
             const pop = logNorm(getPopProxy(m), maxPop);
             const rating = combinedRating01(m, 30);
-
-            // Recency is king: decay is the primary differentiator
-            // A mediocre recent movie beats an amazing old one
-            const trendingScore = (0.45 * decay) + (0.30 * pop * decay) + (0.25 * rating * decay);
-
-            return { ...m, _trendingScore: trendingScore };
+            const score = decay * (0.65 * pop + 0.35 * rating);
+            return { m, score };
           })
-          .sort((a: any, b: any) => b._trendingScore - a._trendingScore)
-          .slice(0, 20);
-        trending.forEach((m: any) => usedIds.add(m.id));
+          .sort((a, b) => b.score - a.score)
+          .slice(0, 20)
+          .map(x => x.m);
+        trending.forEach(m => usedIds.add(m.id));
         setTrendingMovies(trending);
 
-        // ==============================================================
-        // 3. TOP RATED (20) -- "Best of all time"
-        //    Quality + enough votes. Stable, slow to change.
-        //    Excludes: Featured + Trending
-        // ==============================================================
-        const MIN_VOTES = 10; // Minimum votes to qualify (prevents 1-vote 10/10)
+        const MIN_VOTES = 10;
         const topRated = [...allMovies]
-          .filter((m: any) => !usedIds.has(m.id))
-          .filter((m: any) => {
-            // Must have a meaningful rating
+          .filter(m => !usedIds.has(m.id))
+          .filter(m => {
             const hasRating = (Number(m.tmdb_rating) || 0) > 0;
-            // Must have enough votes (TMDB votes or local reviews)
             const votes = Number(m.tmdb_vote_count) || Number(m.review_count) || 0;
             return hasRating && votes >= MIN_VOTES;
           })
-          .sort((a: any, b: any) => {
+          .sort((a, b) => {
             const ra = combinedRating01(a, 30);
             const rb = combinedRating01(b, 30);
             if (Math.abs(rb - ra) > 0.01) return rb - ra;
-            // Tiebreak: more votes = more trustworthy
             const va = Number(a.tmdb_vote_count) || Number(a.review_count) || 0;
             const vb = Number(b.tmdb_vote_count) || Number(b.review_count) || 0;
             return vb - va;
           })
           .slice(0, 20);
-        topRated.forEach((m: any) => usedIds.add(m.id));
+        topRated.forEach(m => usedIds.add(m.id));
         setTopRatedMovies(topRated);
 
-        // ==============================================================
-        // 4. RECENTLY RELEASED (20) -- Newest by release date
-        //    Excludes: Featured + Trending + Top Rated
-        // ==============================================================
         const recent = [...allMovies]
-          .filter((m: any) => !usedIds.has(m.id))
-          .filter((m: any) => m.release_date)
-          .sort((a: any, b: any) => new Date(b.release_date).getTime() - new Date(a.release_date).getTime())
+          .filter(m => !usedIds.has(m.id))
+          .filter(m => m.release_date)
+          .sort((a, b) => new Date(b.release_date || '1970-01-01').getTime() - new Date(a.release_date || '1970-01-01').getTime())
           .slice(0, 20);
         setRecentMovies(recent);
 
       } catch {
-        // Failed to fetch movies
       } finally {
         setLoading(false);
       }
@@ -696,7 +739,6 @@ export default function Home() {
     fetchMovies();
   }, []);
 
-  // Fetch For You recommendations
   useEffect(() => {
     const fetchForYou = async () => {
       const token = localStorage.getItem('token');
@@ -710,6 +752,7 @@ export default function Home() {
         const response = await api.get('/ai/recommend/for-me', { params: { top_k: 15 } });
         const recs = response.data || [];
         setForYouRecs(recs);
+        setAiError(false);
 
         // Determine user state based on personalization level
         const personalizedCount = recs.filter(isPersonalized).length;
@@ -730,8 +773,8 @@ export default function Home() {
 
   if (loading) {
     return (
-      <div className={`min-h-screen ${theme === "dark" ? "bg-[#0B0B12]" : "bg-[#F8F9FC]"}`}>
-        <div className={`h-[500px] md:h-[600px] animate-pulse ${theme === "dark" ? "bg-[#2A2A4A]" : "bg-gray-300"}`} />
+      <div className={`min-h-screen bg-bg`}>
+        <div className={`h-[500px] md:h-[600px] animate-pulse ${theme === "dark" ? "bg-border" : "bg-gray-300"}`} />
         <div className="max-w-7xl mx-auto px-4 md:px-8 py-8">
           {[1, 2, 3].map((i) => (
             <div key={i} className="mb-8">
@@ -751,12 +794,11 @@ export default function Home() {
     );
   }
 
-  // Determine what to show for personalization section
   const showForYou = forYouRecs.length >= 3;
   const showOnboarding = isAuthenticated && !showForYou;
 
   return (
-    <div className={`min-h-screen ${theme === "dark" ? "bg-[#0B0B12]" : "bg-[#F8F9FC]"}`}>
+    <div className={`min-h-screen bg-bg`}>
       <HeroCarousel movies={featuredMovies} language={language} />
 
       <div className="max-w-7xl mx-auto px-4 md:px-8 py-8 space-y-10">
@@ -780,22 +822,29 @@ export default function Home() {
         )}
 
         <MovieCarousel movies={trendingMovies} title={language === "bg" ? "Популярни" : "Trending"} icon={TrendingUp} language={language} />
+
+        {/* Spotlight Card */}
+        {spotlightMovie && (
+          <SpotlightCard movie={spotlightMovie} language={language} />
+        )}
+
         <MovieCarousel movies={topRatedMovies} title={language === "bg" ? "Топ рейтинг" : "Top Rated"} icon={Star} language={language} />
+
         <MovieCarousel movies={recentMovies} title={language === "bg" ? "Нови филми" : "Recently Released"} icon={Calendar} language={language} />
 
         {/* AI Search Promo */}
         <section className={`relative rounded-2xl p-8 overflow-hidden ${theme === "dark"
-          ? "bg-[#1A1A33] border border-[#2A2A4A]"
-          : "bg-white border border-[#E2E4F0]"}`}>
+          ? "bg-surface-2 border border-border"
+          : "bg-white border border-border"}`}>
           <div className="relative flex flex-col md:flex-row items-center gap-6">
             <div className="p-4 rounded-2xl bg-primary">
               <Sparkles className="w-10 h-10 text-white" />
             </div>
             <div className="flex-1 text-center md:text-left">
-              <h3 className={`text-2xl font-bold mb-2 ${theme === "dark" ? "text-[#EDEDF7]" : "text-[#1A1B2E]"}`}>
+              <h3 className={`text-2xl font-bold mb-2 text-text`}>
                 {language === "bg" ? "AI Интелигентно търсене" : "AI Smart Search"}
               </h3>
-              <p className={theme === "dark" ? "text-[#A7A7C7]" : "text-[#5B5D78]"}>
+              <p className="text-muted">
                 {language === "bg"
                   ? "Не знаеш точното заглавие? Опиши какво искаш да гледаш и нашият AI ще намери перфектния филм за теб."
                   : "Don't know the exact title? Describe what you want to watch and our AI will find the perfect movie for you."}

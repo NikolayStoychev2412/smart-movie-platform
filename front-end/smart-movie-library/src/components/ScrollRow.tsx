@@ -41,8 +41,8 @@ export default function ScrollRow({ children, className = "" }: ScrollRowProps) 
   }, [children]);
 
   const arrowClass = theme === "dark"
-    ? "bg-[#2A2A4A] text-white hover:bg-[#3A3A5A]"
-    : "bg-white text-[#1A1B2E] hover:bg-[#F3F4FF] border border-[#E2E4F0] shadow-md";
+    ? "bg-border text-white hover:bg-[#3A3A5A]"
+    : "bg-white text-text hover:bg-surface-2 border border-border shadow-md";
 
   return (
     <div className="relative group">

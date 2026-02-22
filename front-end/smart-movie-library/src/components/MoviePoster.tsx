@@ -25,9 +25,9 @@ export default function MoviePoster({ posterPath, posterUrl, alt, size = "md", c
   if (!url || error) {
     return (
       <div className={`aspect-[2/3] rounded-lg flex items-center justify-center ${
-        theme === "dark" ? "bg-[#2A2A4A]" : "bg-gray-200"
+        theme === "dark" ? "bg-border" : "bg-gray-200"
       } ${className}`}>
-        <Film className={`w-8 h-8 ${theme === "dark" ? "text-[#5B5D78]" : "text-gray-400"}`} />
+        <Film className={`w-8 h-8 ${theme === "dark" ? "text-muted" : "text-gray-400"}`} />
       </div>
     );
   }

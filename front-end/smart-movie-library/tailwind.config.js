@@ -22,6 +22,15 @@ export default {
         "micro": ["11px", { lineHeight: "1.4", fontWeight: "500" }],
       },
       colors: {
+        // === SEMANTIC TOKENS (CSS var-based, theme-aware) ===
+        bg: "var(--bg)",
+        surface: "var(--surface)",
+        "surface-2": "var(--surface-2)",
+        "surface-hover": "var(--surface-hover)",
+        border: "var(--border)",
+        text: "var(--text)",
+        muted: "var(--text-muted)",
+
         // === MIDNIGHT VIOLET PALETTE ===
 
         // Primary — Violet

@@ -362,7 +362,7 @@ def admin_update_movie(
     if not movie:
         raise HTTPException(status_code=404, detail="Movie not found")
 
-    update_data = data.dict(exclude_unset=True)
+    update_data = data.model_dump(exclude_unset=True)
     changed_fields = {}
 
     for field, value in update_data.items():
@@ -386,7 +386,7 @@ def admin_update_movie(
     # Only log if something actually changed
     if changed_fields:
         log_security_event(
-            SecurityEventType.MOVIE_CREATED,  # reuse; closest existing event type
+            SecurityEventType.MOVIE_UPDATED,
             user_id=current_user.id,
             user_email=current_user.email,
             ip_address=request.client.host if request.client else "unknown",

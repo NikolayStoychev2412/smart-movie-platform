@@ -9,7 +9,7 @@ import { useApp } from '../context/AppContext';
 import api from '../api/client';
 import MoviePoster from '../components/MoviePoster';
 import EmptyState from '../components/EmptyState';
-import type { Movie, WatchStatus } from '../types';
+import type { Movie, WatchStatus, ApiError } from '../types';
 
 interface WatchlistItem {
   id: number;
@@ -46,8 +46,8 @@ export default function Watchlist() {
     try {
       const response = await api.get('/watchlist/');
       setItems(response.data || []);
-    } catch (err: any) {
-      if (err.response?.status === 401) {
+    } catch (err) {
+      if ((err as ApiError).response?.status === 401) {
         navigate('/login', { state: { from: '/watchlist' } });
       }
       setItems([]);
@@ -63,7 +63,6 @@ export default function Watchlist() {
         item.movie_id === movieId ? { ...item, status: newStatus } : item
       ));
     } catch {
-      // Status update failed
     }
   };
 
@@ -72,7 +71,6 @@ export default function Watchlist() {
       await api.delete(`/watchlist/${movieId}`);
       setItems(items.filter(item => item.movie_id !== movieId));
     } catch {
-      // Remove failed
     }
   };
 
@@ -126,21 +124,21 @@ export default function Watchlist() {
 
   if (loading) {
     return (
-      <div className={`min-h-screen flex items-center justify-center ${theme === 'dark' ? 'bg-[#0B0B12]' : 'bg-[#F8F9FC]'}`}>
+      <div className={`min-h-screen flex items-center justify-center bg-bg`}>
         <Loader2 className="w-8 h-8 animate-spin text-primary" />
       </div>
     );
   }
 
   return (
-    <div className={`min-h-screen transition-colors ${theme === 'dark' ? 'bg-[#0B0B12]' : 'bg-[#F8F9FC]'}`}>
+    <div className={`min-h-screen transition-colors bg-bg`}>
       {/* Header */}
-      <div className={`border-b ${theme === 'dark' ? 'bg-[#121226] border-[#2A2A4A]' : 'bg-white border-[#E2E4F0]'}`}>
+      <div className={`border-b ${theme === 'dark' ? 'bg-surface border-border' : 'bg-white border-border'}`}>
         <div className="max-w-7xl mx-auto px-4 md:px-8 py-8">
-          <h1 className={`text-page-title mb-2 ${theme === 'dark' ? 'text-white' : 'text-[#1A1B2E]'}`}>
+          <h1 className={`text-page-title mb-2 text-text`}>
             {language === 'bg' ? 'Моят списък' : 'My Watchlist'}
           </h1>
-          <p className={theme === 'dark' ? 'text-[#A7A7C7]' : 'text-[#5B5D78]'}>
+          <p className="text-muted">
             {language === 'bg'
               ? 'Следете филмите, които искате да гледате'
               : 'Keep track of movies you want to watch'
@@ -149,10 +147,10 @@ export default function Watchlist() {
 
           {/* Stats */}
           <div className="flex flex-wrap gap-3 mt-6">
-            <div className={`flex items-center gap-2 px-4 py-2 rounded-lg ${theme === 'dark' ? 'bg-[#1A1A33]' : 'bg-gray-100'}`}>
-              <Film className={`w-5 h-5 ${theme === 'dark' ? 'text-[#A7A7C7]' : 'text-[#5B5D78]'}`} />
-              <span className={`font-medium ${theme === 'dark' ? 'text-white' : 'text-[#1A1B2E]'}`}>{stats.total}</span>
-              <span className={theme === 'dark' ? 'text-[#A7A7C7]' : 'text-[#5B5D78]'}>{language === 'bg' ? 'Общо' : 'Total'}</span>
+            <div className={`flex items-center gap-2 px-4 py-2 rounded-lg ${theme === 'dark' ? 'bg-surface-2' : 'bg-gray-100'}`}>
+              <Film className={`w-5 h-5 text-muted`} />
+              <span className={`font-medium text-text`}>{stats.total}</span>
+              <span className="text-muted">{language === 'bg' ? 'Общо' : 'Total'}</span>
             </div>
             <div className="flex items-center gap-2 px-4 py-2 bg-blue-500/10 rounded-lg">
               <Clock className="w-5 h-5 text-blue-500" />
@@ -182,8 +180,8 @@ export default function Watchlist() {
       <div className="max-w-7xl mx-auto px-4 md:px-8 py-8">
         {/* Filter */}
         <div className="flex items-center gap-2 mb-6 flex-wrap">
-          <Filter className={`w-5 h-5 ${theme === 'dark' ? 'text-[#A7A7C7]' : 'text-[#5B5D78]'}`} />
-          <span className={`mr-2 ${theme === 'dark' ? 'text-[#A7A7C7]' : 'text-[#5B5D78]'}`}>
+          <Filter className={`w-5 h-5 text-muted`} />
+          <span className={`mr-2 text-muted`}>
             {language === 'bg' ? 'Филтър:' : 'Filter:'}
           </span>
           {(['all', 'planned', 'watching', 'completed', 'dropped'] as const).map((status) => (
@@ -194,8 +192,8 @@ export default function Watchlist() {
                 filter === status
                   ? 'bg-primary text-white'
                   : theme === 'dark'
-                    ? 'bg-[#1A1A33] text-[#A7A7C7] hover:bg-[#2A2A4A]'
-                    : 'bg-gray-100 text-[#5B5D78] hover:bg-gray-200'
+                    ? 'bg-surface-2 text-muted hover:bg-border'
+                    : 'bg-gray-100 text-muted hover:bg-gray-200'
               }`}
             >
               {status === 'all'
@@ -227,7 +225,7 @@ export default function Watchlist() {
                 <div
                   key={item.id}
                   className={`rounded-lg p-4 border ${
-                    theme === 'dark' ? 'bg-[#1A1A33] border-[#2A2A4A]' : 'bg-white border-[#E2E4F0] shadow-sm'
+                    theme === 'dark' ? 'bg-surface-2 border-border' : 'bg-white border-border shadow-sm'
                   }`}
                 >
                   <div className="flex gap-4">
@@ -249,14 +247,12 @@ export default function Watchlist() {
                       <div className="flex items-start justify-between gap-4">
                         <div className="min-w-0">
                           <h3
-                            className={`text-lg font-semibold cursor-pointer hover:text-primary transition-colors truncate ${
-                              theme === 'dark' ? 'text-white' : 'text-[#1A1B2E]'
-                            }`}
+                            className={`text-lg font-semibold cursor-pointer hover:text-primary transition-colors truncate text-text`}
                             onClick={() => navigate(`/movie/${movie.id}`)}
                           >
                             {title}
                           </h3>
-                          <p className={`text-sm ${theme === 'dark' ? 'text-[#A7A7C7]' : 'text-[#5B5D78]'}`}>{genre}</p>
+                          <p className={`text-sm text-muted`}>{genre}</p>
                         </div>
 
                         {/* Status Badge */}
@@ -267,7 +263,7 @@ export default function Watchlist() {
                       </div>
 
                       {/* Rating & Date */}
-                      <div className={`flex items-center gap-4 mt-2 text-sm ${theme === 'dark' ? 'text-[#A7A7C7]' : 'text-[#5B5D78]'}`}>
+                      <div className={`flex items-center gap-4 mt-2 text-sm text-muted`}>
                         {movie.average_rating && (
                           <div className="flex items-center gap-1">
                             <Star className="w-4 h-4 text-yellow-500 fill-yellow-500" />
@@ -285,7 +281,7 @@ export default function Watchlist() {
 
                       {/* Actions */}
                       <div className="flex items-center gap-2 mt-4 flex-wrap">
-                        <span className={`text-sm mr-2 ${theme === 'dark' ? 'text-[#A7A7C7]' : 'text-[#5B5D78]'}`}>
+                        <span className={`text-sm mr-2 text-muted`}>
                           {language === 'bg' ? 'Статус:' : 'Status:'}
                         </span>
                         {(['planned', 'watching', 'completed', 'dropped'] as const).map((status) => (
@@ -296,8 +292,8 @@ export default function Watchlist() {
                               item.status === status
                                 ? getStatusColor(status) + ' border'
                                 : theme === 'dark'
-                                  ? 'bg-[#2A2A4A] text-[#A7A7C7] hover:bg-[#3A3A5A]'
-                                  : 'bg-gray-100 text-[#5B5D78] hover:bg-gray-200'
+                                  ? 'bg-border text-muted hover:bg-[#3A3A5A]'
+                                  : 'bg-gray-100 text-muted hover:bg-gray-200'
                             }`}
                           >
                             {getStatusIcon(status)}

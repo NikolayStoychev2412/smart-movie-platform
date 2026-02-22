@@ -35,13 +35,10 @@ export default function SearchBar({
   const [searchMode, setSearchMode] = useState<SearchMode>(initialMode);
 
   // If parent controls the value/mode, sync local state
-  useEffect(() => {
-    if (typeof value === "string") setQuery(value);
-  }, [value]);
-
-  useEffect(() => {
-    if (mode) setSearchMode(mode);
-  }, [mode]);
+  // eslint-disable-next-line react-hooks/set-state-in-effect
+  useEffect(() => { if (typeof value === "string") setQuery(value); }, [value]);
+  // eslint-disable-next-line react-hooks/set-state-in-effect
+  useEffect(() => { if (mode) setSearchMode(mode); }, [mode]);
 
   const handleSubmit = (e: FormEvent) => {
     e.preventDefault();

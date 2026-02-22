@@ -618,10 +618,10 @@ Examples:
     print()
     all_movie_ids = []
 
-    all_movie_ids.extend(importer.get_popular_movies(pages=10))
-    all_movie_ids.extend(importer.get_top_rated_movies(pages=10))
-    all_movie_ids.extend(importer.get_trending_movies(pages=3))
-    all_movie_ids.extend(importer.get_now_playing_movies(pages=2))
+    all_movie_ids.extend(importer.get_popular_movies(pages=20))
+    all_movie_ids.extend(importer.get_top_rated_movies(pages=20))
+    all_movie_ids.extend(importer.get_trending_movies(pages=5))
+    all_movie_ids.extend(importer.get_now_playing_movies(pages=3))
 
     seen = set()
     unique_ids = []

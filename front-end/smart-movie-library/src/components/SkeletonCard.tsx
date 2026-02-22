@@ -6,11 +6,11 @@ interface SkeletonCardProps {
 
 export default function SkeletonCard({ variant = "poster" }: SkeletonCardProps) {
   const { theme } = useApp();
-  const pulse = theme === "dark" ? "bg-[#2A2A4A]" : "bg-gray-200";
+  const pulse = theme === "dark" ? "bg-border" : "bg-gray-200";
 
   if (variant === "stat") {
     return (
-      <div className={`animate-pulse rounded-lg p-5 ${theme === "dark" ? "bg-[#1A1A33]" : "bg-white"}`}>
+      <div className={`animate-pulse rounded-lg p-5 ${theme === "dark" ? "bg-surface-2" : "bg-white"}`}>
         <div className={`w-10 h-10 rounded-lg ${pulse} mb-3`} />
         <div className={`h-7 w-16 rounded ${pulse} mb-2`} />
         <div className={`h-3 w-24 rounded ${pulse}`} />
@@ -20,7 +20,7 @@ export default function SkeletonCard({ variant = "poster" }: SkeletonCardProps) 
 
   if (variant === "list") {
     return (
-      <div className={`animate-pulse flex gap-4 rounded-lg p-4 ${theme === "dark" ? "bg-[#1A1A33]" : "bg-white"}`}>
+      <div className={`animate-pulse flex gap-4 rounded-lg p-4 ${theme === "dark" ? "bg-surface-2" : "bg-white"}`}>
         <div className={`w-[94px] h-[141px] rounded-lg ${pulse}`} />
         <div className="flex-1 space-y-2 py-2">
           <div className={`h-4 w-2/3 rounded ${pulse}`} />

@@ -14,16 +14,14 @@ export default function EmptyState({ icon: Icon, title, description, action }: E
 
   return (
     <div className={`text-center py-12 rounded-lg ${
-      theme === "dark" ? "bg-[#1A1A33]/50" : "bg-[#F3F4FF]"
+      theme === "dark" ? "bg-surface-2/50" : "bg-surface-2"
     }`}>
-      <Icon className={`w-12 h-12 mx-auto mb-3 ${
-        theme === "dark" ? "text-[#5B5D78]" : "text-[#A7A7C7]"
-      }`} />
-      <p className={`font-medium ${theme === "dark" ? "text-[#A7A7C7]" : "text-[#5B5D78]"}`}>
+      <Icon className={`w-12 h-12 mx-auto mb-3 text-muted`} />
+      <p className={`font-medium text-muted`}>
         {title}
       </p>
       {description && (
-        <p className={`text-sm mt-1 ${theme === "dark" ? "text-[#5B5D78]" : "text-[#A7A7C7]"}`}>
+        <p className={`text-sm mt-1 text-muted`}>
           {description}
         </p>
       )}
