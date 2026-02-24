@@ -3,7 +3,7 @@
 export const translations = {
   bg: {
     // Navbar
-    brand: 'КиноБаза',
+    brand: 'MovieMaze',
     home: 'Начало',
     forYou: 'За теб',
     watchlist: 'Списък',
@@ -340,7 +340,7 @@ export const translations = {
 
   en: {
     // Navbar
-    brand: 'MovieBase',
+    brand: 'MovieMaze',
     home: 'Home',
     forYou: 'For You',
     watchlist: 'Watchlist',

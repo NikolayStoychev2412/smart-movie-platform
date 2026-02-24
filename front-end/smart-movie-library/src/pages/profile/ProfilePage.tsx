@@ -46,38 +46,38 @@ export default function ProfilePage() {
                 <span className="text-3xl md:text-4xl font-bold text-white">{initial}</span>
               </div>
               <div>
-                <h1 className="text-2xl md:text-3xl font-bold text-white">{user.name}</h1>
+                <h1 className="text-2xl md:text-3xl font-bold text-text">{user.name}</h1>
                 <p className="text-muted text-sm md:text-base mt-0.5 hidden sm:block">{user.email}</p>
               </div>
             </div>
 
             {/* Stat pills */}
             <div className="flex gap-3 md:ml-auto flex-wrap">
-              <div className={`flex items-center gap-2 px-4 py-2.5 rounded-xl ${theme === "dark" ? "bg-white/5 border border-white/10" : "bg-white/10 border border-white/20"}`}>
+              <div className={`flex items-center gap-2 px-4 py-2.5 rounded-xl ${theme === "dark" ? "bg-white/5 border border-white/10" : "bg-surface-2 border border-border"}`}>
                 <Heart className="w-4 h-4 text-secondary" />
-                <span className="text-white font-semibold text-lg">{counts.favorites}</span>
+                <span className="text-text font-semibold text-lg">{counts.favorites}</span>
                 <span className="text-muted text-sm hidden sm:inline">{t.favoritesLabel}</span>
               </div>
-              <div className={`flex items-center gap-2 px-4 py-2.5 rounded-xl ${theme === "dark" ? "bg-white/5 border border-white/10" : "bg-white/10 border border-white/20"}`}>
+              <div className={`flex items-center gap-2 px-4 py-2.5 rounded-xl ${theme === "dark" ? "bg-white/5 border border-white/10" : "bg-surface-2 border border-border"}`}>
                 <Check className="w-4 h-4 text-green-400" />
-                <span className="text-white font-semibold text-lg">{counts.completed}</span>
+                <span className="text-text font-semibold text-lg">{counts.completed}</span>
                 <span className="text-muted text-sm hidden sm:inline">{t.completedLabel}</span>
               </div>
-              <div className={`flex items-center gap-2 px-4 py-2.5 rounded-xl ${theme === "dark" ? "bg-white/5 border border-white/10" : "bg-white/10 border border-white/20"}`}>
+              <div className={`flex items-center gap-2 px-4 py-2.5 rounded-xl ${theme === "dark" ? "bg-white/5 border border-white/10" : "bg-surface-2 border border-border"}`}>
                 <Bookmark className="w-4 h-4 text-blue-400" />
-                <span className="text-white font-semibold text-lg">{counts.watchlist}</span>
+                <span className="text-text font-semibold text-lg">{counts.watchlist}</span>
                 <span className="text-muted text-sm hidden sm:inline">{t.toWatch}</span>
               </div>
-              <div className={`flex items-center gap-2 px-4 py-2.5 rounded-xl ${theme === "dark" ? "bg-white/5 border border-white/10" : "bg-white/10 border border-white/20"}`}>
+              <div className={`flex items-center gap-2 px-4 py-2.5 rounded-xl ${theme === "dark" ? "bg-white/5 border border-white/10" : "bg-surface-2 border border-border"}`}>
                 <MessageSquare className="w-4 h-4 text-purple-400" />
-                <span className="text-white font-semibold text-lg">{counts.reviews}</span>
+                <span className="text-text font-semibold text-lg">{counts.reviews}</span>
                 <span className="text-muted text-sm hidden sm:inline">{t.tabReviews}</span>
               </div>
             </div>
           </div>
 
           {/* Tab bar */}
-          <div className="flex gap-1 mt-6 p-1 rounded-xl bg-white/5 w-fit">
+          <div className={`flex gap-1 mt-6 p-1 rounded-xl w-fit ${theme === "dark" ? "bg-white/5" : "bg-surface-2 border border-border"}`}>
             <button
               onClick={() => setActiveTab("overview")}
               className={`flex items-center gap-2 px-5 py-2.5 rounded-lg font-medium text-sm transition-all ${

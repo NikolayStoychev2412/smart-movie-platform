@@ -27,7 +27,7 @@ export default function Footer() {
 
           {/* Copyright */}
           <p className={`text-xs text-muted`}>
-            © {new Date().getFullYear()} CineVault
+            © {new Date().getFullYear()} MovieMaze
           </p>
         </div>
       </div>
