@@ -29,7 +29,7 @@ export default function SearchBar({
   value,
   mode,
 }: SearchBarProps) {
-  const { theme, t, language } = useApp();
+  const { theme, t } = useApp();
 
   const [query, setQuery] = useState(initialValue);
   const [searchMode, setSearchMode] = useState<SearchMode>(initialMode);
@@ -68,10 +68,10 @@ export default function SearchBar({
                 ? "bg-white/10 text-gray-200 hover:bg-white/15"
                 : "bg-gray-200 text-gray-700 hover:bg-gray-300"
             }`}
-            title={language === "bg" ? "Търсене по заглавие" : "Search by title"}
+            title={t.titleModeTooltip}
           >
             <Search className="w-4 h-4" />
-            {language === "bg" ? "Заглавие" : "Title"}
+            {t.titleMode}
           </button>
 
           <button
@@ -84,7 +84,7 @@ export default function SearchBar({
                 ? "bg-white/10 text-gray-200 hover:bg-white/15"
                 : "bg-gray-200 text-gray-700 hover:bg-gray-300"
             }`}
-            title={language === "bg" ? "AI търсене" : "AI search"}
+            title={t.aiModeTooltip}
           >
             <Sparkles className="w-4 h-4" />
             AI
@@ -110,9 +110,7 @@ export default function SearchBar({
             placeholder={
               searchMode === "ai"
                 ? t.searchPlaceholder
-                : language === "bg"
-                ? "Търси по точно заглавие..."
-                : "Search by exact title..."
+                : t.exactTitlePlaceholder
             }
             className={`flex-1 px-3 bg-transparent focus:outline-none ${
               theme === "dark" ? "text-white placeholder:text-gray-400" : "text-gray-900 placeholder:text-gray-400"
@@ -127,7 +125,7 @@ export default function SearchBar({
                 theme === "dark" ? "text-gray-300 hover:bg-white/10" : "text-gray-500 hover:bg-gray-100"
               }`}
               aria-label="Clear search"
-              title={language === "bg" ? "Изчисти" : "Clear"}
+              title={t.clearSearch}
             >
               <X className="w-4 h-4" />
             </button>
@@ -149,11 +147,7 @@ export default function SearchBar({
         {!isNavbar && (
           <p className={`text-xs mt-3 flex items-center gap-2 ${theme === "dark" ? "text-gray-400" : "text-gray-500"}`}>
             <Sparkles className="w-4 h-4 text-tmdb-light-blue" />
-            {searchMode === "ai"
-              ? t.searchHint
-              : language === "bg"
-              ? "Пример: “The Godfather”"
-              : 'Example: "The Godfather"'}
+            {searchMode === "ai" ? t.searchHint : t.exactTitleHint}
           </p>
         )}
       </form>

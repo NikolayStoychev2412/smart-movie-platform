@@ -30,8 +30,7 @@ export const authApi = {
         headers: { "Content-Type": "application/x-www-form-urlencoded" },
         body: formBody,
       });
-    } catch (networkError) {
-      console.error("[Auth] Network error:", networkError);
+    } catch {
       throw new Error("Cannot connect to server");
     }
 
@@ -77,8 +76,7 @@ export const authApi = {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ name, email, password }),
       });
-    } catch (networkError) {
-      console.error("[Auth] Network error:", networkError);
+    } catch {
       throw new Error("Cannot connect to server");
     }
 

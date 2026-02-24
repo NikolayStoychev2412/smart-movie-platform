@@ -4,6 +4,7 @@ import type { WatchlistEntry, Movie } from "../../../types";
 import { Play } from "lucide-react";
 import MovieCarousel from "../components/MovieCarousel";
 import SectionHeader from "../components/SectionHeader";
+import { translations } from "../../../i18n/translations";
 
 export default function ContinueWatchingSection({
   theme,
@@ -14,6 +15,7 @@ export default function ContinueWatchingSection({
   language: string;
   onCount: (n: number) => void;
 }) {
+  const t = translations[language as "bg" | "en"];
   const [watching, setWatching] = useState<WatchlistEntry[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -34,7 +36,7 @@ export default function ContinueWatchingSection({
       <div className="absolute top-2 right-2 px-2 py-0.5 rounded-full bg-yellow-500 flex items-center gap-1">
         <Play className="w-3 h-3 text-white fill-white" />
         <span className="text-white text-[10px] font-bold hidden sm:inline">
-          {language === "bg" ? "Гледам" : "Watching"}
+          {t.watchingStatus}
         </span>
       </div>
     ),
@@ -46,9 +48,9 @@ export default function ContinueWatchingSection({
     <section>
       <SectionHeader
         icon={Play} iconColor="bg-yellow-500/10 text-yellow-500"
-        label={language === "bg" ? "Продължи да гледаш" : "Continue Watching"}
+        label={t.continueWatching}
         count={movies.length}
-        viewAllTo="/watchlist" viewAllLabel={language === "bg" ? "Виж всички" : "View All"}
+        viewAllTo="/watchlist" viewAllLabel={t.viewAll}
         theme={theme}
       />
       <MovieCarousel

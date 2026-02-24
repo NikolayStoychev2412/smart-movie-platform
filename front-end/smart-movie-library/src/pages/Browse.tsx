@@ -8,6 +8,8 @@ import { Search, Sparkles, Filter, X, Grid, List, ChevronLeft, ChevronRight, Fil
 import RatingBadge from "../components/RatingBadge";
 import SkeletonCard from "../components/SkeletonCard";
 import EmptyState from "../components/EmptyState";
+import { translateGenre } from "../constants/preferences";
+import { translations, type Language } from "../i18n/translations";
 
 const movieCache = {
   all: null as Movie[] | null,
@@ -200,20 +202,21 @@ function calculateGrade(
 
 function MovieBadge({ badge, language }: { badge: MovieWithGrade["_badge"]; language: string }) {
   if (!badge) return null;
+  const t = translations[language as Language];
 
   const config = {
     best_for_you: {
-      label: language === "bg" ? "За теб" : "Best for you",
+      label: t.bestForYouLabel,
       icon: <Heart className="w-3 h-3" />,
       classes: "bg-primary text-white"
     },
     matches_search: {
-      label: language === "bg" ? "Точно съвпадение" : "Great match",
+      label: t.greatMatchLabel,
       icon: <Sparkles className="w-3 h-3" />,
       classes: "bg-blue-600 text-white"
     },
     trending: {
-      label: language === "bg" ? "Популярни" : "Trending",
+      label: t.trendingLabel,
       icon: <TrendingUp className="w-3 h-3" />,
       classes: "bg-orange-500 text-white"
     },
@@ -229,6 +232,7 @@ function MovieBadge({ badge, language }: { badge: MovieWithGrade["_badge"]; lang
 }
 
 function MovieCardGrid({ movie, onClick, language, theme, snippet }: { movie: MovieWithGrade; onClick: () => void; language: string; theme: string; snippet?: string }) {
+  const t = translations[language as Language];
   const title = language === "bg" ? movie.title_bg || movie.title : movie.title;
   const posterUrl = movie.poster_path ? `https://image.tmdb.org/t/p/w342${movie.poster_path}` : movie.poster_url;
   const releaseDate = movie.release_date ? new Date(movie.release_date).toLocaleDateString(language === "bg" ? "bg-BG" : "en-US", { year: "numeric", month: "short", day: "numeric" }) : null;
@@ -262,7 +266,7 @@ function MovieCardGrid({ movie, onClick, language, theme, snippet }: { movie: Mo
             <div className="flex items-center gap-1.5 mb-1.5">
               <Sparkles className="w-3 h-3 text-[#A78BFA]" />
               <span className="text-[10px] font-bold text-[#A78BFA] uppercase tracking-wider">
-                {language === "bg" ? "AI съвпадение" : "AI Match"}
+                {t.aiMatchLabel}
               </span>
             </div>
             <p className="text-white/90 text-[11px] leading-relaxed line-clamp-4">{snippet}</p>
@@ -418,7 +422,7 @@ function Pagination({ currentPage, totalPages, onPageChange, theme }: { currentP
 
 export default function Browse() {
   const navigate = useNavigate();
-  const { theme, language, isAuthenticated } = useApp();
+  const { theme, language, isAuthenticated, t } = useApp();
   const [params, setParams] = useSearchParams();
 
   // State
@@ -497,15 +501,15 @@ export default function Browse() {
     return () => window.removeEventListener("focus", onFocus);
   }, [isAuthenticated]);
 
-  // Get unique genres
+  // Get unique genres — always from English genre field so values are consistent.
+  // Display is handled by translateGenre at render time.
   const genres = useMemo(() => {
     const genreSet = new Set<string>();
     allMovies.forEach((movie) => {
-      const genre = language === "bg" ? movie.genre_bg || movie.genre : movie.genre;
-      if (genre) genre.split(",").forEach((g) => genreSet.add(g.trim()));
+      if (movie.genre) movie.genre.split(",").forEach((g) => genreSet.add(g.trim()));
     });
     return Array.from(genreSet).sort();
-  }, [allMovies, language]);
+  }, [allMovies]);
 
   // Fetch all movies
   useEffect(() => {
@@ -597,12 +601,11 @@ export default function Browse() {
     const hasActiveResults = searchResults.length > 0;
     let movies: MovieWithGrade[] = hasActiveResults ? [...searchResults] : [...allMovies];
 
-    // Filter by genre
+    // Filter by genre — selectedGenre is always an English name, match against movie.genre
     if (selectedGenre !== "all") {
-      movies = movies.filter((m) => {
-        const genre = language === "bg" ? m.genre_bg || m.genre : m.genre;
-        return genre?.toLowerCase().includes(selectedGenre.toLowerCase());
-      });
+      movies = movies.filter((m) =>
+        (m.genre || "").toLowerCase().includes(selectedGenre.toLowerCase())
+      );
     }
 
     // Filter by mood (always match against English genres since moodToGenres uses English names)
@@ -757,7 +760,7 @@ export default function Browse() {
       <div className={`border-b ${theme === "dark" ? "bg-surface border-border" : "bg-white border-border"}`}>
         <div className="max-w-7xl mx-auto px-4 md:px-8 py-6">
           <h1 className={`text-2xl font-bold text-text`}>
-            {language === "bg" ? "Разгледай филми" : "Browse Movies"}
+            {t.browseMovies}
           </h1>
 
           {/* AI Search */}
@@ -772,7 +775,7 @@ export default function Browse() {
                 type="text"
                 value={searchQuery}
                 onChange={(e) => handleInputChange(e.target.value)}
-                placeholder={language === "bg" ? "Опиши какъв филм търсиш... напр. \"забавна комедия за семейството\"" : "Describe what you're looking for... e.g. \"fun family comedy\""}
+                placeholder={t.aiSearchPlaceholder}
                 className={`w-full pl-12 pr-12 py-3.5 rounded-lg bg-transparent focus:outline-none ${
                   theme === "dark" ? "text-white placeholder-gray-500" : "text-text placeholder-gray-400"
                 }`}
@@ -793,11 +796,11 @@ export default function Browse() {
             <div className="flex items-center justify-between mt-2">
               <p className={`text-xs flex items-center gap-1.5 text-muted`}>
                 <Sparkles className="w-3 h-3 text-primary" />
-                {language === "bg" ? "AI семантично търсене — опиши жанр, настроение или сюжет" : "AI semantic search — describe genre, mood, or plot"}
+                {t.aiSearchHint}
               </p>
               {searchQuery.trim().length >= MIN_SEARCH_LENGTH && searchResults.length === 0 && !searching && (
                 <p className="text-xs font-medium text-primary">
-                  {language === "bg" ? "Натисни Enter \u21B5" : "Press Enter \u21B5"}
+                  {t.pressEnter}
                 </p>
               )}
             </div>
@@ -813,13 +816,13 @@ export default function Browse() {
             <div className={`rounded-xl border overflow-hidden sticky top-24 ${theme === "dark" ? "bg-surface-2 border-border" : "bg-white border-border shadow-sm"}`}>
               <div className={`px-4 py-3 border-b font-semibold flex items-center gap-2 ${theme === "dark" ? "border-border text-white" : "border-border text-text"}`}>
                 <Filter className="w-4 h-4" />
-                {language === "bg" ? "Филтри" : "Filters"}
+                {t.filtersLabel}
               </div>
 
               {/* Sort */}
               <div className={`px-4 py-3 border-b border-border`}>
                 <label className={`block text-sm font-medium mb-2 text-muted`}>
-                  {language === "bg" ? "Сортирай" : "Sort by"}
+                  {t.sortByLabel}
                 </label>
                 <select
                   value={sortBy}
@@ -837,22 +840,24 @@ export default function Browse() {
               {/* Genre */}
               <div className={`px-4 py-3 border-b border-border`}>
                 <label className={`block text-sm font-medium mb-2 text-muted`}>
-                  {language === "bg" ? "Жанр" : "Genre"}
+                  {t.genreLabel}
                 </label>
                 <select
                   value={selectedGenre}
                   onChange={(e) => { setSelectedGenre(e.target.value); setCurrentPage(1); }}
                   className={`w-full px-3 py-2 rounded-lg border ${theme === "dark" ? "bg-border border-border text-white" : "bg-bg border-border text-text"}`}
                 >
-                  <option value="all">{language === "bg" ? "Всички" : "All"}</option>
-                  {genres.map((g) => <option key={g} value={g}>{g}</option>)}
+                  <option value="all">{t.all}</option>
+                  {genres.map((g) => (
+                    <option key={g} value={g}>{translateGenre(g, language as Language)}</option>
+                  ))}
                 </select>
               </div>
 
               {/* Mood */}
               <div className="px-4 py-3">
                 <label className={`block text-sm font-medium mb-2 text-muted`}>
-                  {language === "bg" ? "Настроение" : "Mood"}
+                  {t.moodLabel}
                 </label>
                 <div className="flex flex-col gap-1.5">
                   {(Object.keys(moodLabels) as MoodOption[]).map((mood) => (
@@ -875,7 +880,7 @@ export default function Browse() {
               {(selectedGenre !== "all" || selectedMood !== "all" || searchQuery) && (
                 <div className={`px-4 py-3 border-t border-border`}>
                   <p className={`text-xs font-medium mb-2 text-muted`}>
-                    {language === "bg" ? "Активни:" : "Active:"}
+                    {t.activeFilters}
                   </p>
                   <div className="flex flex-wrap gap-2">
                     {searchQuery && (
@@ -887,7 +892,7 @@ export default function Browse() {
                     )}
                     {selectedGenre !== "all" && (
                       <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs ${theme === "dark" ? "bg-blue-500/20 text-blue-400" : "bg-blue-100 text-blue-700"}`}>
-                        {selectedGenre}
+                        {translateGenre(selectedGenre, language as Language)}
                         <button onClick={() => setSelectedGenre("all")} className="flex-shrink-0 w-4 h-4 flex items-center justify-center rounded hover:bg-blue-500/30 transition-colors"><X className="w-3 h-3" /></button>
                       </span>
                     )}
@@ -912,8 +917,8 @@ export default function Browse() {
                   <Filter className="w-5 h-5" />
                 </button>
                 <p className={`text-sm text-muted`}>
-                  {displayMovies.length} {language === "bg" ? "филма" : "movies"}
-                  {totalPages > 1 && ` • ${language === "bg" ? "Страница" : "Page"} ${currentPage}/${totalPages}`}
+                  {displayMovies.length} {t.movies}
+                  {totalPages > 1 && ` • ${t.pageWord} ${currentPage}/${totalPages}`}
                 </p>
               </div>
 
@@ -940,8 +945,8 @@ export default function Browse() {
             {!loading && !searching && displayMovies.length === 0 && (
               <EmptyState
                 icon={Search}
-                title={language === "bg" ? "Няма намерени филми" : "No movies found"}
-                description={language === "bg" ? "Опитайте с различно търсене" : "Try a different search"}
+                title={t.noMoviesFound}
+                description={t.tryDifferentSearch}
               />
             )}
 

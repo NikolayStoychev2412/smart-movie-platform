@@ -10,7 +10,7 @@ import { thCls, rowHover, theadRow, tableBox, pageBtn, mutedText, headText } fro
 import type { ApiError, ReviewItem, DialogState } from "../types";
 
 export default function ReviewsTab() {
-  const { theme, language } = useApp();
+  const { theme, language, t } = useApp();
   const navigate = useNavigate();
   const [reviews, setReviews] = useState<ReviewItem[]>([]);
   const [total, setTotal] = useState(0);
@@ -45,7 +45,7 @@ export default function ReviewsTab() {
 
   const handleDelete = (reviewId: number) => {
     openDialog(
-      language === "bg" ? "Изтрий това ревю?" : "Delete this review?",
+      t.deleteReviewConfirmAdmin,
       async () => {
         closeDialog();
         setActionLoading(reviewId);
@@ -81,12 +81,12 @@ export default function ReviewsTab() {
           <div className="relative flex-1">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted" />
             <input type="text" value={searchInput} onChange={e => setSearchInput(e.target.value)}
-              placeholder={language === "bg" ? "Търси по потребител или филм..." : "Search by user or movie..."}
+              placeholder={t.searchByUserOrMovie}
               className={`w-full pl-10 pr-4 py-2.5 rounded-lg border ${theme === "dark" ? "bg-border border-border text-white placeholder:text-muted" : "bg-white border-border text-text placeholder:text-muted"} focus:outline-none focus:ring-2 focus:ring-primary`}
             />
           </div>
           <button type="submit" className="px-4 py-2.5 bg-primary text-white rounded-lg font-medium hover:brightness-110 transition">
-            {language === "bg" ? "Търси" : "Search"}
+            {t.search}
           </button>
           {search && (
             <button type="button" onClick={() => { setSearchInput(""); setSearch(""); setPage(0); }}
@@ -101,11 +101,11 @@ export default function ReviewsTab() {
             <table className="w-full">
               <thead className="sticky top-0 z-10">
                 <tr className={theadRow(theme)}>
-                  <th className={thCls(theme)}>{language === "bg" ? "Потребител" : "User"}</th>
-                  <th className={thCls(theme)}>{language === "bg" ? "Филм" : "Movie"}</th>
-                  <th className={thCls(theme)}>{language === "bg" ? "Оценка" : "Rating"}</th>
-                  <th className={thCls(theme)}>{language === "bg" ? "Коментар" : "Comment"}</th>
-                  <th className={thCls(theme)}>{language === "bg" ? "Дата" : "Date"}</th>
+                  <th className={thCls(theme)}>{t.userCol}</th>
+                  <th className={thCls(theme)}>{t.movieCol}</th>
+                  <th className={thCls(theme)}>{t.ratingLabelAdmin}</th>
+                  <th className={thCls(theme)}>{t.commentCol}</th>
+                  <th className={thCls(theme)}>{t.dateCol}</th>
                   <th className={`px-4 py-3 text-right text-xs font-semibold uppercase tracking-wider ${mutedText(theme)}`}></th>
                 </tr>
               </thead>
@@ -138,7 +138,7 @@ export default function ReviewsTab() {
                     <td className="px-4 py-3">
                       <button onClick={() => handleDelete(r.id)} disabled={actionLoading === r.id}
                         className={`p-2 rounded-lg transition-colors ${theme === "dark" ? "hover:bg-red-500/20 text-muted hover:text-red-400" : "hover:bg-red-50 text-muted hover:text-red-600"}`}
-                        title={language === "bg" ? "Изтрий" : "Delete"}>
+                        title={t.deleteTooltip}>
                         {actionLoading === r.id ? <Loader2 className="w-4 h-4 animate-spin" /> : <Trash2 className="w-4 h-4" />}
                       </button>
                     </td>
@@ -149,7 +149,7 @@ export default function ReviewsTab() {
           </div>
           {reviews.length === 0 && (
             <p className={`text-center py-8 text-sm ${mutedText(theme)}`}>
-              {language === "bg" ? "Няма ревюта" : "No reviews"}
+              {t.noReviewsAdmin}
             </p>
           )}
         </div>
@@ -157,9 +157,7 @@ export default function ReviewsTab() {
         {totalPages > 1 && (
           <div className="flex items-center justify-between">
             <p className={`text-xs text-muted`}>
-              {language === "bg"
-                ? `Стр. ${page + 1} от ${totalPages} (${total} ревюта)`
-                : `Page ${page + 1} of ${totalPages} (${total} reviews)`}
+              {`${t.pageLabel} ${page + 1} ${t.of} ${totalPages} (${total} ${t.reviewsWord})`}
             </p>
             <div className="flex gap-2">
               <button onClick={() => setPage(p => Math.max(0, p - 1))} disabled={page === 0} className={pageBtn(theme)}>

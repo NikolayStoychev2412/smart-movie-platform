@@ -2,18 +2,20 @@ import { useState } from "react";
 import { Play, X } from "lucide-react";
 import ScrollRow from "../../../components/ScrollRow";
 import type { MovieDetail } from "../types";
+import { translations } from "../../../i18n/translations";
 
 export default function VideosSection({ movie, theme, language }: { movie: MovieDetail; theme: string; language: string }) {
   const [playingVideo, setPlayingVideo] = useState<string|null>(null);
+  const t = translations[language as "bg" | "en"];
 
   const videos = [...(movie.videos||[]).filter(v => v.site === "YouTube")];
-  if (movie.trailer_youtube_key && !videos.find(v => v.key === movie.trailer_youtube_key)) videos.unshift({ id: "main", key: movie.trailer_youtube_key, name: language==="bg"?"Официален трейлър":"Official Trailer", site: "YouTube", type: "Trailer" });
+  if (movie.trailer_youtube_key && !videos.find(v => v.key === movie.trailer_youtube_key)) videos.unshift({ id: "main", key: movie.trailer_youtube_key, name: t.officialTrailer, site: "YouTube", type: "Trailer" });
 
   if (!videos.length) return null;
 
   return (
     <section>
-      <h2 className={`text-2xl font-bold mb-5 text-text`}>{language==="bg"?"Видео":"Videos"} <span className="ml-2 text-base font-normal text-muted">({videos.length})</span></h2>
+      <h2 className={`text-2xl font-bold mb-5 text-text`}>{t.videosLabel} <span className="ml-2 text-base font-normal text-muted">({videos.length})</span></h2>
       {playingVideo && <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/90 p-4" onClick={() => setPlayingVideo(null)}><button onClick={() => setPlayingVideo(null)} className="absolute top-4 right-4 p-2 text-white hover:text-muted"><X className="w-8 h-8"/></button><div className="w-full max-w-5xl aspect-video" onClick={e => e.stopPropagation()}><iframe src={`https://www.youtube.com/embed/${playingVideo}?autoplay=1`} title="Video" className="w-full h-full rounded-lg" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowFullScreen/></div></div>}
       <ScrollRow>
         {videos.map(v => (

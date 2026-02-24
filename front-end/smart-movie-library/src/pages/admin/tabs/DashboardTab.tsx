@@ -15,7 +15,7 @@ interface DashboardTabProps {
 }
 
 export default function DashboardTab({ stats, loading }: DashboardTabProps) {
-  const { theme, language } = useApp();
+  const { theme, t } = useApp();
   const navigate = useNavigate();
 
   if (loading) return <div className="flex justify-center py-20"><Loader2 className="w-8 h-8 animate-spin text-muted" /></div>;
@@ -29,11 +29,11 @@ export default function DashboardTab({ stats, loading }: DashboardTabProps) {
     <div className="space-y-8">
       {/* Stat cards */}
       <div className="grid grid-cols-2 lg:grid-cols-5 gap-4">
-        <StatCard label={language === "bg" ? "Потребители" : "Users"} value={stats.totals.users} icon={Users} color="bg-blue-500/20 text-blue-400" />
-        <StatCard label={language === "bg" ? "Филми" : "Movies"} value={stats.totals.movies} icon={Film} color="bg-green-500/20 text-green-400" />
-        <StatCard label={language === "bg" ? "Ревюта" : "Reviews"} value={stats.totals.reviews} icon={MessageSquare} color="bg-primary/20 text-primary" />
-        <StatCard label="Watchlist" value={stats.totals.watchlist_entries} icon={Bookmark} color="bg-yellow-500/20 text-yellow-400" />
-        <StatCard label={language === "bg" ? "Любими" : "Favorites"} value={stats.totals.favorites} icon={Heart} color="bg-secondary/20 text-secondary" />
+        <StatCard label={t.tabUsers}    value={stats.totals.users}             icon={Users}         color="bg-blue-500/20 text-blue-400" />
+        <StatCard label={t.moviesNav}   value={stats.totals.movies}            icon={Film}          color="bg-green-500/20 text-green-400" />
+        <StatCard label={t.tabReviews}  value={stats.totals.reviews}           icon={MessageSquare} color="bg-primary/20 text-primary" />
+        <StatCard label="Watchlist"     value={stats.totals.watchlist_entries} icon={Bookmark}      color="bg-yellow-500/20 text-yellow-400" />
+        <StatCard label={t.favoritesLabel} value={stats.totals.favorites}      icon={Heart}         color="bg-secondary/20 text-secondary" />
       </div>
 
       {/* Data quality */}
@@ -41,7 +41,7 @@ export default function DashboardTab({ stats, loading }: DashboardTabProps) {
         <div className="flex items-center gap-2 mb-4">
           <AlertTriangle className="w-5 h-5 text-amber-400" />
           <h3 className={`font-semibold ${headText(theme)}`}>
-            {language === "bg" ? "Качество на данните" : "Data Quality"}
+            {t.dataQuality}
           </h3>
         </div>
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
@@ -50,7 +50,7 @@ export default function DashboardTab({ stats, loading }: DashboardTabProps) {
               {stats.quality.missing_bg_translation}
             </p>
             <p className={`text-xs ${mutedText(theme)}`}>
-              {language === "bg" ? "Без BG заглавие" : "Missing BG title"}
+              {t.missingBgTitle}
             </p>
           </div>
           <div>
@@ -58,7 +58,7 @@ export default function DashboardTab({ stats, loading }: DashboardTabProps) {
               {stats.quality.missing_summary_bg || 0}
             </p>
             <p className={`text-xs ${mutedText(theme)}`}>
-              {language === "bg" ? "Без BG описание" : "Missing BG summary"}
+              {t.missingBgSummary}
             </p>
           </div>
           <div>
@@ -66,7 +66,7 @@ export default function DashboardTab({ stats, loading }: DashboardTabProps) {
               {stats.quality.missing_backdrop}
             </p>
             <p className={`text-xs ${mutedText(theme)}`}>
-              {language === "bg" ? "Без фон" : "Missing backdrop"}
+              {t.missingBackdrop}
             </p>
           </div>
           <div>
@@ -74,7 +74,7 @@ export default function DashboardTab({ stats, loading }: DashboardTabProps) {
               {stats.quality.avg_review_rating != null ? `${stats.quality.avg_review_rating.toFixed(1)}/5` : "—"}
             </p>
             <p className={`text-xs ${mutedText(theme)}`}>
-              {language === "bg" ? "Среден рейтинг" : "Avg review rating"}
+              {t.avgReviewRating}
             </p>
           </div>
         </div>
@@ -84,9 +84,7 @@ export default function DashboardTab({ stats, loading }: DashboardTabProps) {
         {/* Top reviewed / popular fallback */}
         <div className={`rounded-xl p-5 ${card(theme)}`}>
           <h3 className={`font-semibold mb-4 ${headText(theme)}`}>
-            {hasReviews
-              ? (language === "bg" ? "Най-ревюирани филми" : "Top Reviewed Movies")
-              : (language === "bg" ? "Най-популярни филми" : "Most Popular Movies")}
+            {hasReviews ? t.topReviewedMovies : t.mostPopularMovies}
           </h3>
           <div className="space-y-3">
             {hasReviews ? stats.top_reviewed_movies.map((m, i) => (
@@ -113,7 +111,7 @@ export default function DashboardTab({ stats, loading }: DashboardTabProps) {
               </div>
             ))}
             {!hasReviews && popularFallback.length === 0 && (
-              <p className="text-muted text-sm text-center py-4">{language === "bg" ? "Няма данни" : "No data yet"}</p>
+              <p className="text-muted text-sm text-center py-4">{t.noData}</p>
             )}
           </div>
         </div>
@@ -121,7 +119,7 @@ export default function DashboardTab({ stats, loading }: DashboardTabProps) {
         {/* Most active users */}
         <div className={`rounded-xl p-5 ${card(theme)}`}>
           <h3 className={`font-semibold mb-4 ${headText(theme)}`}>
-            {language === "bg" ? "Най-активни потребители" : "Most Active Users"}
+            {t.mostActiveUsers}
           </h3>
           <div className="space-y-3">
             {stats.top_active_users.map((u, i) => (
@@ -140,7 +138,7 @@ export default function DashboardTab({ stats, loading }: DashboardTabProps) {
               </div>
             ))}
             {stats.top_active_users.length === 0 && (
-              <p className="text-muted text-sm text-center py-4">{language === "bg" ? "Няма активност" : "No activity yet"}</p>
+              <p className="text-muted text-sm text-center py-4">{t.noActivityYet}</p>
             )}
           </div>
         </div>
@@ -152,7 +150,7 @@ export default function DashboardTab({ stats, loading }: DashboardTabProps) {
           <div className="flex items-center gap-2 mb-4">
             <Clock className="w-5 h-5 text-blue-400" />
             <h3 className={`font-semibold ${headText(theme)}`}>
-              {language === "bg" ? "Последни действия" : "Recent Actions"}
+              {t.recentActions}
             </h3>
           </div>
           <div className={`divide-y ${theme === "dark" ? "divide-gray-800" : "divide-gray-100"}`}>

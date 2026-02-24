@@ -3,6 +3,7 @@ import api from "../../../api/client";
 import type { WatchlistEntry, Movie } from "../../../types";
 import { Bookmark } from "lucide-react";
 import MovieCarousel from "../components/MovieCarousel";
+import { translations } from "../../../i18n/translations";
 
 export default function WatchlistSection({
   theme,
@@ -13,6 +14,7 @@ export default function WatchlistSection({
   language: string;
   onCount: (n: number) => void;
 }) {
+  const t = translations[language as "bg" | "en"];
   const [watchlist, setWatchlist] = useState<WatchlistEntry[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -40,8 +42,8 @@ export default function WatchlistSection({
     <MovieCarousel
       movies={movies} theme={theme} language={language} loading={loading}
       emptyIcon={Bookmark}
-      emptyText={language === "bg" ? "Списъкът е празен" : "Watchlist is empty"}
-      emptyCta={{ label: language === "bg" ? "Разгледай филми" : "Browse Movies", to: "/browse" }}
+      emptyText={t.watchlistEmpty}
+      emptyCta={{ label: t.browseMovies, to: "/browse" }}
     />
   );
 }

@@ -14,7 +14,7 @@ import { headText, mutedText } from "./constants";
 import type { Stats, Tab } from "./types";
 
 export default function AdminPage() {
-  const { theme, language, user } = useApp();
+  const { theme, user, t } = useApp();
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState<Tab>("dashboard");
   const [stats, setStats] = useState<Stats | null>(null);
@@ -42,11 +42,11 @@ export default function AdminPage() {
   if (!user?.is_admin) return null;
 
   const tabs: { id: Tab; label: string; icon: React.ComponentType<{ className?: string }> }[] = [
-    { id: "dashboard", label: language === "bg" ? "Табло" : "Dashboard",        icon: BarChart3 },
-    { id: "users",     label: language === "bg" ? "Потребители" : "Users",      icon: Users },
-    { id: "movies",    label: language === "bg" ? "Филми" : "Movies",           icon: Film },
-    { id: "reviews",   label: language === "bg" ? "Ревюта" : "Reviews",         icon: MessageSquare },
-    { id: "activity",  label: language === "bg" ? "Дневник" : "Activity",       icon: Activity },
+    { id: "dashboard", label: t.dashboard,  icon: BarChart3 },
+    { id: "users",     label: t.tabUsers,   icon: Users },
+    { id: "movies",    label: t.moviesNav,  icon: Film },
+    { id: "reviews",   label: t.tabReviews, icon: MessageSquare },
+    { id: "activity",  label: t.tabActivity, icon: Activity },
   ];
 
   return (
@@ -59,10 +59,10 @@ export default function AdminPage() {
           </div>
           <div>
             <h1 className={`text-2xl font-bold ${headText(theme)}`}>
-              {language === "bg" ? "Администрация" : "Admin Panel"}
+              {t.adminTitle}
             </h1>
             <p className={`text-sm ${mutedText(theme)}`}>
-              {language === "bg" ? "Управление на приложението" : "Manage your application"}
+              {t.manageApp}
             </p>
           </div>
         </div>

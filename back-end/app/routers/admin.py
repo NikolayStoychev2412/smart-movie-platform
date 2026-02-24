@@ -6,12 +6,11 @@ and audit log.
 All endpoints are protected by require_admin dependency.
 Destructive actions are logged via app.utils.audit for audit trail.
 """
-from fastapi import APIRouter, Depends, HTTPException, status, Query, Request
+from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from sqlalchemy.orm import Session
 from sqlalchemy import func, desc, or_
 from typing import Optional
 from pydantic import BaseModel
-from datetime import datetime
 
 from app.database import get_db
 from app.models.user import User
