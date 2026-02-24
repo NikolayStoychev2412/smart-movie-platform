@@ -1,0 +1,6 @@
+# Replace api.yourdomain.com with your actual domain before deploying.
+# Caddy automatically obtains and renews a Let's Encrypt TLS certificate.
+
+api.yourdomain.com {
+    reverse_proxy api:8000
+}
