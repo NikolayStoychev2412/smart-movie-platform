@@ -10,7 +10,7 @@ import { thCls, rowHover, theadRow, tableBox, pageBtn, mutedText, headText } fro
 import type { ApiError, ReviewItem, DialogState } from "../types";
 
 export default function ReviewsTab() {
-  const { theme, language, t } = useApp();
+  const { theme, t } = useApp();
   const navigate = useNavigate();
   const [reviews, setReviews] = useState<ReviewItem[]>([]);
   const [total, setTotal] = useState(0);

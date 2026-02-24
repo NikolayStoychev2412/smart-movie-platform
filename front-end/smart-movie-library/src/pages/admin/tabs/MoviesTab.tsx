@@ -11,7 +11,7 @@ import { thCls, tdMuted, rowHover, theadRow, tableBox, pageBtn, mutedText, headT
 import type { ApiError, MovieItem, MovieEditForm, DialogState } from "../types";
 
 export default function MoviesTab() {
-  const { theme, language, t } = useApp();
+  const { theme, t } = useApp();
   const navigate = useNavigate();
   const [movies, setMovies] = useState<MovieItem[]>([]);
   const [total, setTotal] = useState(0);

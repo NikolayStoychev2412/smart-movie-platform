@@ -124,7 +124,7 @@ export default function SearchBar({
               className={`mr-2 p-2 rounded-full transition-colors ${
                 theme === "dark" ? "text-gray-300 hover:bg-white/10" : "text-gray-500 hover:bg-gray-100"
               }`}
-              aria-label="Clear search"
+              aria-label={t.clearSearch}
               title={t.clearSearch}
             >
               <X className="w-4 h-4" />
