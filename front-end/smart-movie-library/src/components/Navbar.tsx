@@ -269,7 +269,13 @@ export default function Navbar() {
           <div className="flex items-center gap-6">
             <Link to="/" className="flex items-center gap-2 shrink-0 group">
               <img src="/logo.png" alt="MovieMaze logo" className="h-7 w-auto" />
-              <span className="font-extrabold text-lg tracking-tight text-primary">MovieMaze</span>
+              <span
+                className="font-extrabold text-lg tracking-tight"
+                style={theme === "dark"
+                  ? { color: "#fff", textShadow: "0 0 18px #7C3AED, 0 0 6px #7C3AED" }
+                  : { color: "#7C3AED" }
+                }
+              >MovieMaze</span>
             </Link>
 
             {/* Desktop Navigation */}
