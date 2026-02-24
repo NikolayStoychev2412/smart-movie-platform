@@ -9,7 +9,7 @@ interface ConfirmProps {
 }
 
 export default function ConfirmDialog({ open, message, onConfirm, onCancel }: ConfirmProps) {
-  const { theme, language } = useApp();
+  const { theme, t } = useApp();
   if (!open) return null;
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center">
@@ -24,12 +24,12 @@ export default function ConfirmDialog({ open, message, onConfirm, onCancel }: Co
                 ? "border-border text-muted hover:bg-border"
                 : "border-border text-muted hover:bg-bg"
             }`}>
-            {language === "bg" ? "Отказ" : "Cancel"}
+            {t.cancel}
           </button>
           <button
             onClick={onConfirm}
             className="px-4 py-2 rounded-lg text-sm font-medium bg-red-500 text-white hover:bg-red-600 transition-colors">
-            {language === "bg" ? "Потвърди" : "Confirm"}
+            {t.confirmLabel}
           </button>
         </div>
       </div>

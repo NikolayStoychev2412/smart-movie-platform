@@ -5,6 +5,7 @@ import type { Review } from "../../../types";
 import {
   Film, Star, Edit3, Trash2, Calendar, Loader2, MessageSquare, Compass,
 } from "lucide-react";
+import { translations } from "../../../i18n/translations";
 
 export default function MyReviewsSection({
   theme,
@@ -15,6 +16,7 @@ export default function MyReviewsSection({
   language: string;
   onCount: (n: number) => void;
 }) {
+  const t = translations[language as "bg" | "en"];
   const navigate = useNavigate();
   const [reviews, setReviews] = useState<Review[]>([]);
   const [loading, setLoading] = useState(true);
@@ -61,7 +63,7 @@ export default function MyReviewsSection({
   };
 
   const handleDelete = async (reviewId: number) => {
-    if (!confirm(language === "bg" ? "Сигурни ли сте, че искате да изтриете това ревю?" : "Are you sure you want to delete this review?")) {
+    if (!confirm(t.deleteReviewConfirm)) {
       return;
     }
     setDeleting(reviewId);
@@ -102,14 +104,14 @@ export default function MyReviewsSection({
       <div className={`text-center py-12 rounded-xl ${theme === "dark" ? "bg-surface-2/50" : "bg-surface-2"}`}>
         <MessageSquare className={`w-12 h-12 mx-auto mb-3 text-muted`} />
         <p className={`text-sm mb-4 text-muted`}>
-          {language === "bg" ? "Нямате ревюта все още" : "No reviews yet"}
+          {t.noReviews}
         </p>
         <Link
           to="/browse"
           className="inline-flex items-center gap-2 px-5 py-2.5 rounded-full bg-primary text-white font-semibold text-sm hover:brightness-110 transition"
         >
           <Compass className="w-4 h-4" />
-          {language === "bg" ? "Разгледай филми" : "Browse Movies"}
+          {t.browseMovies}
         </Link>
       </div>
     );
@@ -174,7 +176,7 @@ export default function MyReviewsSection({
                       <button
                         onClick={() => handleEdit(review)}
                         className={`p-1.5 rounded-lg transition ${theme === "dark" ? "hover:bg-border text-muted hover:text-white" : "hover:bg-gray-100 text-muted hover:text-text"}`}
-                        title={language === "bg" ? "Редактирай" : "Edit"}
+                        title={t.editTooltip}
                       >
                         <Edit3 className="w-4 h-4" />
                       </button>
@@ -182,7 +184,7 @@ export default function MyReviewsSection({
                         onClick={() => handleDelete(review.id)}
                         disabled={deleting === review.id}
                         className={`p-1.5 rounded-lg transition ${theme === "dark" ? "hover:bg-red-500/20 text-muted hover:text-red-400" : "hover:bg-red-50 text-muted hover:text-red-500"}`}
-                        title={language === "bg" ? "Изтрий" : "Delete"}
+                        title={t.deleteTooltip}
                       >
                         {deleting === review.id ? <Loader2 className="w-4 h-4 animate-spin" /> : <Trash2 className="w-4 h-4" />}
                       </button>
@@ -194,7 +196,7 @@ export default function MyReviewsSection({
                   <div className="space-y-3">
                     <div className="flex items-center gap-2">
                       <span className={`text-sm text-muted`}>
-                        {language === "bg" ? "Оценка:" : "Rating:"}
+                        {t.ratingLabel}
                       </span>
                       <div className="flex items-center gap-1">
                         {[1, 2, 3, 4, 5].map((star) => (
@@ -215,7 +217,7 @@ export default function MyReviewsSection({
                       className={`w-full px-3 py-2 rounded-lg text-sm resize-none focus:outline-none focus:ring-2 focus:ring-primary ${
                         theme === "dark" ? "bg-border border-border text-white" : "bg-bg border-border text-text"
                       }`}
-                      placeholder={language === "bg" ? "Напиши ревю (мин. 10 символа)" : "Write a review (min 10 characters)"}
+                      placeholder={t.writeReviewMin}
                     />
                     <div className="flex items-center gap-2">
                       <button
@@ -224,13 +226,13 @@ export default function MyReviewsSection({
                         className="px-4 py-1.5 bg-primary text-white text-sm font-medium rounded-lg hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
                       >
                         {saving && <Loader2 className="w-3 h-3 animate-spin" />}
-                        {language === "bg" ? "Запази" : "Save"}
+                        {t.save}
                       </button>
                       <button
                         onClick={() => setEditingId(null)}
                         className={`px-4 py-1.5 text-sm font-medium rounded-lg ${theme === "dark" ? "bg-border text-white hover:bg-[#3A3A5A]" : "bg-gray-100 text-text hover:bg-gray-200"}`}
                       >
-                        {language === "bg" ? "Отказ" : "Cancel"}
+                        {t.cancel}
                       </button>
                     </div>
                   </div>

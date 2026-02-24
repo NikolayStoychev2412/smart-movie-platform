@@ -2,7 +2,8 @@ import { useState, useEffect, useRef } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import type { Movie } from "../../../types";
 import { ChevronLeft, ChevronRight, Film, Star, Compass } from "lucide-react";
-import SkeletonCard from "./SkeletonCard";
+import SkeletonCard from "../../../components/SkeletonCard";
+import { translations } from "../../../i18n/translations";
 
 interface MovieCarouselProps {
   movies: { movie: Movie; badge?: React.ReactNode }[];
@@ -25,6 +26,7 @@ export default function MovieCarousel({
 }: MovieCarouselProps) {
   const navigate = useNavigate();
   const scrollRef = useRef<HTMLDivElement>(null);
+  const t = translations[language as "bg" | "en"];
   const [canScrollLeft, setCanScrollLeft] = useState(false);
   const [canScrollRight, setCanScrollRight] = useState(false);
 
@@ -52,7 +54,7 @@ export default function MovieCarousel({
     return (
       <div className="flex gap-4 overflow-hidden pb-4 px-1">
         {Array.from({ length: 6 }).map((_, i) => (
-          <SkeletonCard key={i} theme={theme} />
+          <SkeletonCard key={i} />
         ))}
       </div>
     );
@@ -133,7 +135,7 @@ export default function MovieCarousel({
                 )}
                 <div className="absolute inset-0 bg-black/0 group-hover/card:bg-black/40 transition-all duration-200 hidden md:flex items-center justify-center opacity-0 group-hover/card:opacity-100">
                   <span className="text-white text-xs font-medium px-3 py-1.5 rounded-lg bg-white/20">
-                    {language === "bg" ? "Детайли" : "Details"}
+                    {t.detailsLabel}
                   </span>
                 </div>
               </div>

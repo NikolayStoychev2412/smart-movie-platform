@@ -1,9 +1,17 @@
 import { User } from "lucide-react";
 import ScrollRow from "../../../components/ScrollRow";
+import { translations } from "../../../i18n/translations";
 import type { CastMember } from "../types";
 
 export default function CastCarousel({ cast, theme, language }: { cast: CastMember[]; theme: string; language: string }) {
-  if (!cast?.length) return <div className={`text-center py-12 rounded-lg bg-surface-2 text-muted`}><User className="w-16 h-16 mx-auto mb-3 opacity-50" /><p>{language === "bg" ? "Няма информация" : "No cast info"}</p></div>;
+  const t = translations[language as "bg" | "en"];
+
+  if (!cast?.length) return (
+    <div className={`text-center py-12 rounded-lg bg-surface-2 text-muted`}>
+      <User className="w-16 h-16 mx-auto mb-3 opacity-50" />
+      <p>{t.noCastInfo}</p>
+    </div>
+  );
 
   return (
     <ScrollRow>

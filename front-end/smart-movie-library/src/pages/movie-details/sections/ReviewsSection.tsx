@@ -3,6 +3,7 @@ import { MessageSquare } from "lucide-react";
 import ReviewCard from "../components/ReviewCard";
 import ReviewForm from "../forms/ReviewForm";
 import EditReviewForm from "../forms/EditReviewForm";
+import { translations } from "../../../i18n/translations";
 import type { ReviewWithSentiment } from "../types";
 import type { Review } from "../../../types";
 
@@ -36,12 +37,13 @@ export default function ReviewsSection({
   onDeleteReview: (reviewId: number) => void;
 }) {
   const navigate = useNavigate();
+  const t = translations[language as "bg" | "en"];
 
   return (
     <section>
       <h2 className={`text-2xl font-bold mb-5 flex items-center gap-2 text-text`}>
         <MessageSquare className="w-6 h-6" />
-        {language==="bg"?"Ревюта":"Reviews"}
+        {t.tabReviews}
         {reviews.length > 0 && <span className="text-base font-normal text-muted">({reviews.length})</span>}
       </h2>
 
@@ -61,13 +63,13 @@ export default function ReviewsSection({
       {!isAuthenticated && (
         <div className={`p-5 rounded-lg mb-6 text-center ${theme==="dark"?"bg-surface-2":"bg-white border"}`}>
           <p className={`mb-3 ${theme==="dark"?"text-muted":"text-muted"}`}>
-            {language==="bg"?"Влезте, за да напишете ревю":"Log in to write a review"}
+            {t.loginToReview}
           </p>
           <button
             onClick={() => navigate('/login', { state: { from: `/movie/${movieId}` } })}
             className="px-6 py-2 bg-primary text-white rounded-lg font-medium hover:bg-primary/90 transition-colors"
           >
-            {language==="bg"?"Вход":"Log In"}
+            {t.logIn}
           </button>
         </div>
       )}
@@ -103,8 +105,8 @@ export default function ReviewsSection({
       ) : (
         <div className={`text-center py-8 rounded-lg ${theme==="dark"?"bg-surface-2 text-muted":"bg-surface-2 text-muted"}`}>
           <MessageSquare className="w-12 h-12 mx-auto mb-3 opacity-50" />
-          <p>{language==="bg"?"Все още няма ревюта":"No reviews yet"}</p>
-          <p className="text-sm mt-1">{language==="bg"?"Бъдете първият!":"Be the first to review!"}</p>
+          <p>{t.noReviewsYet}</p>
+          <p className="text-sm mt-1">{t.beFirstToReview}</p>
         </div>
       )}
     </section>

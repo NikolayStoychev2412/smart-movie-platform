@@ -4,6 +4,7 @@ import api from "../../../api/client";
 import type { Review, ApiError } from "../../../types";
 import StarRating from "../components/StarRating";
 import SentimentBadge from "../components/SentimentBadge";
+import { translations } from "../../../i18n/translations";
 import type { SentimentAnalysis } from "../types";
 
 export default function ReviewForm({ movieId, theme, language, onReviewAdded }: {
@@ -12,6 +13,7 @@ export default function ReviewForm({ movieId, theme, language, onReviewAdded }: 
   language: string;
   onReviewAdded: (review: Review) => void;
 }) {
+  const t = translations[language as "bg" | "en"];
   const [rating, setRating] = useState(0);
   const [comment, setComment] = useState('');
   const [submitting, setSubmitting] = useState(false);
@@ -55,11 +57,11 @@ export default function ReviewForm({ movieId, theme, language, onReviewAdded }: 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (rating === 0) {
-      setError(language === 'bg' ? 'Моля, изберете рейтинг' : 'Please select a rating');
+      setError(t.pleaseSelectRating);
       return;
     }
     if (comment.trim().length < 10) {
-      setError(language === 'bg' ? 'Моля, напишете поне 10 символа' : 'Please write at least 10 characters');
+      setError(t.pleaseWriteMin10);
       return;
     }
 
@@ -78,9 +80,9 @@ export default function ReviewForm({ movieId, theme, language, onReviewAdded }: 
       setSentiment(null);
     } catch (err) {
       if ((err as ApiError).response?.status === 400) {
-        setError(language === 'bg' ? 'Вече сте оценили този филм' : 'You have already reviewed this movie');
+        setError(t.alreadyReviewed);
       } else {
-        setError(language === 'bg' ? 'Грешка при изпращане' : 'Failed to submit review');
+        setError(t.reviewSubmitFailed);
       }
     } finally {
       setSubmitting(false);
@@ -90,13 +92,13 @@ export default function ReviewForm({ movieId, theme, language, onReviewAdded }: 
   return (
     <form onSubmit={handleSubmit} className={`p-5 rounded-lg ${theme === 'dark' ? 'bg-surface-2' : 'bg-white border'}`}>
       <h3 className={`font-semibold mb-4 text-text`}>
-        {language === 'bg' ? 'Напишете ревю' : 'Write a Review'}
+        {t.writeReview}
       </h3>
 
       {/* Rating */}
       <div className="mb-4">
         <label className={`block text-sm mb-2 text-muted`}>
-          {language === 'bg' ? 'Вашата оценка' : 'Your Rating'}
+          {t.yourRatingLabel}
         </label>
         <StarRating rating={rating} onRate={setRating} size={32} />
       </div>
@@ -104,14 +106,14 @@ export default function ReviewForm({ movieId, theme, language, onReviewAdded }: 
       {/* Comment */}
       <div className="mb-4">
         <label className={`block text-sm mb-2 text-muted`}>
-          {language === 'bg' ? 'Коментар (задължителен, мин. 10 символа)' : 'Comment (required, min. 10 characters)'}
+          {t.commentRequired}
         </label>
         <textarea
           value={comment}
           onChange={(e) => setComment(e.target.value)}
           rows={4}
           maxLength={2000}
-          placeholder={language === 'bg' ? 'Споделете вашето мнение...' : 'Share your thoughts...'}
+          placeholder={t.shareThoughts}
           className={`w-full px-4 py-3 rounded-lg border resize-none transition-colors ${
             theme === 'dark'
               ? 'bg-border border-border text-white placeholder-gray-500 focus:border-primary'
@@ -132,7 +134,7 @@ export default function ReviewForm({ movieId, theme, language, onReviewAdded }: 
         }`}>
           <div className="flex items-center gap-2 mb-2">
             <span className={`text-xs font-medium uppercase tracking-wide text-primary`}>
-              {language === 'bg' ? 'AI Анализ на тона' : 'AI Tone Analysis'}
+              {t.aiToneAnalysis}
             </span>
           </div>
 
@@ -140,16 +142,14 @@ export default function ReviewForm({ movieId, theme, language, onReviewAdded }: 
             <div className="flex items-center gap-2">
               <Loader2 className="w-4 h-4 animate-spin text-primary" />
               <span className={`text-sm text-muted`}>
-                {language === 'bg' ? 'Анализиране на вашето ревю...' : 'Analyzing your review...'}
+                {t.analyzingReview}
               </span>
             </div>
           ) : sentiment && (
             <div className="flex items-center justify-between flex-wrap gap-3">
               <SentimentBadge sentiment={sentiment.sentiment} confidence={sentiment.confidence} size="large" language={language} />
               <span className={`text-xs text-muted`}>
-                {language === 'bg'
-                  ? 'AI открива тона на вашето ревю'
-                  : 'AI detects the tone of your review'}
+                {t.aiDetectsTone}
               </span>
             </div>
           )}
@@ -176,7 +176,7 @@ export default function ReviewForm({ movieId, theme, language, onReviewAdded }: 
         ) : (
           <>
             <Send className="w-5 h-5" />
-            {language === 'bg' ? 'Изпрати' : 'Submit Review'}
+            {t.submitReview}
           </>
         )}
       </button>

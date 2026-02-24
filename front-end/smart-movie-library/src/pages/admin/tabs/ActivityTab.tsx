@@ -7,7 +7,7 @@ import { thCls, theadRow, tableBox, pageBtn, mutedText } from "../constants";
 import type { AuditEvent } from "../types";
 
 export default function ActivityTab() {
-  const { theme, language } = useApp();
+  const { theme, t } = useApp();
   const [events, setEvents] = useState<AuditEvent[]>([]);
   const [loading, setLoading] = useState(true);
   const [page, setPage] = useState(0);
@@ -27,8 +27,8 @@ export default function ActivityTab() {
     return (
       <div className={`text-center py-16 ${mutedText(theme)}`}>
         <Activity className="w-12 h-12 mx-auto mb-3 opacity-50" />
-        <p className="text-lg font-medium">{language === "bg" ? "Няма записи" : "No activity yet"}</p>
-        <p className="text-sm mt-1">{language === "bg" ? "Действията ще се появят тук" : "Admin actions will appear here"}</p>
+        <p className="text-lg font-medium">{t.noActivityLog}</p>
+        <p className="text-sm mt-1">{t.actionsWillAppear}</p>
       </div>
     );
   }
@@ -43,10 +43,10 @@ export default function ActivityTab() {
           <table className="w-full">
             <thead className="sticky top-0 z-10">
               <tr className={theadRow(theme)}>
-                <th className={thCls(theme)}>{language === "bg" ? "Действие" : "Action"}</th>
-                <th className={thCls(theme)}>{language === "bg" ? "Детайли" : "Details"}</th>
-                <th className={thCls(theme)}>{language === "bg" ? "От" : "By"}</th>
-                <th className={thCls(theme)}>{language === "bg" ? "Кога" : "When"}</th>
+                <th className={thCls(theme)}>{t.actionCol}</th>
+                <th className={thCls(theme)}>{t.detailsCol}</th>
+                <th className={thCls(theme)}>{t.byCol}</th>
+                <th className={thCls(theme)}>{t.whenCol}</th>
                 <th className={thCls(theme)}>IP</th>
               </tr>
             </thead>
@@ -60,9 +60,7 @@ export default function ActivityTab() {
       {totalPages > 1 && (
         <div className="flex items-center justify-between">
           <p className={`text-xs text-muted`}>
-            {language === "bg"
-              ? `Стр. ${page + 1} от ${totalPages} (${events.length} записа)`
-              : `Page ${page + 1} of ${totalPages} (${events.length} events)`}
+            {`${t.pageLabel} ${page + 1} ${t.of} ${totalPages} (${events.length} ${t.eventsWord})`}
           </p>
           <div className="flex gap-2">
             <button onClick={() => setPage(p => Math.max(0, p - 1))} disabled={page === 0} className={pageBtn(theme)}>

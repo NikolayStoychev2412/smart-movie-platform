@@ -10,7 +10,7 @@ import { thCls, tdMuted, rowHover, theadRow, tableBox, pageBtn, mutedText, headT
 import type { ApiError, UserItem, DialogState } from "../types";
 
 export default function UsersTab() {
-  const { theme, language, user: currentUser } = useApp();
+  const { theme, language, user: currentUser, t } = useApp();
   const [users, setUsers] = useState<UserItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
@@ -34,7 +34,7 @@ export default function UsersTab() {
 
   const handleDelete = (userId: number, userName: string) => {
     openDialog(
-      language === "bg" ? `Изтрий потребител "${userName}"?` : `Delete user "${userName}"?`,
+      `${t.deleteUserPrefix} "${userName}"?`,
       async () => {
         closeDialog();
         setActionLoading(userId);
@@ -51,9 +51,7 @@ export default function UsersTab() {
 
   const handleToggleAdmin = (userId: number, currentlyAdmin: boolean) => {
     const endpoint = currentlyAdmin ? "remove-admin" : "make-admin";
-    const msg = currentlyAdmin
-      ? (language === "bg" ? "Премахни админ права?" : "Remove admin privileges?")
-      : (language === "bg" ? "Направи потребителя администратор?" : "Make this user an admin?");
+    const msg = currentlyAdmin ? t.removeAdminConfirm : t.makeAdminConfirm;
     openDialog(msg, async () => {
       closeDialog();
       setActionLoading(userId);
@@ -93,7 +91,7 @@ export default function UsersTab() {
         <div className="relative max-w-md">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted" />
           <input type="text" value={search} onChange={e => setSearch(e.target.value)}
-            placeholder={language === "bg" ? "Търси по име или имейл..." : "Search by name or email..."}
+            placeholder={t.searchByNameOrEmail}
             className={`w-full pl-10 pr-4 py-2.5 rounded-lg border ${theme === "dark" ? "bg-border border-border text-white placeholder:text-muted" : "bg-white border-border text-text placeholder:text-muted"} focus:outline-none focus:ring-2 focus:ring-primary`}
           />
         </div>
@@ -104,11 +102,11 @@ export default function UsersTab() {
               <thead className="sticky top-0 z-10">
                 <tr className={theadRow(theme)}>
                   <th className={thCls(theme)}>ID</th>
-                  <th className={thCls(theme)}>{language === "bg" ? "Потребител" : "User"}</th>
+                  <th className={thCls(theme)}>{t.userCol}</th>
                   <th className={thCls(theme)}>Email</th>
-                  <th className={thCls(theme)}>{language === "bg" ? "Дата" : "Joined"}</th>
-                  <th className={thCls(theme)}>{language === "bg" ? "Роля" : "Role"}</th>
-                  <th className={`px-4 py-3 text-right text-xs font-semibold uppercase tracking-wider ${mutedText(theme)}`}>{language === "bg" ? "Действия" : "Actions"}</th>
+                  <th className={thCls(theme)}>{t.dateJoinedLabel}</th>
+                  <th className={thCls(theme)}>{t.roleLabel}</th>
+                  <th className={`px-4 py-3 text-right text-xs font-semibold uppercase tracking-wider ${mutedText(theme)}`}>{t.actionsLabel}</th>
                 </tr>
               </thead>
               <tbody className={`divide-y ${theme === "dark" ? "divide-gray-700/50" : "divide-gray-100"}`}>
@@ -147,7 +145,7 @@ export default function UsersTab() {
                                 ? (theme === "dark" ? "hover:bg-red-500/20 text-amber-400 hover:text-red-400" : "hover:bg-red-50 text-amber-600 hover:text-red-600")
                                 : (theme === "dark" ? "hover:bg-amber-500/20 text-muted hover:text-amber-400" : "hover:bg-amber-50 text-muted hover:text-amber-600")
                             }`}
-                            title={u.is_admin ? (language === "bg" ? "Премахни админ" : "Remove admin") : (language === "bg" ? "Направи админ" : "Make admin")}>
+                            title={u.is_admin ? t.removeAdminTitle : t.makeAdminTitle}>
                             {actionLoading === u.id
                               ? <Loader2 className="w-4 h-4 animate-spin" />
                               : u.is_admin ? <ShieldOff className="w-4 h-4" /> : <Shield className="w-4 h-4" />}
@@ -156,7 +154,7 @@ export default function UsersTab() {
                         {u.id !== currentUser?.id && (
                           <button onClick={() => handleDelete(u.id, u.name)} disabled={actionLoading === u.id}
                             className={`p-2 rounded-lg transition-colors ${theme === "dark" ? "hover:bg-red-500/20 text-muted hover:text-red-400" : "hover:bg-red-50 text-muted hover:text-red-600"}`}
-                            title={language === "bg" ? "Изтрий" : "Delete"}>
+                            title={t.deleteBtn}>
                             <Trash2 className="w-4 h-4" />
                           </button>
                         )}
@@ -169,7 +167,7 @@ export default function UsersTab() {
           </div>
           {paginated.length === 0 && (
             <p className={`text-center py-8 text-sm ${mutedText(theme)}`}>
-              {search ? (language === "bg" ? "Няма резултати" : "No results") : (language === "bg" ? "Няма потребители" : "No users")}
+              {search ? t.noResults : t.noUsers}
             </p>
           )}
         </div>
@@ -177,9 +175,7 @@ export default function UsersTab() {
         {/* Pagination */}
         <div className="flex items-center justify-between">
           <p className={`text-xs text-muted`}>
-            {language === "bg"
-              ? `${filtered.length} от ${users.length} потребители${totalPages > 1 ? ` · Стр. ${page + 1} от ${totalPages}` : ""}`
-              : `${filtered.length} of ${users.length} users${totalPages > 1 ? ` · Page ${page + 1} of ${totalPages}` : ""}`}
+            {`${filtered.length} ${t.of} ${users.length} ${t.usersWord}${totalPages > 1 ? ` · ${t.pageLabel} ${page + 1} ${t.of} ${totalPages}` : ""}`}
           </p>
           {totalPages > 1 && (
             <div className="flex gap-2">

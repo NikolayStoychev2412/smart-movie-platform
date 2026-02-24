@@ -6,12 +6,12 @@ import Navbar from "./components/Navbar";
 import Footer from "./components/Footer";
 import Home from "./pages/Home";
 import Browse from "./pages/Browse";
-import MovieDetails from "./pages/MovieDetail";
+import MovieDetails from "./pages/movie-details/MovieDetailsPage";
 import Login from "./pages/Login";
 import Register from "./pages/Register";
-import Profile from "./pages/Profile";
+import Profile from "./pages/profile/ProfilePage";
 import Watchlist from "./pages/Watchlist";
-import Admin from "./pages/Admin";
+import Admin from "./pages/admin/AdminPage";
 
 function App() {
   return (

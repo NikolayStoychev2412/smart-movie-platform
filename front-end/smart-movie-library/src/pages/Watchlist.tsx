@@ -22,7 +22,7 @@ interface WatchlistItem {
 
 export default function Watchlist() {
   const navigate = useNavigate();
-  const { language, theme } = useApp();
+  const { language, theme, t } = useApp();
 
   const [items, setItems] = useState<WatchlistItem[]>([]);
   const [loading, setLoading] = useState(true);
@@ -93,20 +93,11 @@ export default function Watchlist() {
   };
 
   const getStatusLabel = (status: WatchStatus) => {
-    if (language === 'bg') {
-      switch (status) {
-        case 'planned': return 'Планиран';
-        case 'watching': return 'Гледам';
-        case 'completed': return 'Изгледан';
-        case 'dropped': return 'Отказан';
-      }
-    } else {
-      switch (status) {
-        case 'planned': return 'Planned';
-        case 'watching': return 'Watching';
-        case 'completed': return 'Completed';
-        case 'dropped': return 'Dropped';
-      }
+    switch (status) {
+      case 'planned': return t.plannedStatus;
+      case 'watching': return t.watchingStatus;
+      case 'completed': return t.completedStatus;
+      case 'dropped': return t.droppedStatus;
     }
   };
 
@@ -136,13 +127,10 @@ export default function Watchlist() {
       <div className={`border-b ${theme === 'dark' ? 'bg-surface border-border' : 'bg-white border-border'}`}>
         <div className="max-w-7xl mx-auto px-4 md:px-8 py-8">
           <h1 className={`text-page-title mb-2 text-text`}>
-            {language === 'bg' ? 'Моят списък' : 'My Watchlist'}
+            {t.myWatchlist}
           </h1>
           <p className="text-muted">
-            {language === 'bg'
-              ? 'Следете филмите, които искате да гледате'
-              : 'Keep track of movies you want to watch'
-            }
+            {t.watchlistSubtitle}
           </p>
 
           {/* Stats */}
@@ -150,27 +138,27 @@ export default function Watchlist() {
             <div className={`flex items-center gap-2 px-4 py-2 rounded-lg ${theme === 'dark' ? 'bg-surface-2' : 'bg-gray-100'}`}>
               <Film className={`w-5 h-5 text-muted`} />
               <span className={`font-medium text-text`}>{stats.total}</span>
-              <span className="text-muted">{language === 'bg' ? 'Общо' : 'Total'}</span>
+              <span className="text-muted">{t.totalLabel}</span>
             </div>
             <div className="flex items-center gap-2 px-4 py-2 bg-blue-500/10 rounded-lg">
               <Clock className="w-5 h-5 text-blue-500" />
               <span className="text-blue-500 font-medium">{stats.planned}</span>
-              <span className="text-blue-500/70">{language === 'bg' ? 'Планирани' : 'Planned'}</span>
+              <span className="text-blue-500/70">{t.plannedPlural}</span>
             </div>
             <div className="flex items-center gap-2 px-4 py-2 bg-yellow-500/10 rounded-lg">
               <Eye className="w-5 h-5 text-yellow-500" />
               <span className="text-yellow-500 font-medium">{stats.watching}</span>
-              <span className="text-yellow-500/70">{language === 'bg' ? 'Гледам' : 'Watching'}</span>
+              <span className="text-yellow-500/70">{t.watchingStatus}</span>
             </div>
             <div className="flex items-center gap-2 px-4 py-2 bg-green-500/10 rounded-lg">
               <CheckCircle className="w-5 h-5 text-green-500" />
               <span className="text-green-500 font-medium">{stats.completed}</span>
-              <span className="text-green-500/70">{language === 'bg' ? 'Изгледани' : 'Completed'}</span>
+              <span className="text-green-500/70">{t.completedPlural}</span>
             </div>
             <div className="flex items-center gap-2 px-4 py-2 bg-red-500/10 rounded-lg">
               <XCircle className="w-5 h-5 text-red-500" />
               <span className="text-red-500 font-medium">{stats.dropped}</span>
-              <span className="text-red-500/70">{language === 'bg' ? 'Отказани' : 'Dropped'}</span>
+              <span className="text-red-500/70">{t.droppedPlural}</span>
             </div>
           </div>
         </div>
@@ -182,7 +170,7 @@ export default function Watchlist() {
         <div className="flex items-center gap-2 mb-6 flex-wrap">
           <Filter className={`w-5 h-5 text-muted`} />
           <span className={`mr-2 text-muted`}>
-            {language === 'bg' ? 'Филтър:' : 'Filter:'}
+            {t.filterLabel}
           </span>
           {(['all', 'planned', 'watching', 'completed', 'dropped'] as const).map((status) => (
             <button
@@ -196,10 +184,7 @@ export default function Watchlist() {
                     : 'bg-gray-100 text-muted hover:bg-gray-200'
               }`}
             >
-              {status === 'all'
-                ? (language === 'bg' ? 'Всички' : 'All')
-                : getStatusLabel(status)
-              }
+              {status === 'all' ? t.all : getStatusLabel(status)}
             </button>
           ))}
         </div>
@@ -208,9 +193,9 @@ export default function Watchlist() {
         {filteredItems.length === 0 ? (
           <EmptyState
             icon={Film}
-            title={language === 'bg' ? 'Списъкът е празен' : 'Your watchlist is empty'}
-            description={language === 'bg' ? 'Добавете филми от началната страница' : 'Add movies from the home page'}
-            action={{ label: language === 'bg' ? 'Разгледай филми' : 'Browse Movies', to: '/browse' }}
+            title={t.watchlistEmpty}
+            description={t.addMoviesHint}
+            action={{ label: t.browseMovies, to: '/browse' }}
           />
         ) : (
           <div className="space-y-4">
@@ -273,8 +258,7 @@ export default function Watchlist() {
                         <div className="flex items-center gap-1">
                           <Calendar className="w-4 h-4" />
                           <span>
-                            {language === 'bg' ? 'Добавен: ' : 'Added: '}
-                            {new Date(item.created_at).toLocaleDateString()}
+                            {t.addedLabel} {new Date(item.created_at).toLocaleDateString()}
                           </span>
                         </div>
                       </div>
@@ -282,7 +266,7 @@ export default function Watchlist() {
                       {/* Actions */}
                       <div className="flex items-center gap-2 mt-4 flex-wrap">
                         <span className={`text-sm mr-2 text-muted`}>
-                          {language === 'bg' ? 'Статус:' : 'Status:'}
+                          {t.statusLabel}
                         </span>
                         {(['planned', 'watching', 'completed', 'dropped'] as const).map((status) => (
                           <button
@@ -306,7 +290,7 @@ export default function Watchlist() {
                           className="ml-auto flex items-center gap-1 px-3 py-1 text-red-500 hover:bg-red-500/10 rounded-lg transition-colors"
                         >
                           <Trash2 className="w-4 h-4" />
-                          {language === 'bg' ? 'Премахни' : 'Remove'}
+                          {t.removeBtn}
                         </button>
                       </div>
                     </div>
