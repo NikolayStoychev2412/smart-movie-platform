@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import api from "../../../api/client";
 import { Heart } from "lucide-react";
 import MovieCarousel from "../components/MovieCarousel";
+import { translations } from "../../../i18n/translations";
 import type { FavoriteEntry } from "../types";
 
 export default function FavoritesSection({
@@ -13,6 +14,7 @@ export default function FavoritesSection({
   language: string;
   onCount: (n: number) => void;
 }) {
+  const t = translations[language as "bg" | "en"];
   const [favorites, setFavorites] = useState<FavoriteEntry[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -36,8 +38,8 @@ export default function FavoritesSection({
     <MovieCarousel
       movies={movies} theme={theme} language={language} loading={loading}
       emptyIcon={Heart}
-      emptyText={language === "bg" ? "Няма любими филми" : "No favorite movies yet"}
-      emptyCta={{ label: language === "bg" ? "Разгледай филми" : "Browse Movies", to: "/browse" }}
+      emptyText={t.noFavorites}
+      emptyCta={{ label: t.browseMovies, to: "/browse" }}
     />
   );
 }

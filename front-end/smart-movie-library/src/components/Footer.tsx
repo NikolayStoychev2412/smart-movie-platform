@@ -1,7 +1,7 @@
 import { useApp } from "../context/AppContext";
 
 export default function Footer() {
-  const { theme, language } = useApp();
+  const { theme, t } = useApp();
 
   return (
     <footer className={`border-t ${theme === "dark" ? "bg-dark-surface border-dark-border" : "bg-light-surface border-light-border"}`}>
@@ -22,9 +22,7 @@ export default function Footer() {
 
           {/* Required Disclaimer */}
           <p className={`text-xs text-center max-w-lg ${theme === "dark" ? "text-dark-muted" : "text-light-muted"}`}>
-            {language === "bg"
-              ? "Този продукт използва TMDB API, но не е одобрен или сертифициран от TMDB. Всички данни за филми са предоставени от The Movie Database (TMDB)."
-              : "This product uses the TMDB API but is not endorsed or certified by TMDB. All movie data is provided by The Movie Database (TMDB)."}
+            {t.tmdbDisclaimer}
           </p>
 
           {/* Copyright */}

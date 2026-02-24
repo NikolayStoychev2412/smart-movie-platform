@@ -23,10 +23,15 @@ export const GENRES = [
   { id: "western",         en: "Western",          bg: "Уестърн",             emoji: "🤠" },
 ];
 
-/** Translate a genre name (coming from the API) to the requested language. */
+/**
+ * Translate a genre to the requested language.
+ * Accepts either a genre ID stored in user preferences (e.g. "scifi")
+ * or an English name returned by TMDB (e.g. "Science Fiction").
+ */
 export function translateGenre(genre: string, language: Language): string {
+  const lower = genre.toLowerCase();
   const match = GENRES.find(
-    (g) => g.en.toLowerCase() === genre.toLowerCase()
+    (g) => g.id === lower || g.en.toLowerCase() === lower
   );
   return match ? match[language] : genre;
 }

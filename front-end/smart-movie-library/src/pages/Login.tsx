@@ -7,8 +7,8 @@ import { Mail, Lock, Eye, EyeOff, LogIn, AlertCircle } from "lucide-react";
 export default function Login() {
   const navigate = useNavigate();
   const location = useLocation();
-  const { theme, language, setUser } = useApp();
-  
+  const { theme, t, setUser } = useApp();
+
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
@@ -23,34 +23,24 @@ export default function Login() {
     setError(null);
 
     if (!email || !password) {
-      setError(language === "bg" ? "Моля, попълнете всички полета" : "Please fill in all fields");
+      setError(t.fillAllFields);
       return;
     }
 
     setLoading(true);
 
     try {
-      // authApi.login now:
-      // 1. Sends form-urlencoded to /auth/login
-      // 2. Gets access_token
-      // 3. Calls /auth/me to get user
-      // 4. Returns { token, user }
       const { user } = await authApi.login(email, password);
-      
-      // Token is already saved by authApi.login
-      // Save user to localStorage and context
+
       localStorage.setItem("user", JSON.stringify(user));
       setUser(user);
-      
-      // Redirect to original destination or home
+
       navigate(from, { replace: true });
     } catch (err) {
       setError(
-        err instanceof Error 
-          ? err.message 
-          : language === "bg" 
-            ? "Грешка при вход" 
-            : "Login failed"
+        err instanceof Error
+          ? err.message
+          : t.loginFailed
       );
     } finally {
       setLoading(false);
@@ -68,10 +58,10 @@ export default function Login() {
             <LogIn className="w-8 h-8 text-white" />
           </div>
           <h1 className={`text-2xl font-bold text-text`}>
-            {language === "bg" ? "Добре дошли" : "Welcome Back"}
+            {t.welcomeBack}
           </h1>
           <p className={`mt-2 text-muted`}>
-            {language === "bg" ? "Влезте в акаунта си" : "Sign in to your account"}
+            {t.signInToAccount}
           </p>
         </div>
 
@@ -88,7 +78,7 @@ export default function Login() {
           {/* Email */}
           <div>
             <label className={`block text-sm font-medium mb-2 text-muted`}>
-              {language === "bg" ? "Имейл" : "Email"}
+              {t.emailLabel}
             </label>
             <div className="relative">
               <Mail className={`absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-muted`} />
@@ -109,7 +99,7 @@ export default function Login() {
           {/* Password */}
           <div>
             <label className={`block text-sm font-medium mb-2 text-muted`}>
-              {language === "bg" ? "Парола" : "Password"}
+              {t.passwordLabel}
             </label>
             <div className="relative">
               <Lock className={`absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-muted`} />
@@ -145,7 +135,7 @@ export default function Login() {
             ) : (
               <>
                 <LogIn className="w-5 h-5" />
-                {language === "bg" ? "Вход" : "Sign In"}
+                {t.signIn}
               </>
             )}
           </button>
@@ -155,16 +145,16 @@ export default function Login() {
         <div className="my-6 flex items-center gap-4">
           <div className={`flex-1 h-px ${theme === "dark" ? "bg-border" : "bg-gray-200"}`} />
           <span className={`text-sm text-muted`}>
-            {language === "bg" ? "или" : "or"}
+            {t.or}
           </span>
           <div className={`flex-1 h-px ${theme === "dark" ? "bg-border" : "bg-gray-200"}`} />
         </div>
 
         {/* Sign Up Link */}
         <p className={`text-center text-muted`}>
-          {language === "bg" ? "Нямате акаунт?" : "Don't have an account?"}{" "}
+          {t.noAccount}{" "}
           <Link to="/register" className="text-primary font-semibold hover:underline">
-            {language === "bg" ? "Регистрация" : "Sign Up"}
+            {t.register}
           </Link>
         </p>
       </div>

@@ -20,7 +20,7 @@ import type { MovieDetail, ReviewWithSentiment } from "./types";
 export default function MovieDetailsPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const { theme, language, isAuthenticated, user } = useApp();
+  const { theme, language, isAuthenticated, user, t } = useApp();
   const [movie, setMovie] = useState<MovieDetail|null>(null);
   const [reviews, setReviews] = useState<ReviewWithSentiment[]>([]);
   const [similarMovies, setSimilarMovies] = useState<Movie[]>([]);
@@ -30,7 +30,6 @@ export default function MovieDetailsPage() {
   const [watchlistLoading, setWatchlistLoading] = useState(false);
   const [showWatchlistMenu, setShowWatchlistMenu] = useState(false);
   const [userHasReviewed, setUserHasReviewed] = useState(false);
-  const [, setUserReviewId] = useState<number | null>(null);
   const [isFavorite, setIsFavorite] = useState(false);
   const [favoriteLoading, setFavoriteLoading] = useState(false);
   const [userRating, setUserRating] = useState(0);
@@ -65,16 +64,13 @@ export default function MovieDetailsPage() {
         const existingReview = myReviews.find((r: Review) => r.movie_id === parseInt(id));
         if (existingReview) {
           setUserHasReviewed(true);
-          setUserReviewId(existingReview.id);
           setUserRating(existingReview.rating || 0);
         } else {
           setUserHasReviewed(false);
-          setUserReviewId(null);
           setUserRating(0);
         }
       } catch {
         setUserHasReviewed(false);
-        setUserReviewId(null);
         setUserRating(0);
       }
     };
@@ -125,12 +121,11 @@ export default function MovieDetailsPage() {
   const handleReviewAdded = (newReview: Review) => {
     const reviewWithUser = {
       ...newReview,
-      user_name: newReview.user_name || user?.name || (language === "bg" ? "Потребител" : "User"),
+      user_name: newReview.user_name || user?.name || t.userLabel,
       created_at: newReview.created_at || new Date().toISOString()
     };
     setReviews(prev => [reviewWithUser, ...prev]);
     setUserHasReviewed(true);
-    setUserReviewId(newReview.id);
     setUserRating(newReview.rating || 0);
     if (id) {
       moviesApi.getById(parseInt(id)).then(data => setMovie(data as MovieDetail));
@@ -155,7 +150,6 @@ export default function MovieDetailsPage() {
       await api.delete(`/reviews/${reviewId}`);
       setReviews(prev => prev.filter(r => r.id !== reviewId));
       setUserHasReviewed(false);
-      setUserReviewId(null);
       setUserRating(0);
       if (id) {
         moviesApi.getById(parseInt(id)).then(data => setMovie(data as MovieDetail));
@@ -189,19 +183,19 @@ export default function MovieDetailsPage() {
   };
 
   const getBtn = () => {
-    if (!watchlistStatus) return { icon: <Plus className="w-5 h-5"/>, text: language==="bg"?"Добави":"Add to List", cls: "bg-surface/80 text-muted hover:text-text" };
+    if (!watchlistStatus) return { icon: <Plus className="w-5 h-5"/>, text: t.addToList, cls: "bg-surface/80 text-muted hover:text-text" };
     const map: Record<string, {icon: React.ReactNode; text: string; cls: string}> = {
-      completed: { icon: <Check className="w-5 h-5"/>, text: language==="bg"?"Изгледан":"Completed", cls: "bg-green-600 text-white" },
-      watching: { icon: <Play className="w-5 h-5"/>, text: language==="bg"?"Гледам":"Watching", cls: "bg-yellow-600 text-white" },
-      planned: { icon: <Bookmark className="w-5 h-5"/>, text: language==="bg"?"Планиран":"Planned", cls: "bg-blue-600 text-white" },
-      dropped: { icon: <X className="w-5 h-5"/>, text: language==="bg"?"Отказан":"Dropped", cls: "bg-red-600 text-white" },
+      completed: { icon: <Check className="w-5 h-5"/>, text: t.completedStatus, cls: "bg-green-600 text-white" },
+      watching:  { icon: <Play className="w-5 h-5"/>,  text: t.watchingStatus,  cls: "bg-yellow-600 text-white" },
+      planned:   { icon: <Bookmark className="w-5 h-5"/>, text: t.plannedStatus, cls: "bg-blue-600 text-white" },
+      dropped:   { icon: <X className="w-5 h-5"/>,     text: t.droppedStatus,  cls: "bg-red-600 text-white" },
     };
-    return map[watchlistStatus] || { icon: <Plus className="w-5 h-5"/>, text: "Add", cls: "bg-surface/80 text-muted" };
+    return map[watchlistStatus] || { icon: <Plus className="w-5 h-5"/>, text: t.addToList, cls: "bg-surface/80 text-muted" };
   };
   const btn = getBtn();
 
   if (loading) return <div className={`min-h-screen ${theme==="dark"?"bg-bg":"bg-bg"}`}><div className="animate-pulse"><div className={`h-[500px] ${theme==="dark"?"bg-border":"bg-gray-300"}`}/></div></div>;
-  if (error || !movie) return <div className={`min-h-screen flex items-center justify-center ${theme==="dark"?"bg-bg":"bg-bg"}`}><div className="text-center"><Film className="w-20 h-20 mx-auto mb-4 text-muted"/><p className="text-xl text-muted">{error||"Not found"}</p><button onClick={() => navigate(-1)} className="mt-4 px-6 py-2 bg-primary text-white rounded-lg font-medium">{language==="bg"?"Назад":"Back"}</button></div></div>;
+  if (error || !movie) return <div className={`min-h-screen flex items-center justify-center ${theme==="dark"?"bg-bg":"bg-bg"}`}><div className="text-center"><Film className="w-20 h-20 mx-auto mb-4 text-muted"/><p className="text-xl text-muted">{error||"Not found"}</p><button onClick={() => navigate(-1)} className="mt-4 px-6 py-2 bg-primary text-white rounded-lg font-medium">{t.back}</button></div></div>;
 
   const title = language==="bg" ? movie.title_bg||movie.title : movie.title;
   const summary = language==="bg" ? movie.summary_bg||movie.summary : movie.summary;
@@ -259,13 +253,13 @@ export default function MovieDetailsPage() {
                     <RatingBadge value={movie.average_rating || 0} scale={5} size="lg" />
                   ) : null}
                   <div>
-                    <p className="font-semibold text-sm text-primary">{language === "bg" ? "Общност" : "Community"}</p>
+                    <p className="font-semibold text-sm text-primary">{t.community}</p>
                     {(movie.review_count || 0) > 0 ? (
                       <p className="text-lg font-bold text-white">{(movie.average_rating || 0).toFixed(1)}<span className="text-sm text-muted">/5</span>
                         <span className="text-xs text-muted ml-1">({movie.review_count})</span>
                       </p>
                     ) : (
-                      <p className="text-sm text-muted">{language === "bg" ? "Бъди първи!" : "Be the first!"}</p>
+                      <p className="text-sm text-muted">{t.beFirstRating}</p>
                     )}
                   </div>
                 </div>
@@ -274,7 +268,7 @@ export default function MovieDetailsPage() {
                 {isAuthenticated && userRating > 0 && (
                   <div className="flex items-center gap-3">
                     <div className="flex flex-col items-center">
-                      <p className="font-semibold text-sm text-yellow-400 mb-1">{language === "bg" ? "Твоята оценка" : "Your Rating"}</p>
+                      <p className="font-semibold text-sm text-yellow-400 mb-1">{t.yourRating}</p>
                       <StarRating
                         rating={userRating}
                         size={28}
@@ -296,10 +290,10 @@ export default function MovieDetailsPage() {
                       {(['planned','watching','completed','dropped'] as const).map(s => (
                         <button key={s} onClick={() => addToWatchlist(s)} className={`w-full flex items-center gap-3 px-4 py-3 text-left transition-colors ${watchlistStatus===s ? (s==='completed'?"bg-green-500/20 text-green-400":s==='watching'?"bg-yellow-500/20 text-yellow-400":s==='planned'?"bg-blue-500/20 text-blue-400":"bg-red-500/20 text-red-400") : theme==="dark"?"text-muted hover:bg-border":"text-muted hover:bg-surface-hover"}`}>
                           {s==='planned'?<Bookmark className="w-4 h-4"/>:s==='watching'?<Play className="w-4 h-4"/>:s==='completed'?<Check className="w-4 h-4"/>:<X className="w-4 h-4"/>}
-                          {s==='planned'?(language==="bg"?"Планиран":"Planned"):s==='watching'?(language==="bg"?"Гледам":"Watching"):s==='completed'?(language==="bg"?"Изгледан":"Completed"):(language==="bg"?"Отказан":"Dropped")}
+                          {s==='planned'?t.plannedStatus:s==='watching'?t.watchingStatus:s==='completed'?t.completedStatus:t.droppedStatus}
                         </button>
                       ))}
-                      {watchlistStatus && <><div className={`border-t ${theme==="dark"?"border-border":"border-border"}`}/><button onClick={removeFromWatchlist} className="w-full flex items-center gap-3 px-4 py-3 text-left text-red-500 hover:bg-red-500/10"><X className="w-4 h-4"/>{language==="bg"?"Премахни":"Remove"}</button></>}
+                      {watchlistStatus && <><div className={`border-t ${theme==="dark"?"border-border":"border-border"}`}/><button onClick={removeFromWatchlist} className="w-full flex items-center gap-3 px-4 py-3 text-left text-red-500 hover:bg-red-500/10"><X className="w-4 h-4"/>{t.removeBtn}</button></>}
                     </div>
                   </>}
                 </div>
@@ -313,7 +307,7 @@ export default function MovieDetailsPage() {
                       ? 'bg-secondary text-white hover:bg-secondary-hover'
                       : 'bg-white/10 text-muted hover:text-text hover:bg-white/20'
                   }`}
-                  title={isFavorite ? (language === "bg" ? "Премахни от любими" : "Remove from favorites") : (language === "bg" ? "Добави в любими" : "Add to favorites")}
+                  title={isFavorite ? t.removeFromFavorites : t.addToFavorites}
                 >
                   {favoriteLoading ? (
                     <div className="w-5 h-5 border-2 border-current border-t-transparent rounded-full animate-spin"/>
@@ -328,15 +322,15 @@ export default function MovieDetailsPage() {
 
               {/* Overview */}
               <div className="mt-6">
-                <h3 className="text-xl font-semibold mb-2 text-white">{language==="bg"?"Резюме":"Overview"}</h3>
-                {summary ? <p className="text-gray-200 leading-relaxed max-w-3xl">{summary}</p> : <p className="text-muted italic">{language==="bg"?"Няма":"No overview"}</p>}
+                <h3 className="text-xl font-semibold mb-2 text-white">{t.overviewSection}</h3>
+                {summary ? <p className="text-gray-200 leading-relaxed max-w-3xl">{summary}</p> : <p className="text-muted italic">{t.noOverview}</p>}
               </div>
 
               {/* Director */}
               {director && (
                 <div className="mt-6 pt-6 border-t border-white/10">
                   <p className="font-semibold text-lg text-white">{director}</p>
-                  <p className="text-sm text-muted">{language==="bg"?"Режисьор":"Director"}</p>
+                  <p className="text-sm text-muted">{t.directorLabel}</p>
                 </div>
               )}
             </div>
@@ -349,7 +343,7 @@ export default function MovieDetailsPage() {
         <div className="max-w-7xl mx-auto px-4 md:px-8 py-10">
           <div className="flex flex-col lg:flex-row gap-10">
             <div className="flex-1 min-w-0 space-y-12">
-              <section><h2 className={`text-2xl font-bold mb-5 text-text`}>{language==="bg"?"Актьорски състав":"Top Billed Cast"}</h2><CastCarousel cast={movie.cast||[]} theme={theme} language={language}/></section>
+              <section><h2 className={`text-2xl font-bold mb-5 text-text`}>{t.topBilledCast}</h2><CastCarousel cast={movie.cast||[]} theme={theme} language={language}/></section>
               <VideosSection movie={movie} theme={theme} language={language}/>
 
               <ReviewsSection

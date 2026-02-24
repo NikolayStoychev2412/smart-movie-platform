@@ -368,7 +368,7 @@ class HybridRecommender:
             
             explanation = {
                 'reasons': [r['text'] for r in sorted_reasons[:3]],
-                'reasons_bg': [r['text_bg'] for r in sorted_reasons[:3] if 'text_bg' in r],
+                'reasons_bg': [r.get('text_bg') for r in sorted_reasons[:3]],  # aligned with reasons; None where frontend handles translation
                 'score_breakdown': {
                     **{k: round(v, 3) for k, v in data['scores'].items()},
                     'quality': round(quality_score, 3),
@@ -477,6 +477,18 @@ class HybridRecommender:
         
         return {movie_id: count for movie_id, count in counts}
     
+    # Genre IDs from registration that don't match the TMDB genre field directly.
+    # e.g. id="scifi" → TMDB stores "Science Fiction", not "scifi".
+    _GENRE_ID_TO_TMDB: Dict[str, str] = {
+        "scifi": "Science Fiction",
+        "sciencefiction": "Science Fiction",
+        "tvmovie": "TV Movie",
+    }
+
+    def _genre_search_term(self, genre_id: str) -> str:
+        """Return the TMDB-compatible search term for a stored genre ID."""
+        return self._GENRE_ID_TO_TMDB.get(genre_id.lower(), genre_id)
+
     def _get_genre_based_recommendations(
         self,
         db: Session,
@@ -492,10 +504,11 @@ class HybridRecommender:
         seen_ids = set()
         all_candidates = []
 
-        # Query each genre with full limit so later genres aren't starved
+        # Query each genre — resolve IDs like "scifi" → "Science Fiction" for TMDB genre field
         for genre in preferred_genres:
+            search_term = self._genre_search_term(genre)
             movies = db.query(Movie).filter(
-                Movie.genre.ilike(f"%{genre}%")
+                Movie.genre.ilike(f"%{search_term}%")
             ).order_by(Movie.average_rating.desc()).limit(limit).all()
 
             for movie in movies:
@@ -507,7 +520,11 @@ class HybridRecommender:
         results = []
         for movie in all_candidates:
             movie_genres = [g.strip().lower() for g in (movie.genre or '').split(',')]
-            matched = [g for g in preferred_genres if g.lower() in movie_genres]
+            # Resolve each preferred genre ID to its TMDB name before comparing
+            matched = [
+                g for g in preferred_genres
+                if self._genre_search_term(g).lower() in movie_genres
+            ]
 
             genre_match_score = len(matched) / len(preferred_genres)
             raw_rating = movie.average_rating or 0

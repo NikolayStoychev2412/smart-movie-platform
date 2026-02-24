@@ -3,6 +3,7 @@ import api from "../../../api/client";
 import type { WatchlistEntry, Movie } from "../../../types";
 import { Check } from "lucide-react";
 import MovieCarousel from "../components/MovieCarousel";
+import { translations } from "../../../i18n/translations";
 
 export default function CompletedSection({
   theme,
@@ -13,6 +14,7 @@ export default function CompletedSection({
   language: string;
   onCount: (n: number) => void;
 }) {
+  const t = translations[language as "bg" | "en"];
   const [completed, setCompleted] = useState<WatchlistEntry[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -40,8 +42,8 @@ export default function CompletedSection({
     <MovieCarousel
       movies={movies} theme={theme} language={language} loading={loading}
       emptyIcon={Check}
-      emptyText={language === "bg" ? "Няма завършени филми" : "No completed movies yet"}
-      emptyCta={{ label: language === "bg" ? "Разгледай филми" : "Browse Movies", to: "/browse" }}
+      emptyText={t.noCompleted}
+      emptyCta={{ label: t.browseMovies, to: "/browse" }}
     />
   );
 }

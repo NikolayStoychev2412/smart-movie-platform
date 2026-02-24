@@ -16,7 +16,7 @@ import type { ProfileTab, ProfileCounts } from "./types";
 
 export default function ProfilePage() {
   const navigate = useNavigate();
-  const { theme, language, user, isAuthenticated, setTheme, setLanguage } = useApp();
+  const { theme, language, user, isAuthenticated, setTheme, setLanguage, t } = useApp();
   const [activeTab, setActiveTab] = useState<ProfileTab>("overview");
   const [counts, setCounts] = useState<ProfileCounts>({ favorites: 0, completed: 0, watchlist: 0, watching: 0, reviews: 0 });
 
@@ -56,22 +56,22 @@ export default function ProfilePage() {
               <div className={`flex items-center gap-2 px-4 py-2.5 rounded-xl ${theme === "dark" ? "bg-white/5 border border-white/10" : "bg-white/10 border border-white/20"}`}>
                 <Heart className="w-4 h-4 text-secondary" />
                 <span className="text-white font-semibold text-lg">{counts.favorites}</span>
-                <span className="text-muted text-sm hidden sm:inline">{language === "bg" ? "Любими" : "Favorites"}</span>
+                <span className="text-muted text-sm hidden sm:inline">{t.favoritesLabel}</span>
               </div>
               <div className={`flex items-center gap-2 px-4 py-2.5 rounded-xl ${theme === "dark" ? "bg-white/5 border border-white/10" : "bg-white/10 border border-white/20"}`}>
                 <Check className="w-4 h-4 text-green-400" />
                 <span className="text-white font-semibold text-lg">{counts.completed}</span>
-                <span className="text-muted text-sm hidden sm:inline">{language === "bg" ? "Гледани" : "Completed"}</span>
+                <span className="text-muted text-sm hidden sm:inline">{t.completedLabel}</span>
               </div>
               <div className={`flex items-center gap-2 px-4 py-2.5 rounded-xl ${theme === "dark" ? "bg-white/5 border border-white/10" : "bg-white/10 border border-white/20"}`}>
                 <Bookmark className="w-4 h-4 text-blue-400" />
                 <span className="text-white font-semibold text-lg">{counts.watchlist}</span>
-                <span className="text-muted text-sm hidden sm:inline">{language === "bg" ? "За гледане" : "Watchlist"}</span>
+                <span className="text-muted text-sm hidden sm:inline">{t.toWatch}</span>
               </div>
               <div className={`flex items-center gap-2 px-4 py-2.5 rounded-xl ${theme === "dark" ? "bg-white/5 border border-white/10" : "bg-white/10 border border-white/20"}`}>
                 <MessageSquare className="w-4 h-4 text-purple-400" />
                 <span className="text-white font-semibold text-lg">{counts.reviews}</span>
-                <span className="text-muted text-sm hidden sm:inline">{language === "bg" ? "Ревюта" : "Reviews"}</span>
+                <span className="text-muted text-sm hidden sm:inline">{t.tabReviews}</span>
               </div>
             </div>
           </div>
@@ -85,7 +85,7 @@ export default function ProfilePage() {
               }`}
             >
               <Film className="w-4 h-4" />
-              {language === "bg" ? "Преглед" : "Overview"}
+              {t.overviewTab}
             </button>
             <button
               onClick={() => setActiveTab("reviews")}
@@ -94,7 +94,7 @@ export default function ProfilePage() {
               }`}
             >
               <MessageSquare className="w-4 h-4" />
-              {language === "bg" ? "Ревюта" : "Reviews"}
+              {t.tabReviews}
               {counts.reviews > 0 && (
                 <span className={`text-xs px-1.5 py-0.5 rounded-full ${activeTab === "reviews" ? "bg-white/20" : "bg-white/10"}`}>
                   {counts.reviews}
@@ -108,7 +108,7 @@ export default function ProfilePage() {
               }`}
             >
               <Settings className="w-4 h-4" />
-              {language === "bg" ? "Настройки" : "Settings"}
+              {t.settingsLabel}
             </button>
           </div>
         </div>
@@ -121,7 +121,7 @@ export default function ProfilePage() {
             <section>
               <SectionHeader
                 icon={TrendingUp} iconColor="bg-primary/10 text-primary"
-                label={language === "bg" ? "Табло" : "Dashboard"}
+                label={t.dashboard}
                 theme={theme}
               />
               <ProfileStatsSection theme={theme} language={language} />
@@ -132,9 +132,9 @@ export default function ProfilePage() {
             <section>
               <SectionHeader
                 icon={Heart} iconColor="bg-secondary/10 text-secondary"
-                label={language === "bg" ? "Любими филми" : "Favorite Movies"}
+                label={t.favoriteMovies}
                 count={counts.favorites}
-                viewAllTo="/browse" viewAllLabel={language === "bg" ? "Виж всички" : "View All"}
+                viewAllTo="/browse" viewAllLabel={t.viewAll}
                 theme={theme}
               />
               <FavoritesSection theme={theme} language={language} onCount={updateCount("favorites")} />
@@ -143,9 +143,9 @@ export default function ProfilePage() {
             <section>
               <SectionHeader
                 icon={Check} iconColor="bg-green-500/10 text-green-500"
-                label={language === "bg" ? "Изгледани филми" : "Completed Movies"}
+                label={t.completedMovies}
                 count={counts.completed}
-                viewAllTo="/watchlist" viewAllLabel={language === "bg" ? "Виж всички" : "View All"}
+                viewAllTo="/watchlist" viewAllLabel={t.viewAll}
                 theme={theme}
               />
               <CompletedSection theme={theme} language={language} onCount={updateCount("completed")} />
@@ -154,9 +154,9 @@ export default function ProfilePage() {
             <section>
               <SectionHeader
                 icon={Bookmark} iconColor="bg-blue-500/10 text-blue-500"
-                label={language === "bg" ? "За гледане" : "Watchlist"}
+                label={t.toWatch}
                 count={counts.watchlist}
-                viewAllTo="/watchlist" viewAllLabel={language === "bg" ? "Виж всички" : "View All"}
+                viewAllTo="/watchlist" viewAllLabel={t.viewAll}
                 theme={theme}
               />
               <WatchlistSection theme={theme} language={language} onCount={updateCount("watchlist")} />
@@ -173,10 +173,10 @@ export default function ProfilePage() {
                 </div>
                 <div>
                   <h2 className={`text-xl font-semibold text-text`}>
-                    {language === "bg" ? "Моите ревюта" : "My Reviews"}
+                    {t.myReviews}
                   </h2>
                   <p className={`text-sm text-muted`}>
-                    {language === "bg" ? "Всички ревюта, които си написал" : "All reviews you've written"}
+                    {t.allReviewsDesc}
                   </p>
                 </div>
               </div>

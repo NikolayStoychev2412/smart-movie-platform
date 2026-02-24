@@ -2,9 +2,11 @@ import { useState, useEffect } from "react";
 import api from "../../../api/client";
 import { Film, Clock, Star, Edit3, BarChart3, Sparkles, Calendar } from "lucide-react";
 import { GENRES, MOOD_LABELS } from "../../../constants/preferences";
+import { translations } from "../../../i18n/translations";
 import type { ProfileStats } from "../types";
 
 export default function ProfileStatsSection({ theme, language }: { theme: string; language: string }) {
+  const t = translations[language as "bg" | "en"];
   const [stats, setStats] = useState<ProfileStats | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -73,7 +75,7 @@ export default function ProfileStatsSection({ theme, language }: { theme: string
     {
       icon: Film,
       value: stats.total_completed,
-      label: language === "bg" ? "Изгледани филми" : "Movies Watched",
+      label: t.moviesWatched,
       borderColor: "border-l-blue-500",
       iconBg: theme === "dark" ? "bg-blue-500/10" : "bg-blue-50",
       iconColor: "text-blue-500",
@@ -81,8 +83,8 @@ export default function ProfileStatsSection({ theme, language }: { theme: string
     {
       icon: Clock,
       value: hoursWatched,
-      label: language === "bg" ? "Часове гледане" : "Hours Watched",
-      suffix: language === "bg" ? "ч" : "h",
+      label: t.hoursWatched,
+      suffix: t.hoursWatchedSuffix,
       borderColor: "border-l-purple-500",
       iconBg: theme === "dark" ? "bg-purple-500/10" : "bg-purple-50",
       iconColor: "text-purple-500",
@@ -90,7 +92,7 @@ export default function ProfileStatsSection({ theme, language }: { theme: string
     {
       icon: Star,
       value: stats.average_rating_given > 0 ? stats.average_rating_given : 0,
-      label: language === "bg" ? "Средна оценка" : "Avg Rating",
+      label: t.avgRating,
       isDecimal: true,
       borderColor: "border-l-yellow-500",
       iconBg: theme === "dark" ? "bg-yellow-500/10" : "bg-yellow-50",
@@ -99,7 +101,7 @@ export default function ProfileStatsSection({ theme, language }: { theme: string
     {
       icon: Edit3,
       value: stats.total_reviews,
-      label: language === "bg" ? "Ревюта" : "Reviews",
+      label: t.tabReviews,
       borderColor: "border-l-green-500",
       iconBg: theme === "dark" ? "bg-green-500/10" : "bg-green-50",
       iconColor: "text-green-500",
@@ -141,11 +143,11 @@ export default function ProfileStatsSection({ theme, language }: { theme: string
           <div className="flex items-center gap-2 mb-5">
             <BarChart3 className="w-5 h-5 text-yellow-500" />
             <h3 className={`text-lg font-semibold text-text`}>
-              {language === "bg" ? "Разпределение на оценки" : "Rating Distribution"}
+              {t.ratingDistribution}
             </h3>
             {totalRatings > 0 && (
               <span className={`text-xs px-2 py-0.5 rounded-full ml-auto ${theme === "dark" ? "bg-border text-muted" : "bg-gray-100 text-muted"}`}>
-                {totalRatings} {language === "bg" ? "общо" : "total"}
+                {totalRatings} {t.ofTotal}
               </span>
             )}
           </div>
@@ -153,7 +155,7 @@ export default function ProfileStatsSection({ theme, language }: { theme: string
           {totalRatings === 0 ? (
             <div className={`text-center py-8 text-muted`}>
               <BarChart3 className="w-10 h-10 mx-auto mb-2 opacity-50" />
-              <p className="text-sm">{language === "bg" ? "Все още няма оценки" : "No ratings yet"}</p>
+              <p className="text-sm">{t.noRatingsYet}</p>
             </div>
           ) : (
             <div className="space-y-3">
@@ -183,7 +185,7 @@ export default function ProfileStatsSection({ theme, language }: { theme: string
             <div className={`mt-5 pt-4 border-t border-border`}>
               <div className="flex items-center justify-between">
                 <span className={`text-sm text-muted`}>
-                  {language === "bg" ? "Средна оценка" : "Average rating"}
+                  {t.averageRating}
                 </span>
                 <div className="flex items-center gap-1.5">
                   <Star className="w-4 h-4 text-yellow-400 fill-yellow-400" />
@@ -202,14 +204,14 @@ export default function ProfileStatsSection({ theme, language }: { theme: string
           <div className="flex items-center gap-2 mb-5">
             <Sparkles className="w-5 h-5 text-primary" />
             <h3 className={`text-lg font-semibold text-text`}>
-              {language === "bg" ? "Топ жанрове" : "Top Genres"}
+              {t.topGenres}
             </h3>
           </div>
 
           {stats.top_genres.length === 0 ? (
             <div className={`text-center py-8 text-muted`}>
               <Sparkles className="w-10 h-10 mx-auto mb-2 opacity-50" />
-              <p className="text-sm">{language === "bg" ? "Няма данни за жанрове" : "No genre data yet"}</p>
+              <p className="text-sm">{t.noGenreData}</p>
             </div>
           ) : (
             <div className="space-y-4">
@@ -242,7 +244,7 @@ export default function ProfileStatsSection({ theme, language }: { theme: string
         <div className="flex items-center gap-2 mb-5">
           <Sparkles className="w-5 h-5 text-primary" />
           <h3 className={`text-lg font-semibold text-text`}>
-            {language === "bg" ? "Твоят вкус" : "Taste Insights"}
+            {t.tasteInsights}
           </h3>
         </div>
 
@@ -251,7 +253,7 @@ export default function ProfileStatsSection({ theme, language }: { theme: string
             <div className={`flex items-center gap-2 px-4 py-2.5 rounded-xl ${theme === "dark" ? "bg-secondary/10 border border-secondary/20" : "bg-secondary/5 border border-secondary/15"}`}>
               <div>
                 <p className={`text-xs text-muted`}>
-                  {language === "bg" ? "Настроение" : "Mood"}
+                  {t.moodStat}
                 </p>
                 <p className={`text-sm font-semibold text-text`}>
                   {language === "bg" ? moodInfo.bg : moodInfo.en}
@@ -265,7 +267,7 @@ export default function ProfileStatsSection({ theme, language }: { theme: string
               <Calendar className="w-4 h-4 text-primary" />
               <div>
                 <p className={`text-xs text-muted`}>
-                  {language === "bg" ? "Топ десетилетие" : "Top Decade"}
+                  {t.topDecade}
                 </p>
                 <p className={`text-sm font-semibold text-text`}>
                   {stats.top_decade}s
@@ -279,7 +281,7 @@ export default function ProfileStatsSection({ theme, language }: { theme: string
               <Calendar className="w-4 h-4 text-green-500" />
               <div>
                 <p className={`text-xs text-muted`}>
-                  {language === "bg" ? "Член от" : "Member Since"}
+                  {t.memberSince}
                 </p>
                 <p className={`text-sm font-semibold text-text`}>
                   {new Date(stats.member_since).toLocaleDateString(language === "bg" ? "bg-BG" : "en-US", { year: "numeric", month: "short" })}

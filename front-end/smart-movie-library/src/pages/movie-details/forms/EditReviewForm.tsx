@@ -3,6 +3,7 @@ import { X, Check, Loader2 } from "lucide-react";
 import api from "../../../api/client";
 import type { Review } from "../../../types";
 import StarRating from "../components/StarRating";
+import { translations } from "../../../i18n/translations";
 
 export default function EditReviewForm({
   review,
@@ -17,6 +18,7 @@ export default function EditReviewForm({
   onSave: (updatedReview: Review) => void;
   onCancel: () => void;
 }) {
+  const t = translations[language as "bg" | "en"];
   const [rating, setRating] = useState(review.rating || 0);
   const [comment, setComment] = useState(review.comment || '');
   const [submitting, setSubmitting] = useState(false);
@@ -25,11 +27,11 @@ export default function EditReviewForm({
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (rating === 0) {
-      setError(language === 'bg' ? 'Моля, изберете рейтинг' : 'Please select a rating');
+      setError(t.pleaseSelectRating);
       return;
     }
     if (comment.trim().length < 10) {
-      setError(language === 'bg' ? 'Моля, напишете поне 10 символа' : 'Please write at least 10 characters');
+      setError(t.pleaseWriteMin10);
       return;
     }
 
@@ -44,7 +46,7 @@ export default function EditReviewForm({
 
       onSave({ ...review, ...response.data, rating, comment: comment.trim() });
     } catch {
-      setError(language === 'bg' ? 'Грешка при запазване' : 'Failed to save changes');
+      setError(t.saveFailed);
     } finally {
       setSubmitting(false);
     }
@@ -54,7 +56,7 @@ export default function EditReviewForm({
     <form onSubmit={handleSubmit} className={`p-5 rounded-lg ${theme === 'dark' ? 'bg-surface-2' : 'bg-white border'}`}>
       <div className="flex items-center justify-between mb-4">
         <h3 className={`font-semibold text-text`}>
-          {language === 'bg' ? 'Редактиране на ревю' : 'Edit Review'}
+          {t.editReview}
         </h3>
         <button
           type="button"
@@ -68,7 +70,7 @@ export default function EditReviewForm({
       {/* Rating */}
       <div className="mb-4">
         <label className={`block text-sm mb-2 text-muted`}>
-          {language === 'bg' ? 'Вашата оценка' : 'Your Rating'}
+          {t.yourRatingLabel}
         </label>
         <StarRating rating={rating} onRate={setRating} size={32} />
       </div>
@@ -76,7 +78,7 @@ export default function EditReviewForm({
       {/* Comment */}
       <div className="mb-4">
         <label className={`block text-sm mb-2 text-muted`}>
-          {language === 'bg' ? 'Коментар' : 'Comment'}
+          {t.commentLabel}
         </label>
         <textarea
           value={comment}
@@ -110,7 +112,7 @@ export default function EditReviewForm({
               : 'bg-gray-100 text-muted hover:bg-gray-200'
           }`}
         >
-          {language === 'bg' ? 'Отказ' : 'Cancel'}
+          {t.cancel}
         </button>
         <button
           type="submit"
@@ -126,7 +128,7 @@ export default function EditReviewForm({
           ) : (
             <>
               <Check className="w-5 h-5" />
-              {language === 'bg' ? 'Запази' : 'Save'}
+              {t.save}
             </>
           )}
         </button>

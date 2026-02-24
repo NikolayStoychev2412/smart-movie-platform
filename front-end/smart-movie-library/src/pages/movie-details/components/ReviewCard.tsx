@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Star, ThumbsUp, ThumbsDown, Minus, User, Pencil, Trash2, Loader2 } from "lucide-react";
 import type { ReviewWithSentiment } from "../types";
+import { translations } from "../../../i18n/translations";
 
 export default function ReviewCard({
   review,
@@ -19,6 +20,7 @@ export default function ReviewCard({
 }) {
   const [expanded, setExpanded] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  const t = translations[language as "bg" | "en"];
   const content = review.comment || review.content || review.review_text || "";
   const isLong = content.length > 300;
   const isOwnReview = currentUserId && review.user_id === currentUserId;
@@ -35,7 +37,7 @@ export default function ReviewCard({
   };
 
   const handleDelete = async () => {
-    if (!window.confirm(language === 'bg' ? 'Сигурни ли сте, че искате да изтриете това ревю?' : 'Are you sure you want to delete this review?')) {
+    if (!window.confirm(t.deleteReviewConfirm)) {
       return;
     }
     setDeleting(true);
@@ -74,10 +76,10 @@ export default function ReviewCard({
               : 'text-gray-400'
           }`}>
             {recommendation === 'positive'
-              ? (language === 'bg' ? 'Препоръчва' : 'Recommended')
+              ? t.recommended
               : recommendation === 'negative'
-              ? (language === 'bg' ? 'Не препоръчва' : 'Not Recommended')
-              : (language === 'bg' ? 'Смесени чувства' : 'Mixed Feelings')}
+              ? t.notRecommended
+              : t.mixedFeelings}
           </p>
           <div className="flex items-center gap-2 mt-0.5">
             <div className="flex">
@@ -106,7 +108,7 @@ export default function ReviewCard({
               className={`p-2 rounded-lg transition-colors ${
                 theme === 'dark' ? 'hover:bg-white/10 text-muted hover:text-white' : 'hover:bg-gray-100 text-muted hover:text-text'
               }`}
-              title={language === 'bg' ? 'Редактирай' : 'Edit'}
+              title={t.editTooltip}
             >
               <Pencil className="w-4 h-4" />
             </button>
@@ -116,7 +118,7 @@ export default function ReviewCard({
               className={`p-2 rounded-lg transition-colors ${
                 theme === 'dark' ? 'hover:bg-red-500/20 text-muted hover:text-red-400' : 'hover:bg-red-50 text-muted hover:text-red-500'
               }`}
-              title={language === 'bg' ? 'Изтрий' : 'Delete'}
+              title={t.deleteTooltip}
             >
               {deleting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Trash2 className="w-4 h-4" />}
             </button>
@@ -135,10 +137,10 @@ export default function ReviewCard({
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-3 flex-wrap">
               <span className={`font-semibold text-text`}>
-                {review.author || review.user_name || (language === "bg" ? "Потребител" : "User")}
+                {review.author || review.user_name || t.userLabel}
                 {isOwnReview && (
                   <span className="ml-2 text-xs font-normal text-primary">
-                    ({language === 'bg' ? 'вашето ревю' : 'your review'})
+                    ({t.yourReviewLabel})
                   </span>
                 )}
               </span>
@@ -159,7 +161,7 @@ export default function ReviewCard({
                     onClick={() => setExpanded(!expanded)}
                     className="text-primary font-medium mt-3 hover:underline"
                   >
-                    {expanded ? (language === "bg" ? "По-малко" : "Less") : (language === "bg" ? "Повече" : "More")}
+                    {expanded ? t.collapseLabel : t.expandLabel}
                   </button>
                 )}
               </>

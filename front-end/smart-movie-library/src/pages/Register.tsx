@@ -13,20 +13,20 @@ type Step = "account" | "genres" | "mood";
 
 export default function Register() {
   const navigate = useNavigate();
-  const { theme, language, setUser } = useApp();
-  
+  const { theme, t, setUser } = useApp();
+
   const [currentStep, setCurrentStep] = useState<Step>("account");
-  
+
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
-  
+
   const [selectedGenres, setSelectedGenres] = useState<string[]>([]);
   const [selectedMood, setSelectedMood] = useState<string | null>(null);
-  
+
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -36,7 +36,7 @@ export default function Register() {
     lowercase: /[a-z]/.test(password),
     number: /[0-9]/.test(password),
   };
-  
+
   const passwordStrength = Object.values(passwordChecks).filter(Boolean).length;
   const passwordsMatch = password === confirmPassword && confirmPassword.length > 0;
 
@@ -48,15 +48,15 @@ export default function Register() {
   };
 
   const getStrengthLabel = () => {
-    if (passwordStrength <= 1) return language === "bg" ? "Слаба" : "Weak";
-    if (passwordStrength === 2) return language === "bg" ? "Средна" : "Fair";
-    if (passwordStrength === 3) return language === "bg" ? "Добра" : "Good";
-    return language === "bg" ? "Силна" : "Strong";
+    if (passwordStrength <= 1) return t.strengthWeak;
+    if (passwordStrength === 2) return t.strengthFair;
+    if (passwordStrength === 3) return t.strengthGood;
+    return t.strengthStrong;
   };
 
   const toggleGenre = (genreId: string) => {
-    setSelectedGenres(prev => 
-      prev.includes(genreId) 
+    setSelectedGenres(prev =>
+      prev.includes(genreId)
         ? prev.filter(g => g !== genreId)
         : prev.length < 5 ? [...prev, genreId] : prev
     );
@@ -64,15 +64,15 @@ export default function Register() {
 
   const validateAccountStep = (): boolean => {
     if (!name || !email || !password || !confirmPassword) {
-      setError(language === "bg" ? "Моля, попълнете всички полета" : "Please fill in all fields");
+      setError(t.fillAllFields);
       return false;
     }
     if (password !== confirmPassword) {
-      setError(language === "bg" ? "Паролите не съвпадат" : "Passwords do not match");
+      setError(t.passwordsDoNotMatch);
       return false;
     }
     if (passwordStrength < 3) {
-      setError(language === "bg" ? "Моля, използвайте по-силна парола" : "Please use a stronger password");
+      setError(t.useStrongerPassword);
       return false;
     }
     return true;
@@ -86,7 +86,7 @@ export default function Register() {
       }
     } else if (currentStep === "genres") {
       if (selectedGenres.length < 1) {
-        setError(language === "bg" ? "Изберете поне 1 жанр" : "Select at least 1 genre");
+        setError(t.selectAtLeastOneGenre);
         return;
       }
       setCurrentStep("mood");
@@ -104,10 +104,8 @@ export default function Register() {
     setLoading(true);
 
     try {
-      // 1. Register the user
       const { user, token } = await authApi.register(name, email, password);
-      
-      // 2. Save preferences to backend
+
       if (token) {
         try {
           await api.post('/users/preferences', {
@@ -116,22 +114,22 @@ export default function Register() {
           }, {
             headers: { Authorization: `Bearer ${token}` }
           });
-        } catch {
+        } catch (err) {
+          console.error("Failed to set user preferences:", err);
         }
       }
-      
-      // 3. Store user with preferences locally
+
       const userWithPrefs = {
         ...user,
         preferred_genres: selectedGenres,
         preferred_mood: selectedMood,
       };
-      
+
       localStorage.setItem("user", JSON.stringify(userWithPrefs));
       setUser(userWithPrefs);
       navigate("/", { replace: true });
     } catch (err) {
-      setError(err instanceof Error ? err.message : language === "bg" ? "Грешка при регистрация" : "Registration failed");
+      setError(err instanceof Error ? err.message : t.registrationFailed);
     } finally {
       setLoading(false);
     }
@@ -147,7 +145,7 @@ export default function Register() {
       setUser(user);
       navigate("/", { replace: true });
     } catch (err) {
-      setError(err instanceof Error ? err.message : language === "bg" ? "Грешка при регистрация" : "Registration failed");
+      setError(err instanceof Error ? err.message : t.registrationFailed);
     } finally {
       setLoading(false);
     }
@@ -159,23 +157,23 @@ export default function Register() {
   return (
     <div className={`min-h-screen flex items-center justify-center px-4 py-12 bg-bg`}>
       <div className={`w-full max-w-md ${theme === "dark" ? "bg-surface-2" : "bg-white shadow-md border border-border"} rounded-2xl p-8`}>
-        
+
         {/* Progress Bar */}
         <div className="mb-8">
           <div className="flex items-center justify-between mb-2">
             {steps.map((step, idx) => (
               <div key={step} className="flex items-center">
                 <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-medium transition-colors ${
-                  idx <= currentStepIndex 
-                    ? "bg-primary text-white" 
+                  idx <= currentStepIndex
+                    ? "bg-primary text-white"
                     : theme === "dark" ? "bg-gray-700 text-muted" : "bg-gray-200 text-muted"
                 }`}>
                   {idx < currentStepIndex ? <Check className="w-4 h-4" /> : idx + 1}
                 </div>
                 {idx < steps.length - 1 && (
                   <div className={`w-16 sm:w-24 h-1 mx-2 rounded ${
-                    idx < currentStepIndex 
-                      ? "bg-primary" 
+                    idx < currentStepIndex
+                      ? "bg-primary"
                       : theme === "dark" ? "bg-gray-700" : "bg-gray-200"
                   }`} />
                 )}
@@ -183,9 +181,9 @@ export default function Register() {
             ))}
           </div>
           <p className={`text-center text-sm text-muted`}>
-            {currentStep === "account" && (language === "bg" ? "Създай акаунт" : "Create Account")}
-            {currentStep === "genres" && (language === "bg" ? "Избери жанрове" : "Pick Genres")}
-            {currentStep === "mood" && (language === "bg" ? "Какво настроение?" : "What's your mood?")}
+            {currentStep === "account" && t.stepCreateAccount}
+            {currentStep === "genres" && t.stepPickGenres}
+            {currentStep === "mood" && t.stepWhatsYourMood}
           </p>
         </div>
 
@@ -205,13 +203,13 @@ export default function Register() {
                 <UserPlus className="w-8 h-8 text-white" />
               </div>
               <h1 className={`text-2xl font-bold text-text`}>
-                {language === "bg" ? "Създайте акаунт" : "Create Account"}
+                {t.createAccount}
               </h1>
             </div>
 
             <div>
               <label className={`block text-sm font-medium mb-2 text-muted`}>
-                {language === "bg" ? "Име" : "Name"}
+                {t.nameLabel}
               </label>
               <div className="relative">
                 <User className={`absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-muted`} />
@@ -225,7 +223,7 @@ export default function Register() {
 
             <div>
               <label className={`block text-sm font-medium mb-2 text-muted`}>
-                {language === "bg" ? "Имейл" : "Email"}
+                {t.emailLabel}
               </label>
               <div className="relative">
                 <Mail className={`absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-muted`} />
@@ -239,7 +237,7 @@ export default function Register() {
 
             <div>
               <label className={`block text-sm font-medium mb-2 text-muted`}>
-                {language === "bg" ? "Парола" : "Password"}
+                {t.passwordLabel}
               </label>
               <div className="relative">
                 <Lock className={`absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-muted`} />
@@ -258,7 +256,7 @@ export default function Register() {
                 <div className="mt-3">
                   <div className="flex items-center justify-between mb-2">
                     <span className={`text-xs text-muted`}>
-                      {language === "bg" ? "Сила:" : "Strength:"}
+                      {t.passwordStrengthLabel}
                     </span>
                     <span className={`text-xs font-medium ${
                       passwordStrength <= 1 ? "text-red-500" : passwordStrength === 2 ? "text-yellow-500" : passwordStrength === 3 ? "text-blue-500" : "text-green-500"
@@ -273,7 +271,7 @@ export default function Register() {
 
             <div>
               <label className={`block text-sm font-medium mb-2 text-muted`}>
-                {language === "bg" ? "Потвърдете паролата" : "Confirm Password"}
+                {t.confirmPasswordLabel}
               </label>
               <div className="relative">
                 <Lock className={`absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-muted`} />
@@ -291,14 +289,14 @@ export default function Register() {
 
             <button onClick={handleNextStep}
               className="w-full py-3 px-4 bg-primary text-white font-semibold rounded-lg hover:bg-primary/90 transition-colors flex items-center justify-center gap-2">
-              {language === "bg" ? "Продължи" : "Continue"}
+              {t.continueBtn}
               <ChevronRight className="w-5 h-5" />
             </button>
 
             <p className={`text-center text-sm text-muted`}>
-              {language === "bg" ? "Вече имате акаунт?" : "Already have an account?"}{" "}
+              {t.alreadyHaveAccount}{" "}
               <Link to="/login" className="text-primary font-semibold hover:underline">
-                {language === "bg" ? "Вход" : "Sign In"}
+                {t.signIn}
               </Link>
             </p>
           </div>
@@ -312,10 +310,10 @@ export default function Register() {
                 <Film className="w-8 h-8 text-white" />
               </div>
               <h1 className={`text-2xl font-bold text-text`}>
-                {language === "bg" ? "Какво обичаш да гледаш?" : "What do you like to watch?"}
+                {t.whatDoYouLikeToWatch}
               </h1>
               <p className={`mt-2 text-sm text-muted`}>
-                {language === "bg" ? "Избери до 5 любими жанра" : "Pick up to 5 favorite genres"}
+                {t.pickUpToFiveGenres}
               </p>
             </div>
 
@@ -335,11 +333,9 @@ export default function Register() {
                     }`}
                   >
                     <span className={`font-medium text-sm ${
-                      isSelected
-                        ? "text-primary"
-                        : "text-text"
+                      isSelected ? "text-primary" : "text-text"
                     }`}>
-                      {genre.emoji} {language === "bg" ? genre.bg : genre.en}
+                      {genre.emoji} {genre.bg}
                     </span>
                   </button>
                 );
@@ -347,7 +343,7 @@ export default function Register() {
             </div>
 
             <div className={`text-center text-sm text-muted`}>
-              {selectedGenres.length}/5 {language === "bg" ? "избрани" : "selected"}
+              {selectedGenres.length}/5 {t.selectedCount}
             </div>
 
             <div className="flex gap-3">
@@ -356,18 +352,18 @@ export default function Register() {
                   theme === "dark" ? "bg-border text-white hover:bg-border" : "bg-surface-2 text-muted hover:bg-gray-200"
                 }`}>
                 <ChevronLeft className="w-5 h-5" />
-                {language === "bg" ? "Назад" : "Back"}
+                {t.back}
               </button>
               <button onClick={handleNextStep}
                 className="flex-1 py-3 px-4 bg-primary text-white font-semibold rounded-lg hover:bg-primary/90 transition-colors flex items-center justify-center gap-2">
-                {language === "bg" ? "Продължи" : "Continue"}
+                {t.continueBtn}
                 <ChevronRight className="w-5 h-5" />
               </button>
             </div>
 
             <button onClick={handleSkipPreferences}
               className={`w-full py-2 text-sm text-muted hover:text-muted`}>
-              {language === "bg" ? "Пропусни за сега" : "Skip for now"}
+              {t.skipForNow}
             </button>
           </div>
         )}
@@ -380,10 +376,10 @@ export default function Register() {
                 <Sparkles className="w-8 h-8 text-white" />
               </div>
               <h1 className={`text-2xl font-bold text-text`}>
-                {language === "bg" ? "Какво настроение предпочиташ?" : "What mood do you prefer?"}
+                {t.whatMoodDoYouPrefer}
               </h1>
               <p className={`mt-2 text-sm text-muted`}>
-                {language === "bg" ? "Избери какво обикновено търсиш" : "Pick what you usually look for"}
+                {t.pickWhatYouLookFor}
               </p>
             </div>
 
@@ -397,8 +393,8 @@ export default function Register() {
                     className={`w-full p-4 rounded-xl border-2 transition-all text-left ${
                       isSelected
                         ? "border-primary bg-primary/10"
-                        : theme === "dark" 
-                          ? "border-border hover:border-gray-600 bg-border" 
+                        : theme === "dark"
+                          ? "border-border hover:border-gray-600 bg-border"
                           : "border-border hover:border-border bg-bg"
                     }`}
                   >
@@ -408,7 +404,7 @@ export default function Register() {
                           ? "text-primary"
                           : "text-text"
                       }`}>
-                        {language === "bg" ? mood.bg : mood.en}
+                        {mood.bg}
                       </span>
                       {isSelected && <Check className="w-5 h-5 text-primary ml-auto" />}
                     </div>
@@ -423,7 +419,7 @@ export default function Register() {
                   theme === "dark" ? "bg-border text-white hover:bg-border" : "bg-surface-2 text-muted hover:bg-gray-200"
                 }`}>
                 <ChevronLeft className="w-5 h-5" />
-                {language === "bg" ? "Назад" : "Back"}
+                {t.back}
               </button>
               <button onClick={handleSubmit} disabled={loading}
                 className="flex-1 py-3 px-4 bg-gradient-to-r from-primary to-secondary text-white font-semibold rounded-lg hover:opacity-90 transition-all flex items-center justify-center gap-2 disabled:opacity-50">
@@ -432,7 +428,7 @@ export default function Register() {
                 ) : (
                   <>
                     <Sparkles className="w-5 h-5" />
-                    {language === "bg" ? "Започни!" : "Let's Go!"}
+                    {t.letsGo}
                   </>
                 )}
               </button>
@@ -440,7 +436,7 @@ export default function Register() {
 
             <button onClick={handleSkipPreferences}
               className={`w-full py-2 text-sm text-muted hover:text-muted`}>
-              {language === "bg" ? "Пропусни за сега" : "Skip for now"}
+              {t.skipForNow}
             </button>
           </div>
         )}
