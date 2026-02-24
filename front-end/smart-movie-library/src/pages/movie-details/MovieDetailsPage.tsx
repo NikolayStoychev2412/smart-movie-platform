@@ -6,7 +6,7 @@ import api from "../../api/client";
 import type { Movie, Review, WatchStatus, ApiError } from "../../types";
 import {
   Calendar, Clock, Bookmark, Film, Play, Check, Plus, X,
-  Loader2, Heart,
+  Heart,
 } from "lucide-react";
 import RatingBadge from "../../components/RatingBadge";
 import StarRating from "./components/StarRating";

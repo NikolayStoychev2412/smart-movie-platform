@@ -1,7 +1,5 @@
 import type { Movie, Review, SearchResult } from "../types";
-
-// Use VITE_API_URL directly - FastAPI routes are at root level (/movies, not /api/movies)
-const API_BASE = import.meta.env.VITE_API_URL || "http://localhost:8000";
+import { API_BASE } from "./client";
 
 async function fetchJson<T>(url: string, options?: RequestInit): Promise<T> {
   const token = localStorage.getItem("token");
@@ -51,7 +49,7 @@ export const moviesApi = {
       if (response.length > 0 && response[0].movie) {
         return response.map(r => r.movie);
       }
-      return response;
+      return [];
     } catch {
       return [];
     }

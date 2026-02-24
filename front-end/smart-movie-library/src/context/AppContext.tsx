@@ -2,6 +2,7 @@
 // src/context/AppContext.tsx
 import { createContext, useContext, useState, useEffect, type ReactNode } from 'react';
 import { translations, type Language, type Translations } from '../i18n/translations';
+import { API_BASE } from '../api/client';
 
 type Theme = 'light' | 'dark';
 
@@ -118,7 +119,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     }
 
     // Token exists — verify it's still valid with the backend
-    fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:8000'}/auth/me`, {
+    fetch(`${API_BASE}/auth/me`, {
       headers: { Authorization: `Bearer ${token}` },
     })
       .then(res => {

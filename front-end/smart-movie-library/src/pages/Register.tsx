@@ -337,7 +337,7 @@ export default function Register() {
                     <span className={`font-medium text-sm ${
                       isSelected
                         ? "text-primary"
-                        : text-text
+                        : "text-text"
                     }`}>
                       {genre.emoji} {language === "bg" ? genre.bg : genre.en}
                     </span>
@@ -406,7 +406,7 @@ export default function Register() {
                       <span className={`font-medium ${
                         isSelected
                           ? "text-primary"
-                          : text-text
+                          : "text-text"
                       }`}>
                         {language === "bg" ? mood.bg : mood.en}
                       </span>

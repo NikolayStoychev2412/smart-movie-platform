@@ -1,8 +1,5 @@
 import type { User } from "../types";
-
-// Use VITE_API_URL directly - it should be the full base URL (e.g., http://localhost:8000)
-// Don't append /api since FastAPI routes are at root level (/auth/login, not /api/auth/login)
-const API_BASE = import.meta.env.VITE_API_URL || "http://localhost:8000";
+import { API_BASE } from "./client";
 
 interface TokenResponse {
   access_token: string;
@@ -30,8 +27,7 @@ export const authApi = {
         headers: { "Content-Type": "application/x-www-form-urlencoded" },
         body: formBody,
       });
-    } catch (networkError) {
-      console.error("[Auth] Network error:", networkError);
+    } catch {
       throw new Error("Cannot connect to server");
     }
 
@@ -77,8 +73,7 @@ export const authApi = {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ name, email, password }),
       });
-    } catch (networkError) {
-      console.error("[Auth] Network error:", networkError);
+    } catch {
       throw new Error("Cannot connect to server");
     }
 
