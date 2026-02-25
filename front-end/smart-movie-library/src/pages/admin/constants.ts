@@ -14,7 +14,7 @@ export const rowHover = (t: string) =>
   t === "dark" ? "hover:bg-border/40" : "hover:bg-bg";
 
 export const theadRow = (t: string) =>
-  t === "dark" ? "bg-border/80" : "bg-bg";
+  t === "dark" ? "bg-surface-2" : "bg-surface-2";
 
 export const tableBox = (t: string) =>
   `rounded-xl overflow-hidden border ${t === "dark" ? "border-border/50" : "border-border"}`;

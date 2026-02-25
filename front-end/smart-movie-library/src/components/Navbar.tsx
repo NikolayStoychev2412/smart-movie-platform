@@ -375,14 +375,14 @@ export default function Navbar() {
                 {userMenuOpen && (
                   <>
                     <div className="fixed inset-0 z-10" onClick={() => setUserMenuOpen(false)} />
-                    <div className={`absolute right-0 top-full mt-2 w-48 rounded-lg shadow-lg border z-20 overflow-hidden ${
+                    <div className={`absolute right-0 top-full mt-2 w-64 rounded-lg shadow-lg border z-20 overflow-hidden ${
                       theme === "dark" ? "bg-surface-2 border-border" : "bg-white border-border"
                     }`}>
                       <div className={`px-4 py-3 border-b border-border`}>
                         <p className={`font-medium text-text`}>
                           {user.name}
                         </p>
-                        <p className={`text-sm text-muted`}>
+                        <p className={`text-sm text-muted truncate`} title={user.email}>
                           {user.email}
                         </p>
                       </div>

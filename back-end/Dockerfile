@@ -11,6 +11,8 @@ WORKDIR /app
 
 # Install Python dependencies first (separate layer — cached until requirements.txt changes)
 COPY requirements.txt .
+# Install CPU-only torch first to avoid pulling the massive CUDA build (~2 GB)
+RUN pip install --no-cache-dir torch --index-url https://download.pytorch.org/whl/cpu
 RUN pip install --no-cache-dir -r requirements.txt
 
 # Copy application source
