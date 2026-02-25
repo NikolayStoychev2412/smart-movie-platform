@@ -19,6 +19,7 @@ class Settings(BaseSettings):
 
     # CORS
     CORS_ORIGINS: str = "https://movie-maze-cyan.vercel.app,http://localhost:5173,http://127.0.0.1:5173"
+    CORS_ORIGIN_REGEX: str = r"^https://movie-maze-.*\.vercel\.app$"
 
     # AI / Embeddings
     ST_MODEL_NAME: str = "paraphrase-multilingual-MiniLM-L12-v2"
