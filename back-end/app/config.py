@@ -18,7 +18,7 @@ class Settings(BaseSettings):
     DEFAULT_LANGUAGE: str = "bg"
 
     # CORS
-    CORS_ORIGINS: str = "http://localhost:5173,http://localhost:3000,http://127.0.0.1:5173,http://127.0.0.1:3000"
+    CORS_ORIGINS: str = "https://movie-maze-cyan.vercel.app,http://localhost:5173,http://127.0.0.1:5173"
 
     # AI / Embeddings
     ST_MODEL_NAME: str = "paraphrase-multilingual-MiniLM-L12-v2"
@@ -38,7 +38,7 @@ class Settings(BaseSettings):
 
     @property
     def cors_origins_list(self) -> List[str]:
-        return [origin.strip() for origin in self.CORS_ORIGINS.split(",")]
+        return [o.strip() for o in self.CORS_ORIGINS.split(",") if o.strip()]
 
     model_config = SettingsConfigDict(
         env_file=".env",

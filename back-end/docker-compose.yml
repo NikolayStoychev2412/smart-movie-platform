@@ -24,6 +24,7 @@ services:
     environment:
       # Override DATABASE_URL to point at the postgres container
       DATABASE_URL: postgresql+asyncpg://moviemaze:${POSTGRES_PASSWORD}@postgres:5432/moviemaze
+      CORS_ORIGINS: "https://movie-maze-cyan.vercel.app,http://localhost:5173,http://127.0.0.1:5173"
     volumes:
       - ./data:/app/data      # FAISS index persists across rebuilds
       - ./logs:/app/logs
