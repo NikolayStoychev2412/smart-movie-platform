@@ -2,7 +2,7 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session, selectinload
-from app.schemas.review import ReviewCreate, ReviewOut
+from app.schemas.review import ReviewCreate, ReviewUpdate, ReviewOut
 from app.models.movie import Movie
 from app.models.review import Review
 from app.models.user import User
@@ -119,8 +119,8 @@ def get_my_reviews(
 
 @router.put("/{review_id}", response_model=ReviewOut)
 def update_review(
-    review_id: int, 
-    updated_review: ReviewCreate,
+    review_id: int,
+    updated_review: ReviewUpdate,
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):

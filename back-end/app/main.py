@@ -9,7 +9,6 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import ORJSONResponse
 
 from app.database import init_db, close_db
-from app.routers import favorites
 
 
 # Configure logging
@@ -106,7 +105,7 @@ app.add_middleware(
 )
 
 
-from app.routers import movies, auth, watchlist, reviews, users, admin
+from app.routers import movies, auth, watchlist, reviews, users, admin,favorites
 from app.routers.ai_router import router as ai_router
 
 app.include_router(movies.router)

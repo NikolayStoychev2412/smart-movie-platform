@@ -53,10 +53,17 @@ export const authApi = {
     }
 
     const token = tokenData.access_token;
-    localStorage.setItem("token", token);
 
-    const user = await authApi.getMe();
-    
+    // Store token only after confirming the server accepts it
+    localStorage.setItem("token", token);
+    let user: User;
+    try {
+      user = await authApi.getMe();
+    } catch (err) {
+      localStorage.removeItem("token");
+      throw err;
+    }
+
     return { token, user };
   },
 

@@ -210,11 +210,8 @@ class HybridRecommender:
         mood_genres = MOOD_GENRE_MAP.get(preferred_mood, []) if preferred_mood else []
         has_genres = len(preferred_genres) > 0
 
-        logger.debug(f"User {user_id}: activity={activity_count}, genres={preferred_genres}, mood={preferred_mood}, favorites={len(user_favorites)}")
-        
         # Calculate dynamic weights
         weights = self._calculate_dynamic_weights(activity_count, has_genres)
-        logger.debug(f"Dynamic weights: {weights}")
         
         # Get the top movie for "Because you watched X" explanations
         top_user_movie = self._get_top_user_movie(db, user_reviews, user_watchlist, user_favorites)

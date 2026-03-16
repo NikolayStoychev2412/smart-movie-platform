@@ -18,17 +18,13 @@
 .DS_Store
 Thumbs.db
 
-# =============================================================================
-# Python (back-end)
-# =============================================================================
+# Python
 __pycache__/
 *.py[cod]
 *$py.class
 *.so
 *.egg-info/
 *.egg
-
-# Virtual Environment
 venv/
 env/
 ENV/
@@ -50,25 +46,15 @@ logs/
 .coverage
 htmlcov/
 
-# =============================================================================
-# Node / React (front-end)
-# =============================================================================
+# Node / React
 node_modules/
 package-lock.json
 dist/
 build/
-
-# Vite
 *.local
-
-# TypeScript
 *.tsbuildinfo
-
-# Cache
 .cache/
 .eslintcache
-
-# Logs
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*

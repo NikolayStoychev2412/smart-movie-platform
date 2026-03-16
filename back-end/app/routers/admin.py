@@ -24,7 +24,7 @@ from app.utils.audit import log_security_event, SecurityEventType
 router = APIRouter(prefix="/admin", tags=["Admin"])
 
 
-class MovieUpdate(BaseModel):
+class AdminMovieUpdate(BaseModel):
     title: Optional[str] = None
     title_bg: Optional[str] = None
     summary: Optional[str] = None
@@ -351,7 +351,7 @@ def admin_list_movies(
 @router.put("/movies/{movie_id}")
 def admin_update_movie(
     movie_id: int,
-    data: MovieUpdate,
+    data: AdminMovieUpdate,
     request: Request,
     current_user: User = Depends(require_admin),
     db: Session = Depends(get_db),

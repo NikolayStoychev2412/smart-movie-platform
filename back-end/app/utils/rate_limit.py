@@ -21,7 +21,10 @@ async def rate_limit_dependency(
         _rate_limit_store[client_ip] = [
             t for t in _rate_limit_store[client_ip] if t > window_start
         ]
-    else:
+        if not _rate_limit_store[client_ip]:
+            del _rate_limit_store[client_ip]
+
+    if client_ip not in _rate_limit_store:
         _rate_limit_store[client_ip] = []
     
     if len(_rate_limit_store[client_ip]) >= max_requests:

@@ -5,8 +5,8 @@ from pydantic import BaseModel
 from typing import List, Optional
 from app.database import get_db
 from app.models.user import User
-from app.schemas.user import UserCreate, UserOut
-from app.utils.security import hash_password, get_current_user, require_admin
+from app.schemas.user import UserCreate, UserOut, PasswordChangeIn
+from app.utils.security import hash_password, verify_password, get_current_user, require_admin
 from sqlalchemy.exc import IntegrityError
 from app.utils.audit import log_security_event, SecurityEventType
 
@@ -45,7 +45,8 @@ def create_user(
         name=user.name,
         email=user.email,
         hashed_password=hashed_password,
-        is_admin=False
+        is_admin=False,
+        preferred_genres=user.preferred_genres,
     )
     
     try:
@@ -134,11 +135,6 @@ def delete_user(
     return {"detail": f"User {user_id} deleted successfully"}
 
 
-class PasswordChangeIn(BaseModel):
-    current_password: str
-    new_password: str
-
-
 @router.put("/me/password")
 def change_password(
     data: PasswordChangeIn,
@@ -147,21 +143,13 @@ def change_password(
     db: Session = Depends(get_db)
 ):
     """Change the current user's password."""
-    from app.utils.security import verify_password, hash_password as _hash
-
     if not verify_password(data.current_password, current_user.hashed_password):
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Current password is incorrect"
         )
 
-    if len(data.new_password) < 8:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="New password must be at least 8 characters"
-        )
-
-    current_user.hashed_password = _hash(data.new_password)
+    current_user.hashed_password = hash_password(data.new_password)
     db.commit()
 
     log_security_event(

@@ -107,15 +107,11 @@ class ReviewAnalyzer:
                 label = r["label"].upper()
                 scores[label] = r["score"]
 
-        logger.debug(f"Model output scores: {scores}")
-
         # Handle different model output formats
         if "1 STAR" in scores or "5 STARS" in scores:
             # Star rating model (nlptown multilingual) - supports Bulgarian
             star_scores = {i: scores.get(f"{i} STAR" if i == 1 else f"{i} STARS", 0) for i in range(1, 6)}
             weighted_avg = sum(i * star_scores[i] for i in range(1, 6))
-
-            logger.debug(f"Star model weighted average: {weighted_avg}")
 
             if weighted_avg >= 3.5:
                 sentiment = SentimentLabel.POSITIVE
@@ -131,8 +127,6 @@ class ReviewAnalyzer:
             pos_score = scores.get("POSITIVE", 0)
             neg_score = scores.get("NEGATIVE", 0)
             neu_score = scores.get("NEUTRAL", 0)
-
-            logger.debug(f"Sentiment scores - POS: {pos_score}, NEG: {neg_score}, NEU: {neu_score}")
 
             if neu_score > pos_score and neu_score > neg_score:
                 sentiment = SentimentLabel.NEUTRAL
@@ -150,8 +144,6 @@ class ReviewAnalyzer:
             best_label = max(mapped, key=mapped.get)
             sentiment = SentimentLabel(best_label.lower()) if best_label.lower() in [e.value for e in SentimentLabel] else SentimentLabel.NEUTRAL
             confidence = mapped[best_label]
-
-        logger.debug(f"Result: {sentiment.value} with confidence {confidence}")
 
         # Extract keywords
         keywords = self._extract_keywords(text)

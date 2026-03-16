@@ -52,7 +52,7 @@ export default function ReviewsTab() {
         try {
           await api.delete(`/admin/reviews/${reviewId}`);
           setReviews(prev => prev.filter(r => r.id !== reviewId));
-          setTotal(t => t - 1);
+          setTotal(prev => prev - 1);
         } catch (err) {
           setErrorMsg((err as ApiError).response?.data?.detail || "Failed to delete review");
         }

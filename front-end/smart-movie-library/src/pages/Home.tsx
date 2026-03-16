@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { useApp } from "../context/AppContext";
 import { moviesApi } from "../api/movies";
 import api from "../api/client";
-import type { Movie } from "../types";
+import type { Movie, Recommendation } from "../types";
 import { translateGenre } from "../constants/preferences";
 import type { Language } from "../i18n/translations";
 import {
@@ -51,23 +51,6 @@ const getTimeDecay = (releaseDate: string | null | undefined): number => {
   return 0.1;                         // 10+ years: almost filtered out
 };
 
-interface Recommendation {
-  movie: Movie;
-  score: number;
-  explanation: {
-    reasons?: string[];
-    reasons_bg?: string[];
-    score_breakdown?: Record<string, number>;
-    based_on?: string[];
-    based_on_bg?: string[];  // Bulgarian titles for based_on movies
-    similar_to?: string;
-    similar_to_bg?: string;  // Bulgarian title for similar_to movie
-    genre?: string;
-    mood?: string;
-    reason?: string;
-    matched_genres?: string[];  // structured genre IDs — translated by frontend
-  };
-}
 
 interface UserState {
   isLoggedIn: boolean;

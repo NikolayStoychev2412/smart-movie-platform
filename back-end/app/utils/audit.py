@@ -12,7 +12,7 @@ the tail of the file so it's fast even with thousands of entries.
 import json
 import logging
 import os
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Dict, Any, Optional, List
 from enum import Enum
 from pathlib import Path
@@ -74,7 +74,7 @@ def log_security_event(
         success: Whether the action succeeded
     """
     log_entry = {
-        "timestamp": datetime.utcnow().isoformat() + "Z",
+        "timestamp": datetime.now(timezone.utc).isoformat(),
         "event_type": event_type.value,
         "user_id": user_id,
         "user_email": user_email,

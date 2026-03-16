@@ -1,39 +1,18 @@
 # app/routers/auth.py
 from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordRequestForm
-from sqlalchemy.orm import Session # type: ignore
-from pydantic import BaseModel, EmailStr
+from sqlalchemy.orm import Session
 from app.database import get_db
 from app.models.user import User
+from app.schemas.user import UserCreate, UserOut
+from app.schemas.auth import TokenResponse
 from app.utils.security import verify_password, create_access_token, hash_password, get_current_user
 from app.utils.rate_limit import login_rate_limit
 
 router = APIRouter(prefix="/auth", tags=["Auth"])
 
 
-class UserCreate(BaseModel):
-    name: str
-    email: EmailStr
-    password: str
-    preferred_genres: list[str] = []
-
-
-class UserResponse(BaseModel):
-    id: int
-    name: str
-    email: str
-    is_admin: bool
-
-    class Config:
-        from_attributes = True
-
-
-class TokenResponse(BaseModel):
-    access_token: str
-    token_type: str
-
-
-@router.post("/register", response_model=UserResponse, status_code=status.HTTP_201_CREATED)
+@router.post("/register", response_model=UserOut, status_code=status.HTTP_201_CREATED)
 def register(user_data: UserCreate, db: Session = Depends(get_db)):
     """Register a new user"""
     existing_user = db.query(User).filter(User.email == user_data.email).first()
@@ -42,7 +21,7 @@ def register(user_data: UserCreate, db: Session = Depends(get_db)):
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Email already registered"
         )
-    
+
     new_user = User(
         name=user_data.name,
         email=user_data.email,
@@ -50,11 +29,11 @@ def register(user_data: UserCreate, db: Session = Depends(get_db)):
         is_admin=False,
         preferred_genres=user_data.preferred_genres,
     )
-    
+
     db.add(new_user)
     db.commit()
     db.refresh(new_user)
-    
+
     return new_user
 
 
@@ -66,7 +45,7 @@ def login(
 ):
     """Login and get access token"""
     user = db.query(User).filter(User.email == form_data.username).first()
-    
+
     if not user or not verify_password(form_data.password, user.hashed_password):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
@@ -84,7 +63,7 @@ def login(
     return {"access_token": access_token, "token_type": "bearer"}
 
 
-@router.get("/me", response_model=UserResponse)
+@router.get("/me", response_model=UserOut)
 def get_me(current_user: User = Depends(get_current_user)):
     """Get current logged in user"""
     return current_user

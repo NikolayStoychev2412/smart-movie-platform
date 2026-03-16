@@ -77,7 +77,7 @@ export default function MoviesTab() {
         try {
           await api.delete(`/admin/movies/${movieId}`);
           setMovies(prev => prev.filter(m => m.id !== movieId));
-          setTotal(t => t - 1);
+          setTotal(prev => prev - 1);
         } catch (err) {
           setErrorMsg((err as ApiError).response?.data?.detail || "Failed to delete movie");
         }

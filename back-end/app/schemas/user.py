@@ -1,65 +1,69 @@
 # app/schemas/user.py
-from pydantic import BaseModel, EmailStr, Field, validator
+from pydantic import BaseModel, EmailStr, Field, field_validator
 from typing import Optional, List
 from datetime import datetime
 import re
 
 
+DISPOSABLE_DOMAINS = {
+    'mailinator.com', '10minutemail.com', 'guerrillamail.com',
+    'tempmail.com', 'throwaway.email', 'fakeinbox.com'
+}
+
+WEAK_PASSWORDS = {
+    'password', '12345678', 'qwerty', 'abc123', 'password1',
+    'password123', 'admin123'
+}
+
+
+def _validate_password(v: str) -> str:
+    if len(v) < 8:
+        raise ValueError('Password must be at least 8 characters long')
+    if not re.search(r'[A-Z]', v):
+        raise ValueError('Password must contain at least one uppercase letter')
+    if not re.search(r'[a-z]', v):
+        raise ValueError('Password must contain at least one lowercase letter')
+    if not re.search(r'\d', v):
+        raise ValueError('Password must contain at least one digit')
+    if not re.search(r'[!@#$%^&*(),.?":{}|<>]', v):
+        raise ValueError('Password must contain at least one special character (!@#$%^&*...)')
+    if v.lower() in WEAK_PASSWORDS:
+        raise ValueError('Password is too common. Please choose a stronger password')
+    return v
+
+
 class UserBase(BaseModel):
     name: str = Field(..., min_length=1, max_length=100)
     email: EmailStr
-    
-    @validator('email')
-    def validate_email_domain(cls, v):
-        """Validate email and block disposable domains"""
-        # Normalize to lowercase
+
+    @field_validator('email')
+    @classmethod
+    def validate_email_domain(cls, v: str) -> str:
         v = v.lower()
-        
-        # Block known disposable email domains
-        disposable_domains = [
-            'mailinator.com', '10minutemail.com', 'guerrillamail.com',
-            'tempmail.com', 'throwaway.email', 'fakeinbox.com'
-        ]
-        
         domain = v.split('@')[1] if '@' in v else ''
-        
-        if domain in disposable_domains:
+        if domain in DISPOSABLE_DOMAINS:
             raise ValueError('Disposable email addresses are not allowed')
-        
         return v
 
 
 class UserCreate(UserBase):
     password: str = Field(..., min_length=8, max_length=100)
-    
-    @validator('password')
-    def validate_password_strength(cls, v):
-        """Enforce strong password policy"""
-        if len(v) < 8:
-            raise ValueError('Password must be at least 8 characters long')
-        
-        if not re.search(r'[A-Z]', v):
-            raise ValueError('Password must contain at least one uppercase letter')
-        
-        if not re.search(r'[a-z]', v):
-            raise ValueError('Password must contain at least one lowercase letter')
-        
-        if not re.search(r'\d', v):
-            raise ValueError('Password must contain at least one digit')
-        
-        if not re.search(r'[!@#$%^&*(),.?":{}|<>]', v):
-            raise ValueError('Password must contain at least one special character (!@#$%^&*...)')
-        
-        # Check for common weak passwords
-        weak_passwords = [
-            'password', '12345678', 'qwerty', 'abc123', 'password1',
-            'Password1', 'Password123', 'Admin123'
-        ]
-        
-        if v.lower() in [wp.lower() for wp in weak_passwords]:
-            raise ValueError('Password is too common. Please choose a stronger password')
-        
-        return v
+    preferred_genres: List[str] = []
+
+    @field_validator('password')
+    @classmethod
+    def validate_password_strength(cls, v: str) -> str:
+        return _validate_password(v)
+
+
+class PasswordChangeIn(BaseModel):
+    current_password: str
+    new_password: str = Field(..., min_length=8, max_length=100)
+
+    @field_validator('new_password')
+    @classmethod
+    def validate_new_password(cls, v: str) -> str:
+        return _validate_password(v)
 
 
 class UserOut(UserBase):

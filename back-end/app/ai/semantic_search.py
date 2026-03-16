@@ -46,12 +46,8 @@ class SemanticSearch:
         Returns:
             List of (Movie, similarity_score, snippet) tuples
         """
-        logger.debug(f"Search query: '{query}'")
-        
         # Expand short queries with synonyms (helps with single-word searches)
         expanded_query = self._expand_query(query)
-        if expanded_query != query:
-            logger.debug(f"Expanded: '{query}' -> '{expanded_query}'")
         
         # Generate query embedding
         query_vector = get_embedding(expanded_query)
@@ -61,7 +57,6 @@ class SemanticSearch:
         if filters:
             filter_movie_ids = self._apply_filters(db, filters)
             if filter_movie_ids is not None and len(filter_movie_ids) == 0:
-                logger.debug(f"No movies match filters: {filters}")
                 return []
         
         # Search with extra candidates for filtering
@@ -74,21 +69,14 @@ class SemanticSearch:
             filter_ids=filter_movie_ids
         )
         
-        logger.debug(f"Vector search returned {len(search_results)} candidates")
-        
         if not search_results:
             logger.warning(f"No results for query: '{query}'")
             return []
-        
-        # Log score distribution
-        scores = [score for _, score in search_results]
-        logger.debug(f"   Scores: min={min(scores):.3f}, max={max(scores):.3f}, avg={sum(scores)/len(scores):.3f}")
         
         # Adaptive threshold if not specified
         if min_score <= 0.0 and search_results:
             top_score = search_results[0][1]
             min_score = max(0.15, top_score * 0.5)
-            logger.debug(f"   Adaptive threshold: {min_score:.3f}")
         
         # Fetch movies and create results
         results = []
@@ -114,7 +102,6 @@ class SemanticSearch:
             if len(results) >= top_k:
                 break
         
-        logger.debug(f"Returning {len(results)} results")
         return results
     
     def _expand_query(self, query: str) -> str:
@@ -178,7 +165,6 @@ class SemanticSearch:
         results = query.all()
         movie_ids = [row[0] for row in results] if results else []
         
-        logger.debug(f"Filters {filters} matched {len(movie_ids)} movies")
         return movie_ids if movie_ids else ([] if filters else None)
     
     def _generate_snippet(self, summary: str, query: str, max_length: int = 150) -> str:
@@ -248,7 +234,6 @@ class SemanticSearch:
         mood_lower = mood.lower()
         query = mood_queries.get(mood_lower, f"{mood} feeling emotional atmosphere")
         
-        logger.debug(f"Mood search: '{mood}' -> '{query}'")
         
         return self.search(db, query, top_k, min_score=0.0)
 

@@ -204,3 +204,76 @@ class TestConstants:
 
     def test_thresholds_ordered(self):
         assert MIN_ACTIVITY_FOR_BEHAVIOR < FULL_BEHAVIOR_THRESHOLD
+
+
+# ===========================================================================
+# _genre_search_term  (pure function — maps frontend genre IDs to TMDB names)
+# ===========================================================================
+
+class TestGenreSearchTerm:
+    def setup_method(self):
+        self.rec = _make_recommender()
+
+    def test_scifi_maps_to_science_fiction(self):
+        assert self.rec._genre_search_term("scifi") == "Science Fiction"
+
+    def test_sciencefiction_alias_also_maps(self):
+        assert self.rec._genre_search_term("sciencefiction") == "Science Fiction"
+
+    def test_tvmovie_maps_to_tv_movie(self):
+        assert self.rec._genre_search_term("tvmovie") == "TV Movie"
+
+    def test_unknown_genre_passes_through_unchanged(self):
+        # Unknown IDs are returned as-is (caller's original casing preserved)
+        assert self.rec._genre_search_term("Action") == "Action"
+        assert self.rec._genre_search_term("drama") == "drama"
+
+    def test_lookup_is_case_insensitive(self):
+        # "Scifi" and "SCIFI" should both resolve to "Science Fiction"
+        assert self.rec._genre_search_term("Scifi") == "Science Fiction"
+        assert self.rec._genre_search_term("SCIFI") == "Science Fiction"
+
+
+# ===========================================================================
+# _build_user_vector_with_states  (core preference-vector construction)
+# ===========================================================================
+
+class TestBuildUserVector:
+    def setup_method(self):
+        self.rec = _make_recommender()
+
+    def test_returns_none_when_no_vectors_in_store(self):
+        """If no movie has a stored embedding, no preference vector can be built."""
+        self.rec.vector_store.get_vector = MagicMock(return_value=None)
+        reviews = [make_review(movie_id=1, rating=5.0)]
+        result = self.rec._build_user_vector_with_states(None, reviews, [], [])
+        assert result is None
+
+    def test_dropped_movie_pushes_preference_away(self):
+        """A dropped watchlist entry should flip the movie vector, so the final
+        preference vector points in the *opposite* direction to a completed entry."""
+        movie_vec = [1.0, 0.0, 0.0, 0.0]
+        self.rec.vector_store.get_vector = MagicMock(return_value=movie_vec)
+
+        review = make_review(movie_id=1, rating=4.0)
+
+        completed_entry = [make_watchlist_entry(movie_id=1, status=WatchStatus.COMPLETED)]
+        dropped_entry = [make_watchlist_entry(movie_id=1, status=WatchStatus.DROPPED)]
+
+        vec_completed = self.rec._build_user_vector_with_states(
+            None, [review], completed_entry, []
+        )
+        vec_dropped = self.rec._build_user_vector_with_states(
+            None, [review], dropped_entry, []
+        )
+
+        assert vec_completed is not None
+        assert vec_dropped is not None
+
+        # Dot product < 0 means the vectors point in opposite directions.
+        # COMPLETED → aligns with movie; DROPPED → opposite (push-away signal).
+        dot = sum(a * b for a, b in zip(vec_completed, vec_dropped))
+        assert dot < 0, (
+            "Dropped status should negate the movie vector so the preference "
+            "vector points away from that movie's direction."
+        )

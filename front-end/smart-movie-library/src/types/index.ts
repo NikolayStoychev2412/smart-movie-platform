@@ -139,7 +139,7 @@ export interface WatchlistEntry {
   user_id: number;
   movie_id: number;
   status: WatchStatus;
-  added_at: string;
+  created_at: string;
   updated_at?: string;
   movie?: Movie;
 }
@@ -159,6 +159,7 @@ export interface RecommendationExplanation {
   mood?: string;
   reason?: string;
   weights_used?: Record<string, number>;
+  matched_genres?: string[];
 }
 
 export interface Recommendation {

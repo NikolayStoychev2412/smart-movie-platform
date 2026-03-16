@@ -34,16 +34,3 @@ class WatchlistOut(BaseModel):
     
     class Config:
         from_attributes = True
-
-
-class WatchlistWithMovie(BaseModel):
-    """Watchlist entry with movie details"""
-    id: int
-    movie_id: int
-    status: WatchStatusEnum
-    created_at: datetime
-    updated_at: datetime
-    movie: dict  # Will contain MovieOut data
-    
-    class Config:
-        from_attributes = True
