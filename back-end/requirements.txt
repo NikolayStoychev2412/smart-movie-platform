@@ -1,39 +1,63 @@
-# Core
+# =========================
+# Основен backend (FastAPI)
+# =========================
 fastapi>=0.109.0
 uvicorn[standard]>=0.27.0
 sqlalchemy>=2.0.0
 pydantic>=2.0.0
 pydantic-settings>=2.0.0
-email-validator>=2.0.0
+
+# =========================
+# Конфигурация и .env
+# =========================
 python-dotenv>=1.0.0
+
+# =========================
+# Работа с форми / upload
+# =========================
 python-multipart
 
-# Database (PostgreSQL)
-psycopg2-binary>=2.9.0
-asyncpg>=0.29.0
-
-# Auth & Security
-python-jose[cryptography]
-passlib[bcrypt]
-argon2-cffi
-bleach
-
-# AI / ML
-sentence-transformers
-faiss-cpu
-transformers
-torch
-numpy>=1.24.0
-
-# Serialization
+# =========================
+# Бърза JSON сериализация
+# =========================
 orjson>=3.9.0
 
-# HTTP (for scripts)
-requests
+# =========================
+# База данни (PostgreSQL)
+# =========================
+psycopg2-binary>=2.9.0   # синхронен драйвер
+asyncpg>=0.29.0          # асинхронен драйвер (за SQLAlchemy async)
 
-# Testing
+# =========================
+# Аутентикация и сигурност
+# =========================
+python-jose[cryptography]  # JWT токени
+passlib[bcrypt]            # хеширане на пароли
+argon2-cffi                # по-сигурен алгоритъм за пароли
+email-validator>=2.0.0     # валидиране на email (Pydantic)
+
+# =========================
+# AI / Machine Learning
+# =========================
+sentence-transformers      # embeddings (multilingual модел)
+faiss-cpu                 # векторно търсене (similarity search)
+transformers              # NLP модели (sentiment анализ)
+torch                     # backend за моделите
+numpy>=1.24.0             # числови операции
+
+# =========================
+# Помощни библиотеки
+# =========================
+requests                  # HTTP заявки (TMDB API)
+bleach                    # почистване на текст (XSS защита)
+
+# =========================
+# Тестване
+# =========================
 pytest>=8.0.0
 pytest-asyncio>=0.23.0
 
-# Production
+# =========================
+# Production сървър
+# =========================
 gunicorn>=21.0.0
