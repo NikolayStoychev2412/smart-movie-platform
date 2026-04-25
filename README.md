@@ -87,9 +87,11 @@ MovieMaze е уеб приложение за управление на филм
 
 ## Стартиране на проекта (локално)
 
-### Back-end
+### Back-end и Front-end
 
 ```bash
+### Back-end
+
 cd back-end
 python -m venv fast-api-env
 fast-api-env\Scripts\activate   # Windows
